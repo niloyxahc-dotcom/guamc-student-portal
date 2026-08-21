@@ -16,6 +16,8 @@ def init_db():
                             roll_no=row['Roll'],
                             reg_no=row.get('Reg_No', ''),
                             session=row.get('Session', ''),
+                            batch=row.get('Batch', '37th'),
+                            course_type=row.get('Course', 'BUMS'),
                             name=row['Name'],
                             email=row['Email'],
                             phone=row.get('Phone', ''),
@@ -24,7 +26,7 @@ def init_db():
                         )
                         db.session.add(student)
                 db.session.commit()
-                print("Database initialized and students imported successfully!")
+                print("Database initialized and all batches classified successfully!")
         except Exception as e:
             print(f"Error importing data: {e}")
 
