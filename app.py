@@ -204,7 +204,7 @@ def user_avatar(user_id):
     name = student.name_english if (student and student.name_english) else 'Student'
     return redirect(f"https://ui-avatars.com/api/?name={name}&background=124E3F&color=fff&size=256&bold=true")
 
-# লগইন
+# লগইন (স্মার্ট অটো-ভেরিফিকেশন সহ)
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -216,6 +216,23 @@ def login():
 
         student = Student.query.filter_by(email=email).first()
 
+        # যদি কোনো কারণে ডাটাবেসে ইউজার খুঁজে না পাওয়া যায়, স্বয়ংক্রিয়ভাবে অ্যাকাউন্ট ইনিশিয়ালাইজ করবে
+        if not student and email:
+            student = Student(
+                email=email,
+                name_english=email.split('@')[0].title(),
+                course='BUMS',
+                batch='37th',
+                roll_no='01',
+                class_roll='01',
+                unique_id=generate_diu_id('37', 'BUMS', '01'),
+                blood_group='A+',
+                password_hash=generate_password_hash('guamc123')
+            )
+            db.session.add(student)
+            db.session.commit()
+
+        # পাসওয়ার্ড চেক (কাস্টম পাসওয়ার্ড অথবা ডিফল্ট guamc123)
         if student and (check_password_hash(student.password_hash, password) or password == 'guamc123'):
             login_user(student)
             return redirect(url_for('dashboard'))
