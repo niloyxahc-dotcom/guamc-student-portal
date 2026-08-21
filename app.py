@@ -5,13 +5,12 @@ from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
+app.config['SECRET_KEY'] = 'guamc-final-prod-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_v7.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -33,11 +32,12 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# গুগল ড্রাইভ ছবির সঠিক থাম্বনেইল ডিরেক্ট লিংক কনভার্টার
 def format_drive_image_url(url):
     if not url:
         return ""
     url = str(url).strip()
-    if "drive.google.com" in url:
+    if "drive.google.com" in url or "google.com" in url:
         file_id = ""
         id_match = re.search(r'id=([a-zA-Z0-9_-]+)', url)
         if id_match:
@@ -47,7 +47,8 @@ def format_drive_image_url(url):
             if d_match:
                 file_id = d_match.group(1)
         if file_id:
-            return f"https://lh3.googleusercontent.com/d/{file_id}"
+            # সবচেয়ে নির্ভরযোগ্য ড্রাইভ ইমেজ এম্বেড লিংক
+            return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return url
 
 OFFICIAL_STUDENTS = {
@@ -141,9 +142,11 @@ with app.app_context():
                     student.gender = clean_r.get('gender', '')
                     student.date_of_birth = clean_r.get('date_of_birth', '')
                     
+                    # ছবি সরাসরি ফরম্যাট করে জোরপূর্বক আপডেট
                     raw_photo = clean_r.get('photo', '')
-                    if not student.photo or 'drive.google.com' in student.photo:
-                        student.photo = format_drive_image_url(raw_photo)
+                    formatted_photo = format_drive_image_url(raw_photo)
+                    if formatted_photo:
+                        student.photo = formatted_photo
 
                     student.unique_id = generate_diu_id('37', official_course, official_roll)
                     student.password_hash = generate_password_hash('guamc123')
@@ -259,11 +262,6 @@ def dashboard():
             {"name": "4. Advia Mufreda (Materia Medica)", "items": "10/10 Completed", "att": "90%"}
         ]
     return render_template('dashboard.html', subjects=subjects)
-
-@app.route('/academic')
-@login_required
-def academic():
-    return redirect(url_for('dashboard'))
 
 @app.route('/logout')
 @login_required
