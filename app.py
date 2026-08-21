@@ -9,11 +9,11 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
+app.config['SECRET_KEY'] = 'guamc-master-portal-2026-secure'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-# নতুন ডাটাবেস ভার্সন যাতে সরাসরি CSV ক্লাস রোল থেকে রিফ্রেশ হয়
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_official_final_v6.db')
+# সম্পূর্ণ ফ্রেশ ও এরর-মুক্ত ডাটাবেস
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_v7_clean.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -30,7 +30,10 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Student.query.get(int(user_id))
+    try:
+        return Student.query.get(int(user_id))
+    except Exception:
+        return None
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -75,11 +78,12 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
 
+# সার্ভার স্টার্টআপে CSV থেকে ডাটাবেস সিঙ্ক
 with app.app_context():
-    db.create_all()
-    csv_path = os.path.join(basedir, 'students.csv')
-    if os.path.exists(csv_path):
-        try:
+    try:
+        db.create_all()
+        csv_path = os.path.join(basedir, 'students.csv')
+        if os.path.exists(csv_path):
             with open(csv_path, mode='r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 for r in reader:
@@ -107,7 +111,7 @@ with app.app_context():
                             continue
                         k_l = str(k).lower().strip()
                         
-                        # ক্লাস রোল সরাসরি CSV কলাম থেকে
+                        # ক্লাস রোল
                         if 'class roll' in k_l or k_l == 'roll' or 'class_roll' in k_l:
                             digits = re.sub(r'\D', '', str(v).strip())
                             if digits:
@@ -168,13 +172,14 @@ with app.app_context():
                     if found_img:
                         student.photo = found_img
 
-                    # ডায়নামিক আইডি তৈরি (যেমন: BUMS রোল ১৪ -> 37114, BAMS রোল ০৫ -> 37205)
+                    # ডায়নামিক ইউনিক আইডি
                     student.unique_id = generate_diu_id('37', raw_course, student.roll_no)
-                    student.password_hash = generate_password_hash('guamc123')
+                    if not student.password_hash:
+                        student.password_hash = generate_password_hash('guamc123')
                 
                 db.session.commit()
-        except Exception as e:
-            print("CSV Startup Sync:", e)
+    except Exception as e:
+        print("Startup Init Error:", e)
 
 # ফটো প্রক্সি
 @app.route('/avatar/<int:user_id>')
@@ -204,7 +209,7 @@ def user_avatar(user_id):
     name = student.name_english if (student and student.name_english) else 'Student'
     return redirect(f"https://ui-avatars.com/api/?name={name}&background=124E3F&color=fff&size=256&bold=true")
 
-# লগইন (স্মার্ট অটো-ভেরিফিকেশন সহ)
+# লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -216,32 +221,18 @@ def login():
 
         student = Student.query.filter_by(email=email).first()
 
-        # যদি কোনো কারণে ডাটাবেসে ইউজার খুঁজে না পাওয়া যায়, স্বয়ংক্রিয়ভাবে অ্যাকাউন্ট ইনিশিয়ালাইজ করবে
-        if not student and email:
-            student = Student(
-                email=email,
-                name_english=email.split('@')[0].title(),
-                course='BUMS',
-                batch='37th',
-                roll_no='01',
-                class_roll='01',
-                unique_id=generate_diu_id('37', 'BUMS', '01'),
-                blood_group='A+',
-                password_hash=generate_password_hash('guamc123')
-            )
-            db.session.add(student)
-            db.session.commit()
-
-        # পাসওয়ার্ড চেক (কাস্টম পাসওয়ার্ড অথবা ডিফল্ট guamc123)
-        if student and (check_password_hash(student.password_hash, password) or password == 'guamc123'):
-            login_user(student)
-            return redirect(url_for('dashboard'))
+        if student:
+            if check_password_hash(student.password_hash, password) or password == 'guamc123':
+                login_user(student)
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Incorrect password! Default password is: guamc123', 'danger')
         else:
-            flash('Invalid email or password!', 'danger')
+            flash('Email not found in registered 37th batch list!', 'warning')
             
     return render_template('login.html')
 
-# ড্যাশবোর্ড (ইউনানী ও আয়ুর্বেদিকের ভেরিফায়েড সাবজেক্ট রুটিন)
+# ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
