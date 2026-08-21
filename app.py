@@ -12,7 +12,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v9.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v10.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -34,7 +34,6 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# ড্রাইভার ফাইল আইডি এক্সট্র্যাক্ট
 def extract_drive_id(val):
     if not val:
         return ""
@@ -50,12 +49,10 @@ def extract_drive_id(val):
         return m3.group(1)
     return ""
 
-# মোবাইল নম্বর ক্লিন ও স্ট্যান্ডার্ড ১১ ডিজিট (01XXXXXXXXX) ফরম্যাটিং
 def format_bd_phone(raw_val):
     if not raw_val:
         return ""
     val = str(raw_val).strip()
-    # যদি সাইন্টিফিক নোটেশনে থাকে (যেমন 1.82E+09)
     if 'E+' in val or 'e+' in val:
         try:
             val = str(int(float(val)))
@@ -99,6 +96,7 @@ OFFICIAL_STUDENTS = {
 
     # --- BAMS ---
     "SUBAIIA": {"roll": "01", "course": "BAMS", "name": "MST. SUBAIIA YEASMIN"},
+    "JAKIA": {"roll": "01", "course": "BAMS", "name": "MST. SUBAIIA YEASMIN (JAKIA)"},
     "ARPAN": {"roll": "02", "course": "BAMS", "name": "ARPAN CHANDRA ROY"},
     "ISRAT JAHAN": {"roll": "03", "course": "BAMS", "name": "ISRAT JAHAN"},
     "ABU RASHIED": {"roll": "04", "course": "BAMS", "name": "MD. ABU RASHIED JAMADAR"},
@@ -121,8 +119,10 @@ def resolve_official_data(name_str, email_str, default_course='BUMS'):
     combined = f"{name_str} {email_str}".upper()
     for key, data in OFFICIAL_STUDENTS.items():
         if key in combined:
-            return data["roll"], data["course"], data["name"]
-    return "01", default_course, (name_str or email_str.split('@')[0].title())
+            # যদি CSV ফাইলে নাম থাকে তবে সেটিকেই প্রাধান্য দেবে
+            final_name = name_str if (name_str and len(name_str) > 3) else data["name"]
+            return data["roll"], data["course"], final_name
+    return "01", default_course, (name_str if (name_str and len(name_str) > 3) else email_str.split('@')[0].title())
 
 def generate_diu_id(batch, course, roll_two_digit):
     course_str = str(course).upper()
@@ -137,9 +137,6 @@ with app.app_context():
             with open(csv_path, mode='r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 for r in reader:
-                    # কলাম হেডার নরম্যালাইজ
-                    clean_r = {re.sub(r'[^a-zA-Z0-9]', '', str(k).lower()): str(v).strip() for k, v in r.items() if k}
-                    
                     # ইমেইল খোঁজা
                     em = ""
                     for k, v in r.items():
@@ -154,44 +151,57 @@ with app.app_context():
                         student = Student(email=em)
                         db.session.add(student)
 
-                    raw_name = clean_r.get('nameenglish', '') or clean_r.get('name', '') or em.split('@')[0]
-                    raw_course = clean_r.get('course', 'BUMS')
+                    # নাম খোঁজা (English name, Full Name, Student Name)
+                    raw_name = ""
+                    raw_bangla_name = ""
+                    for k, v in r.items():
+                        if not k or not v:
+                            continue
+                        k_l = str(k).lower()
+                        if 'bangla' in k_l:
+                            raw_bangla_name = str(v).strip()
+                        elif ('name' in k_l or 'নাম' in k_l) and not raw_name:
+                            raw_name = str(v).strip()
+
+                    # কোর্স খোঁজা
+                    raw_course = 'BUMS'
+                    for k, v in r.items():
+                        if k and 'course' in str(k).lower() and v:
+                            raw_course = str(v).strip().upper()
+
                     official_roll, official_course, official_name = resolve_official_data(raw_name, em, raw_course)
 
                     student.name_english = official_name
-                    student.name_bangla = clean_r.get('namebangla', '')
+                    student.name_bangla = raw_bangla_name
                     student.course = official_course
                     student.batch = '37th'
                     student.roll_no = official_roll
                     student.class_roll = official_roll
-                    student.registration_no = clean_r.get('registrationno', '') or clean_r.get('registrationserialno', '')
-                    
-                    # কন্টাক্ট নম্বর স্ক্যান
-                    st_contact = clean_r.get('contactnumber', '') or clean_r.get('mobilenumber', '')
-                    student.contact_number = format_bd_phone(st_contact)
 
-                    # ইমার্জেন্সি / অভিভাবকের কন্টাক্ট নম্বর নিখুঁত স্ক্যান
+                    # কন্টাক্ট নম্বর স্ক্যান
+                    st_contact = ""
                     em_contact = ""
                     for k, v in r.items():
                         if not k or not v:
                             continue
-                        k_low = str(k).lower()
-                        # Emergency Medical Contact, Local Guardian Contact, Father Contact
-                        if ('emergency' in k_low or 'guardian' in k_low or 'father' in k_low) and ('contact' in k_low or 'number' in k_low or 'phone' in k_low):
-                            formatted = format_bd_phone(v)
-                            if formatted and len(formatted) >= 10:
-                                em_contact = formatted
-                                break
+                        k_l = str(k).lower()
+                        if ('emergency' in k_l or 'guardian' in k_l or 'father' in k_l) and ('contact' in k_l or 'number' in k_l or 'phone' in k_l):
+                            em_contact = format_bd_phone(v)
+                        elif ('contact' in k_l or 'mobile' in k_l or 'phone' in k_l) and not st_contact:
+                            st_contact = format_bd_phone(v)
+
+                    student.contact_number = st_contact
                     student.emergency_medical_contact = em_contact
 
-                    student.blood_group = clean_r.get('bloodgroup', 'A+')
-                    student.gender = clean_r.get('gender', '')
-                    student.date_of_birth = clean_r.get('dateofbirth', '')
-                    
-                    # ফটো কলাম স্ক্যান
+                    # ব্লাড গ্রুপ খোঁজা
+                    for k, v in r.items():
+                        if k and 'blood' in str(k).lower() and v:
+                            student.blood_group = str(v).strip()
+
+                    # ছবি খোঁজা
                     found_img = ""
                     for col_k, col_v in r.items():
-                        if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower()):
+                        if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower() or 'picture' in str(col_k).lower()):
                             found_img = str(col_v).strip()
                             break
                     if found_img:
@@ -204,7 +214,7 @@ with app.app_context():
         except Exception as e:
             print("CSV Startup Sync:", e)
 
-# ফটো প্রক্সি রাউট
+# ফটো প্রক্সি
 @app.route('/avatar/<int:user_id>')
 def user_avatar(user_id):
     student = Student.query.get(user_id)
@@ -268,28 +278,28 @@ def login():
             
     return render_template('login.html')
 
-# স্টুডেন্ট ড্যাশবোর্ড
+# ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
     course = (current_user.course or 'BUMS').upper()
     if 'BAMS' in course:
         subjects = [
-            {"name": "1. Rachana Sharir (Anatomy)", "items": "8/10", "att": "87%"},
-            {"name": "2. Kriya Sharir (Physiology)", "items": "9/10", "att": "86%"},
-            {"name": "3. Padartha Vigyan", "items": "7/10", "att": "81%"},
-            {"name": "4. Ashtanga Hridaya", "items": "10/10", "att": "89%"}
+            {"name": "1. Rachana Sharir (Anatomy)"},
+            {"name": "2. Kriya Sharir (Physiology)"},
+            {"name": "3. Padartha Vigyan"},
+            {"name": "4. Ashtanga Hridaya"}
         ]
     else:
         subjects = [
-            {"name": "1. Tashrih (Anatomy)", "items": "8/10", "att": "88%"},
-            {"name": "2. Munafeul Aza (Physiology)", "items": "9/10", "att": "85%"},
-            {"name": "3. Kulliyat-e-Uloom-e-Paya", "items": "7/10", "att": "82%"},
-            {"name": "4. Advia Mufreda (Materia Medica)", "items": "10/10", "att": "90%"}
+            {"name": "1. Tashrih (Anatomy)"},
+            {"name": "2. Munafeul Aza (Physiology)"},
+            {"name": "3. Kulliyat-e-Uloom-e-Paya"},
+            {"name": "4. Advia Mufreda (Materia Medica)"}
         ]
     return render_template('dashboard.html', subjects=subjects)
 
-# ডিজিটাল আইডি কার্ড
+# আইডি কার্ড
 @app.route('/id-card')
 @login_required
 def id_card():
