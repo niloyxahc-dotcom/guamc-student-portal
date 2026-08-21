@@ -12,8 +12,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-# ডাটাবেস সম্পূর্ণ নতুন ভার্সনে লোড হবে
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_official_final_v2.db')
+# ডাটাবেস সম্পূর্ণ নতুন ভার্সনে মাইগ্রেট হবে
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_official_final_v3.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -35,7 +35,6 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# ড্রাইভ লিংক থেকে ফাইল আইডি বের করার ফাংশন
 def extract_drive_id(val):
     if not val:
         return ""
@@ -51,7 +50,6 @@ def extract_drive_id(val):
         return m3.group(1)
     return ""
 
-# মোবাইল নম্বর ক্লিন করে ১১ ডিজিট ফরম্যাট (01XXXXXXXXX) নিশ্চিত করা
 def format_bd_phone(raw_val):
     if not raw_val:
         return ""
@@ -72,7 +70,6 @@ def format_bd_phone(raw_val):
         return digits[2:]
     return val
 
-# অফিসিয়াল ক্লাস রোল ও কোর্স ম্যাপিং ডিকশনারি
 OFFICIAL_ROLL_MAP = {
     # --- BUMS ---
     "ARBIN": {"roll": "01", "course": "BUMS"},
@@ -144,7 +141,6 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
 
-# ডেটাবেস ইনিশিয়ালাইজ ও সিএসভি সিঙ্ক
 with app.app_context():
     db.create_all()
     csv_path = os.path.join(basedir, 'students.csv')
@@ -153,7 +149,6 @@ with app.app_context():
             with open(csv_path, mode='r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 for r in reader:
-                    # ১. ইমেইল ফিল্টার
                     em = ""
                     for k, v in r.items():
                         if k and 'email' in str(k).lower() and v:
@@ -167,7 +162,6 @@ with app.app_context():
                         student = Student(email=em)
                         db.session.add(student)
 
-                    # ২. নাম ও পিতার নাম সরাসরি ফর্মের কলাম থেকে গ্রহণ
                     raw_eng_name = ""
                     raw_ban_name = ""
                     raw_father_name = ""
@@ -177,7 +171,6 @@ with app.app_context():
                             continue
                         k_l = str(k).lower().strip()
                         
-                        # পিতার নাম নির্ভুল ডিটেকশন
                         if ("father's name" in k_l or "father name" in k_l or (k_l.startswith('father') and 'name' in k_l) or 'পিতা' in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l):
                             raw_father_name = str(v).strip()
                         elif 'bangla' in k_l:
@@ -185,13 +178,11 @@ with app.app_context():
                         elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name and not ('father' in k_l or 'mother' in k_l or 'guardian' in k_l):
                             raw_eng_name = str(v).strip()
 
-                    # ৩. কোর্স
                     raw_course = 'BUMS'
                     for k, v in r.items():
                         if k and 'course' in str(k).lower() and v:
                             raw_course = str(v).strip().upper()
 
-                    # ৪. অফিসিয়াল রোল ম্যাপিং
                     official_roll, official_course = resolve_official_roll(raw_eng_name, em, default_course=raw_course)
 
                     student.name_english = raw_eng_name if raw_eng_name else em.split('@')[0].title()
@@ -202,7 +193,7 @@ with app.app_context():
                     student.roll_no = str(official_roll).zfill(2)
                     student.class_roll = str(official_roll).zfill(2)
 
-                    # ৫. কন্টাক্ট নম্বর
+                    # কন্টাক্ট নম্বর
                     st_contact = ""
                     em_contact = ""
                     for k, v in r.items():
@@ -217,12 +208,10 @@ with app.app_context():
                     student.contact_number = st_contact
                     student.emergency_medical_contact = em_contact
 
-                    # ৬. রক্তের গ্রুপ
                     for k, v in r.items():
                         if k and 'blood' in str(k).lower() and v:
                             student.blood_group = str(v).strip()
 
-                    # ৭. ড্রাইভের ছবির লিঙ্ক
                     found_img = ""
                     for col_k, col_v in r.items():
                         if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower() or 'picture' in str(col_k).lower()):
@@ -329,6 +318,42 @@ def dashboard():
 def id_card():
     emergency_contact = current_user.emergency_medical_contact or current_user.contact_number or '017XXXXXXXX'
     return render_template('id_card.html', emergency_contact=emergency_contact)
+
+# সাবমিশন হাব (৪টি ফোল্ডার ও আপলোড)
+@app.route('/submissions')
+@login_required
+def submission_hub():
+    folder = request.args.get('folder', 'all')
+    return render_template('submission_hub.html', folder=folder)
+
+# একাডেমিক হাব / ই-বুক
+@app.route('/academic-hub')
+@login_required
+def resources():
+    return render_template('resources.html')
+
+# ফোরাম ও ডিসকাশন
+@app.route('/discussions')
+@login_required
+def discussions():
+    posts = Post.query.order_by(Post.created_at.desc()).all()
+    return render_template('discussions.html', posts=posts)
+
+# পোস্ট সাবমিট রাউট
+@app.route('/submit-post', methods=['GET', 'POST'])
+@login_required
+def submit_post():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        category = request.form.get('category', 'General')
+        if title and content:
+            new_post = Post(title=title, content=content, category=category, student_id=current_user.id)
+            db.session.add(new_post)
+            db.session.commit()
+            flash('Post published to Community Discussions!', 'success')
+            return redirect(url_for('discussions'))
+    return render_template('submit_post.html')
 
 # ফটো আপলোড
 @app.route('/upload-photo', methods=['POST'])

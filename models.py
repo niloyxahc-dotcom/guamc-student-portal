@@ -1,56 +1,52 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+from datetime import datetime
 
 db = SQLAlchemy()
 
-class Student(db.Model, UserMixin):
+class Student(UserMixin, db.Model):
+    __tablename__ = 'students'
+
     id = db.Column(db.Integer, primary_key=True)
-    unique_id = db.Column(db.String(50), nullable=True)
+    unique_id = db.Column(db.String(50), unique=True, nullable=False)
+    name_english = db.Column(db.String(150))
+    name_bangla = db.Column(db.String(150))
+    father_name = db.Column(db.String(150))
+    course = db.Column(db.String(50))
+    batch = db.Column(db.String(50))
+    roll_no = db.Column(db.String(50))
+    class_roll = db.Column(db.String(50))
     email = db.Column(db.String(120), unique=True, nullable=False)
-    course = db.Column(db.String(50), nullable=True)
-    batch = db.Column(db.String(50), nullable=True, default='37th')
-    name_english = db.Column(db.String(150), nullable=True)
-    name_bangla = db.Column(db.String(150), nullable=True)
-    photo = db.Column(db.String(255), nullable=True)
-    merit = db.Column(db.String(50), nullable=True)
-    roll_no = db.Column(db.String(50), nullable=True)
-    class_roll = db.Column(db.String(50), nullable=True)
-    registration_no = db.Column(db.String(50), nullable=True)
-    nid_birth_reg_no = db.Column(db.String(50), nullable=True)
-    gender = db.Column(db.String(20), nullable=True)
-    marital_status = db.Column(db.String(30), nullable=True)
-    date_of_birth = db.Column(db.String(50), nullable=True)
-    present_address = db.Column(db.Text, nullable=True)
-    contact_number = db.Column(db.String(50), nullable=True)
-    father_name = db.Column(db.String(150), nullable=True)
-    father_occupation = db.Column(db.String(100), nullable=True)
-    mother_name = db.Column(db.String(150), nullable=True)
-    mother_occupation = db.Column(db.String(100), nullable=True)
-    father_contact = db.Column(db.String(50), nullable=True)
-    mother_contact = db.Column(db.String(50), nullable=True)
-    family_monthly_income = db.Column(db.String(50), nullable=True)
-    family_members = db.Column(db.String(20), nullable=True)
-    financial_aid_required = db.Column(db.String(20), nullable=True)
-    has_income_source = db.Column(db.String(20), nullable=True)
-    income_source_details = db.Column(db.Text, nullable=True)
-    hsc_background = db.Column(db.String(100), nullable=True)
-    ssc_background = db.Column(db.String(100), nullable=True)
-    mental_support_required = db.Column(db.String(20), nullable=True)
-    local_guardian_name = db.Column(db.String(150), nullable=True)
-    local_guardian_address = db.Column(db.Text, nullable=True)
-    local_guardian_contact = db.Column(db.String(50), nullable=True)
-    permanent_address = db.Column(db.Text, nullable=True)
-    library_member = db.Column(db.String(20), nullable=True)
-    hall_resident = db.Column(db.String(20), nullable=True)
-    co_curricular_activities = db.Column(db.Text, nullable=True)
-    club_preference = db.Column(db.String(150), nullable=True)
-    height = db.Column(db.String(50), nullable=True)
-    weight_kg = db.Column(db.String(50), nullable=True)
-    uses_eyeglasses = db.Column(db.String(20), nullable=True)
-    chronic_illness = db.Column(db.String(150), nullable=True)
-    blood_group = db.Column(db.String(20), nullable=True)
-    known_allergies = db.Column(db.String(150), nullable=True)
-    emergency_medical_contact = db.Column(db.String(50), nullable=True)
-    regular_medication = db.Column(db.String(150), nullable=True)
-    identification_mark = db.Column(db.String(150), nullable=True)
-    password_hash = db.Column(db.String(256), nullable=True)
+    contact_number = db.Column(db.String(50))
+    emergency_medical_contact = db.Column(db.String(50))
+    blood_group = db.Column(db.String(10))
+    gender = db.Column(db.String(20))
+    date_of_birth = db.Column(db.String(50))
+    registration_no = db.Column(db.String(100))
+    photo = db.Column(db.String(300))
+    password_hash = db.Column(db.String(255))
+    is_admin = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    posts = db.relationship('Post', backref='author', lazy=True)
+
+
+class Post(db.Model):
+    __tablename__ = 'posts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(50), default='General')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
+
+
+class Notice(db.Model):
+    __tablename__ = 'notices'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    link = db.Column(db.String(300), nullable=True)
+    date_posted = db.Column(db.DateTime, default=datetime.utcnow)
