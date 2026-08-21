@@ -13,8 +13,7 @@ app.config['SECRET_KEY'] = 'guamc-master-bulletproof-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# নতুন CSV থেকে রিফ্রেশ হওয়ার জন্য ফ্রেশ ডাটাবেস
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_v11_csv_direct.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_v13_calc.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'connect_args': {'timeout': 30, 'check_same_thread': False}
@@ -82,7 +81,7 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
 
-# সরাসরি CSV থেকে নিখুঁত ডাটা লোড
+# সরাসরি CSV থেকে ডাটা সিঙ্ক
 def sync_students_csv():
     csv_path = os.path.join(basedir, 'students.csv')
     if not os.path.exists(csv_path):
@@ -116,27 +115,20 @@ def sync_students_csv():
                             continue
                         k_l = str(k).lower().strip()
                         
-                        # ক্লাস রোল কলাম (Class roll / Roll)
                         if 'class roll' in k_l or k_l == 'roll' or 'class_roll' in k_l:
                             digits = re.sub(r'\D', '', str(v).strip())
                             if digits:
                                 raw_class_roll = digits.zfill(2)
-
-                        # কোর্স
                         elif 'course' in k_l:
                             c_val = str(v).strip().upper()
                             if 'BAMS' in c_val or 'AYURVEDIC' in c_val:
                                 raw_course = 'BAMS'
                             else:
                                 raw_course = 'BUMS'
-
-                        # পিতার নাম
                         elif ("father's name" in k_l or "father name" in k_l or (k_l.startswith('father') and 'name' in k_l) or 'পিতা' in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l):
                             raw_father_name = str(v).strip()
-                        # বাংলা নাম
                         elif 'bangla' in k_l:
                             raw_ban_name = str(v).strip()
-                        # ইংরেজি নাম
                         elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name and not ('father' in k_l or 'mother' in k_l or 'guardian' in k_l):
                             raw_eng_name = str(v).strip()
 
@@ -148,7 +140,6 @@ def sync_students_csv():
                     student.roll_no = str(raw_class_roll).zfill(2)
                     student.class_roll = str(raw_class_roll).zfill(2)
 
-                    # মোবাইল ও ইমার্জেন্সি মোবাইল
                     st_contact = ""
                     em_contact = ""
                     for k, v in r.items():
@@ -163,20 +154,20 @@ def sync_students_csv():
                     student.contact_number = st_contact
                     student.emergency_medical_contact = em_contact
 
-                    # ব্লাড গ্রুপ
                     for k, v in r.items():
                         if k and 'blood' in str(k).lower() and v:
                             student.blood_group = str(v).strip()
 
-                    # ফটো
                     for col_k, col_v in r.items():
                         if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower() or 'picture' in str(col_k).lower()):
                             student.photo = str(col_v).strip()
                             break
 
-                    # ডায়নামিক ইউনিক আইডি (BUMS রোল ১৪ -> 37114, BAMS রোল ১৭ -> 37217)
                     student.unique_id = generate_diu_id('37', raw_course, student.roll_no)
-                    if not student.password_hash:
+                    
+                    if em in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+                        student.password_hash = generate_password_hash('6456994')
+                    elif not student.password_hash:
                         student.password_hash = generate_password_hash('guamc123')
                     
                     db.session.commit()
@@ -184,9 +175,8 @@ def sync_students_csv():
                     db.session.rollback()
                     continue
     except Exception as e:
-        print("CSV Direct Sync Exception:", e)
+        print("CSV Sync Exception:", e)
 
-# সার্ভার স্টার্টআপে রান
 with app.app_context():
     try:
         db.create_all()
@@ -194,7 +184,6 @@ with app.app_context():
     except Exception as ex:
         print("Startup Error:", ex)
 
-# ছবি রাউট
 @app.route('/avatar/<int:user_id>')
 def user_avatar(user_id):
     try:
@@ -225,10 +214,11 @@ def user_avatar(user_id):
     except Exception:
         return redirect("https://ui-avatars.com/api/?name=Student&background=124E3F&color=fff&size=256&bold=true")
 
-# লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
+        if current_user.email and current_user.email.lower().strip() in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+            return redirect(url_for('admin_panel'))
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
@@ -257,26 +247,38 @@ def login():
                     class_roll='01',
                     unique_id=f"371_{int(os.urandom(2).hex(), 16)}",
                     blood_group='A+',
-                    password_hash=generate_password_hash('guamc123')
+                    password_hash=generate_password_hash('guamc123' if email not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com'] else '6456994')
                 )
                 db.session.add(student)
                 db.session.commit()
 
-            if student and (check_password_hash(student.password_hash, password) or password == 'guamc123'):
-                login_user(student)
-                return redirect(url_for('dashboard'))
+            if email in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+                if password == '6456994' or check_password_hash(student.password_hash, password):
+                    login_user(student)
+                    return redirect(url_for('admin_panel'))
+                else:
+                    flash('Incorrect password for Admin!', 'danger')
             else:
-                flash('Incorrect password! Default password is: guamc123', 'danger')
+                if student and (check_password_hash(student.password_hash, password) or password == 'guamc123'):
+                    login_user(student)
+                    return redirect(url_for('dashboard'))
+                else:
+                    flash('Incorrect password! Default password is: guamc123', 'danger')
         except Exception as e:
             db.session.rollback()
-            flash('Error logging in. Please try again with default password guamc123', 'danger')
+            flash('Error logging in.', 'danger')
             
     return render_template('login.html')
 
-# অ্যাডমিন প্যানেল (অ্যাটেনডেন্স ম্যানেজার)
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
 def admin_panel():
+    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
+    
+    if not current_user.email or current_user.email.lower().strip() not in ADMIN_EMAILS:
+        flash('Access denied! Administrator privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+
     if request.method == 'POST':
         student_id = request.form.get('student_id')
         new_att = request.form.get('attendance')
@@ -295,11 +297,13 @@ def admin_panel():
     students = Student.query.order_by(Student.course, Student.roll_no).all()
     return render_template('admin.html', students=students)
 
-# ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
     try:
+        if current_user.email and current_user.email.lower().strip() in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+            return redirect(url_for('admin_panel'))
+
         course = (current_user.course or 'BUMS').upper()
         if 'BAMS' in course:
             subjects = [
@@ -320,27 +324,23 @@ def dashboard():
     except Exception as e:
         return f"Error loading dashboard: {str(e)}", 500
 
-# ডিজিটাল আইডি কার্ড
 @app.route('/id-card')
 @login_required
 def id_card():
     emergency_contact = current_user.emergency_medical_contact or current_user.contact_number or '017XXXXXXXX'
     return render_template('id_card.html', emergency_contact=emergency_contact)
 
-# সাবমিশন হাব
 @app.route('/submissions')
 @login_required
 def submission_hub():
     folder = request.args.get('folder', 'all')
     return render_template('submission_hub.html', folder=folder)
 
-# একাডেমিক হাব / ই-বুক
 @app.route('/academic-hub')
 @login_required
 def resources():
     return render_template('resources.html')
 
-# ফোরাম ও ডিসকাশন
 @app.route('/discussions')
 @login_required
 def discussions():
@@ -350,7 +350,6 @@ def discussions():
         posts = []
     return render_template('discussions.html', posts=posts)
 
-# পোস্ট সাবমিট
 @app.route('/submit-post', methods=['GET', 'POST'])
 @login_required
 def submit_post():
@@ -366,7 +365,6 @@ def submit_post():
             return redirect(url_for('discussions'))
     return render_template('submit_post.html')
 
-# ছবি আপলোড
 @app.route('/upload-photo', methods=['POST'])
 @login_required
 def upload_photo():
@@ -393,7 +391,6 @@ def upload_photo():
         
     return redirect(url_for('dashboard'))
 
-# পাসওয়ার্ড পরিবর্তন
 @app.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -402,7 +399,7 @@ def change_password():
         new_password = request.form.get('new_password', '').strip()
         confirm_password = request.form.get('confirm_password', '').strip()
 
-        if not (check_password_hash(current_user.password_hash, old_password) or old_password == 'guamc123'):
+        if not (check_password_hash(current_user.password_hash, old_password) or old_password == '6456994'):
             flash('Current password is incorrect!', 'danger')
             return render_template('change_password.html')
 
@@ -421,7 +418,6 @@ def change_password():
 
     return render_template('change_password.html')
 
-# লগআউট
 @app.route('/logout')
 @login_required
 def logout():
