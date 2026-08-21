@@ -84,37 +84,20 @@
             </div>
         </div>
 
-        <!-- DU Prof Clearance Eligibility Card -->
+        <!-- Academic Clearance Card (Provisional & Realistic) -->
         <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)] flex items-center justify-between">
             <div>
-                <p class="text-[11px] font-black tracking-wider uppercase text-slate-400 mb-1">Prof Exam Sent-up</p>
-                {% set att_val = (current_user.attendance if current_user.attendance is not none else 85.0) %}
-                {% if att_val >= 75.0 %}
-                    <h2 class="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight">Eligible</h2>
-                    <div class="mt-2">
-                        <span class="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black rounded-lg">
-                            Standard Clearance
-                        </span>
-                    </div>
-                {% elif att_val >= 60.0 %}
-                    <h2 class="text-2xl sm:text-3xl font-black text-amber-600 tracking-tight">Conditional</h2>
-                    <div class="mt-2">
-                        <span class="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-black rounded-lg">
-                            Subject to Fine / Recovery
-                        </span>
-                    </div>
-                {% else %}
-                    <h2 class="text-2xl sm:text-3xl font-black text-rose-600 tracking-tight">Shortage</h2>
-                    <div class="mt-2">
-                        <span class="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-black rounded-lg">
-                            Critical Attendance
-                        </span>
-                    </div>
-                {% endif %}
+                <p class="text-[11px] font-black tracking-wider uppercase text-slate-400 mb-1">Academic Clearance</p>
+                <h2 class="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">Under Evaluation</h2>
+                <div class="mt-2">
+                    <span class="px-3 py-1 bg-slate-100 text-slate-700 text-[11px] font-black rounded-lg">
+                        Subject to Terms &amp; Items
+                    </span>
+                </div>
             </div>
             
             <div class="w-16 h-16 rounded-2xl bg-[#f8fafc] border border-slate-200 flex items-center justify-center text-3xl shadow-sm">
-                🎓
+                📑
             </div>
         </div>
 
@@ -227,7 +210,7 @@
                 <span>⚠️</span> Attendance &amp; Clearance Notice:
             </h5>
             <p class="text-[#784805] leading-relaxed font-semibold">
-                All item completion and attendance statuses are <strong class="font-black text-[#854d0e]">provisional</strong>. Class absence will reduce the current percentage. Final sent-up clearance for the DU Prof Exam form fill-up will be evaluated at the end of the academic session.
+                All item completion and attendance statuses are <strong class="font-black text-[#854d0e]">provisional</strong>. Class absence will reduce the current percentage. Final sent-up clearance for the DU Prof Exam form fill-up will be evaluated at the end of the academic session based on written term results and complete card/item clearances.
             </p>
         </div>
 
