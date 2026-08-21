@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GUAMC Portal - Student Profile</title>
+    <title>GUAMC Portal - Student Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }</style>
@@ -27,8 +27,9 @@
     <main class="max-w-xl mx-auto p-4 space-y-6 mt-2">
         
         <!-- DIU Style Profile Card -->
-        <div class="bg-gradient-to-b from-[#dbeafe] via-[#eff6ff] to-white rounded-3xl shadow-sm border border-blue-100 p-7 flex flex-col items-center text-center">
+        <div class="bg-gradient-to-b from-[#e0f2fe] via-[#eff6ff] to-white rounded-3xl shadow-sm border border-blue-100 p-7 flex flex-col items-center text-center">
             
+            <!-- Avatar -->
             <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow bg-blue-200 flex items-center justify-center mb-3">
                 {% if current_user.photo %}
                     <img src="{{ current_user.photo }}" alt="{{ current_user.name_english }}" class="w-full h-full object-cover">
@@ -46,11 +47,7 @@
             <h2 class="text-2xl font-black text-slate-900 leading-tight">
                 {{ current_user.name_english or current_user.name_bangla }}
             </h2>
-            {% if current_user.name_bangla and current_user.name_english %}
-                <p class="text-xs text-slate-500 font-semibold mb-1">{{ current_user.name_bangla }}</p>
-            {% endif %}
-
-            <p class="text-xs font-bold text-slate-600 mb-5">
+            <p class="text-xs font-bold text-slate-600 mt-1 mb-5">
                 {% if 'BAMS' in (current_user.course or '') %}
                     Bachelor of Ayurvedic Medicine and Surgery (BAMS)
                 {% else %}
@@ -58,25 +55,25 @@
                 {% endif %}
             </p>
 
-            <div class="w-full space-y-2.5 text-left text-xs font-semibold text-slate-700 border-t border-blue-200/60 pt-4">
-                {% if current_user.registration_no %}
-                <div class="flex items-center gap-3">
-                    <span class="text-base">🪪</span>
-                    <span>{{ current_user.registration_no }}</span>
+            <!-- Clean Student Info -->
+            <div class="w-full space-y-3 text-left text-xs font-semibold text-slate-700 border-t border-blue-200/60 pt-4">
+                
+                <!-- Unique ID -->
+                <div class="flex items-center gap-3 font-bold text-blue-900 bg-blue-50 p-2.5 rounded-xl border border-blue-100">
+                    <span class="text-base">🎓</span>
+                    <span>Student ID: {{ current_user.unique_id }}</span>
                 </div>
-                {% endif %}
 
-                {% if current_user.roll_no %}
+                <!-- 2-Digit Roll -->
                 <div class="flex items-center gap-3">
                     <span class="text-base">💳</span>
-                    <span>{{ current_user.roll_no }}</span>
+                    <span>Roll: {{ current_user.roll_no }}</span>
                 </div>
-                {% endif %}
 
                 {% if current_user.batch %}
                 <div class="flex items-center gap-3">
                     <span class="text-base">👥</span>
-                    <span>{{ current_user.batch }} Batch</span>
+                    <span>Batch: {{ current_user.batch }}</span>
                 </div>
                 {% endif %}
 
@@ -97,24 +94,10 @@
                     <span>GUAMC, Mirpur-13</span>
                 </div>
 
-                {% if current_user.date_of_birth %}
-                <div class="flex items-center gap-3">
-                    <span class="text-base">📅</span>
-                    <span>{{ current_user.date_of_birth }}</span>
-                </div>
-                {% endif %}
-
-                {% if current_user.gender %}
-                <div class="flex items-center gap-3">
-                    <span class="text-base">⚧</span>
-                    <span>{{ current_user.gender }}</span>
-                </div>
-                {% endif %}
-
                 {% if current_user.blood_group %}
                 <div class="flex items-center gap-3">
                     <span class="text-base text-red-500">🩸</span>
-                    <span>{{ current_user.blood_group }}</span>
+                    <span>Blood Group: {{ current_user.blood_group }}</span>
                 </div>
                 {% endif %}
             </div>
