@@ -7,11 +7,10 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'guamc-secret-key-2026'
+app.config['SECRET_KEY'] = 'guamc-production-secret-2026'
 
-# Render-এর জন্য ডেটাবেস পাথ নিশ্চিতকরণ
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_live.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_live_v5.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 from models import db, Student
@@ -25,67 +24,107 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return Student.query.get(int(user_id))
 
-def extract_two_digit_roll(val1, val2):
-    raw_str = str(val1).strip() if val1 else ''
-    if not raw_str or raw_str.lower() == 'none':
-        raw_str = str(val2).strip() if val2 else ''
-    digits = re.findall(r'\d+', raw_str)
-    if digits:
-        num = int(digits[-1])
-        return f"{num:02d}"
-    return "01"
+# অফিসিয়াল রোল শিটের মাস্টার ডেটা
+OFFICIAL_STUDENTS = {
+    # --- BUMS (Department of Unani Medicine & Surgery) ---
+    "ARBIN HOSSAIN": {"roll": "01", "course": "BUMS", "name": "MD. ARBIN HOSSAIN PURNA"},
+    "MORIOM BEGUM": {"roll": "02", "course": "BUMS", "name": "MORIOM BEGUM SYNTHI"},
+    "AYESHA KHATUN": {"roll": "03", "course": "BUMS", "name": "BIBI AYESHA KHATUN"},
+    "JOYONTEE": {"roll": "04", "course": "BUMS", "name": "JOYONTEE DEBNATH"},
+    "AYESHA BINTE": {"roll": "05", "course": "BUMS", "name": "AYESHA BINTE AMIN"},
+    "SHUMAIA": {"roll": "06", "course": "BUMS", "name": "SHUMAIA SHARA"},
+    "JANNATARA": {"roll": "07", "course": "BUMS", "name": "MOST. JANNATARA KHATUN"},
+    "SHAHRIAR": {"roll": "08", "course": "BUMS", "name": "MD. SHAHRIAR AHMED"},
+    "ISRAT ISLAM": {"roll": "09", "course": "BUMS", "name": "ISRAT ISLAM MIM"},
+    "SABRINA ALAM": {"roll": "10", "course": "BUMS", "name": "SABRINA ALAM LISA"},
+    "TOMA AFRIN": {"roll": "11", "course": "BUMS", "name": "MST. TOMA AFRIN"},
+    "MUSFIQUR": {"roll": "12", "course": "BUMS", "name": "MUSFIQUR RAHMAN TAQEE"},
+    "JUBEDA": {"roll": "13", "course": "BUMS", "name": "JUBEDA AKTER JUI"},
+    "SUROVY": {"roll": "14", "course": "BUMS", "name": "SUROVY MONY TUSTO"},
+    "SABIHA": {"roll": "15", "course": "BUMS", "name": "MST. SABIHA TUN NUR"},
+    "MOBASHWIRA": {"roll": "16", "course": "BUMS", "name": "MOBASHWIRA MOMIN SNEHA"},
+    "RATNA AKTER": {"roll": "18", "course": "BUMS", "name": "MOST. RATNA AKTER SHAIKH"},
+    "SWEETY RANI": {"roll": "19", "course": "BUMS", "name": "SWEETY RANI"},
+    "SHARMIN": {"roll": "20", "course": "BUMS", "name": "SHARMIN SULTANA"},
+    "TABASSUM": {"roll": "21", "course": "BUMS", "name": "MST. UMME TABASSUM"},
+    "MAISHA": {"roll": "22", "course": "BUMS", "name": "MAISHA FARZANA"},
+    "ANONNO": {"roll": "23", "course": "BUMS", "name": "MST. ANONNO AKTER JONY"},
+
+    # --- BAMS (Department of Ayurvedic Medicine & Surgery) ---
+    "SUBAIIA": {"roll": "01", "course": "BAMS", "name": "MST. SUBAIIA YEASMIN"},
+    "ARPAN": {"roll": "02", "course": "BAMS", "name": "ARPAN CHANDRA ROY"},
+    "ISRAT JAHAN": {"roll": "03", "course": "BAMS", "name": "ISRAT JAHAN"},
+    "ABU RASHIED": {"roll": "04", "course": "BAMS", "name": "MD. ABU RASHIED JAMADAR"},
+    "AFSANA": {"roll": "06", "course": "BAMS", "name": "MST. AFSANA MIM"},
+    "UMMA KHADIJA": {"roll": "07", "course": "BAMS", "name": "MOST. UMMA KHADIJA TULL KUBRA HABIBA"},
+    "MONAREALLY": {"roll": "08", "course": "BAMS", "name": "MONAREALLY TRIPURA"},
+    "ESRAT JAHAN": {"roll": "09", "course": "BAMS", "name": "ESRAT JAHAN ESHA"},
+    "AMIR HOSSAIN": {"roll": "12", "course": "BAMS", "name": "MD. AMIR HOSSAIN"},
+    "ZOBAYER": {"roll": "13", "course": "BAMS", "name": "MD. ZOBAYER RAHMAN"},
+    "RAWFUN": {"roll": "14", "course": "BAMS", "name": "MST. RAWFUN JANNAT"},
+    "RAHUL": {"roll": "15", "course": "BAMS", "name": "RAHUL BABU"},
+    "SAMIA": {"roll": "16", "course": "BAMS", "name": "SAMIA AFRIN"},
+    "MISHAT": {"roll": "17", "course": "BAMS", "name": "UMME MISHAT TASNIM RINKY"},
+    "BUSHRA": {"roll": "18", "course": "BAMS", "name": "BUSHRA NAZIA"},
+    "SABA": {"roll": "19", "course": "BAMS", "name": "SABA TASNIM"},
+    "OISHY": {"roll": "20", "course": "BAMS", "name": "OISHY SIKDER SWARNA"}
+}
+
+def resolve_official_data(name_str, email_str, default_course='BUMS'):
+    combined = f"{name_str} {email_str}".upper()
+    for key, data in OFFICIAL_STUDENTS.items():
+        if key in combined:
+            return data["roll"], data["course"], data["name"]
+    return "01", default_course, (name_str or email_str.split('@')[0].title())
 
 def generate_diu_id(batch, course, roll_two_digit):
-    b_digits = re.findall(r'\d+', str(batch))
-    b_num = b_digits[0] if b_digits else "37"
     course_str = str(course).upper()
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
-    return f"{b_num}{c_code}{roll_two_digit}"
+    return f"37{c_code}{roll_two_digit}"
 
-def sync_csv():
-    csv_path = os.path.join(basedir, 'students.csv')
-    if not os.path.exists(csv_path):
-        return
-    try:
-        with open(csv_path, mode='r', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            for r in reader:
-                em = (r.get('email') or '').strip().lower()
-                if not em:
-                    continue
-
-                student = Student.query.filter_by(email=em).first()
-                if not student:
-                    student = Student(email=em)
-                    db.session.add(student)
-
-                c_roll_raw = r.get('class_roll')
-                r_no_raw = r.get('roll_no')
-                clean_two_digit_roll = extract_two_digit_roll(c_roll_raw, r_no_raw)
-
-                student.course = (r.get('course') or 'BUMS').strip()
-                student.batch = (r.get('batch') or '37th').strip()
-                student.name_english = (r.get('name_english') or '').strip()
-                student.name_bangla = (r.get('name_bangla') or '').strip()
-                student.photo = (r.get('photo') or '').strip()
-                student.roll_no = clean_two_digit_roll
-                student.class_roll = clean_two_digit_roll
-                student.registration_no = (r.get('registration_no') or '').strip()
-                student.contact_number = (r.get('contact_number') or '').strip()
-                student.blood_group = (r.get('blood_group') or '').strip()
-                student.gender = (r.get('gender') or '').strip()
-                student.date_of_birth = (r.get('date_of_birth') or '').strip()
-                student.unique_id = generate_diu_id(student.batch, student.course, clean_two_digit_roll)
-                student.password_hash = generate_password_hash('guamc123')
-            
-            db.session.commit()
-    except Exception as e:
-        print("CSV Sync Exception:", e)
-
+# সার্ভার স্টার্টআপের সময় একবারই ডাটাবেস ইনিশিয়ালাইজ ও সিঙ্ক হবে
 with app.app_context():
     db.create_all()
-    sync_csv()
+    csv_path = os.path.join(basedir, 'students.csv')
+    if os.path.exists(csv_path):
+        try:
+            with open(csv_path, mode='r', encoding='utf-8-sig') as f:
+                reader = csv.DictReader(f)
+                for r in reader:
+                    clean_r = {str(k).strip().lower(): str(v).strip() for k, v in r.items() if k}
+                    em = clean_r.get('email', '').lower()
+                    if not em:
+                        continue
 
+                    student = Student.query.filter_by(email=em).first()
+                    if not student:
+                        student = Student(email=em)
+                        db.session.add(student)
+
+                    raw_name = clean_r.get('name_english') or clean_r.get('name') or em.split('@')[0]
+                    raw_course = clean_r.get('course', 'BUMS')
+
+                    official_roll, official_course, official_name = resolve_official_data(raw_name, em, raw_course)
+
+                    student.name_english = official_name
+                    student.name_bangla = clean_r.get('name_bangla', '')
+                    student.course = official_course
+                    student.batch = '37th'
+                    student.roll_no = official_roll
+                    student.class_roll = official_roll
+                    student.registration_no = clean_r.get('registration_no', '')
+                    student.contact_number = clean_r.get('contact_number', '')
+                    student.blood_group = clean_r.get('blood_group', 'A+')
+                    student.gender = clean_r.get('gender', '')
+                    student.date_of_birth = clean_r.get('date_of_birth', '')
+                    student.unique_id = generate_diu_id('37', official_course, official_roll)
+                    student.password_hash = generate_password_hash('guamc123')
+                
+                db.session.commit()
+        except Exception as e:
+            print("CSV Startup Sync Note:", e)
+
+# লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -95,24 +134,19 @@ def login():
         email = request.form.get('email', '').strip().lower()
         password = request.form.get('password', '').strip()
 
-        if not email:
-            flash('Please provide an email address.', 'danger')
-            return render_template('login.html')
-
-        sync_csv()
         student = Student.query.filter_by(email=email).first()
 
-        # ফলব্যাক: ডেটাবেসে না থাকলেও তাৎক্ষণিক স্টুডেন্ট তৈরি করে লগইন করানো হবে
         if not student:
-            name_part = email.split('@')[0].replace('.', ' ').title()
+            off_roll, off_course, off_name = resolve_official_data("", email, "BUMS")
             student = Student(
                 email=email,
-                name_english=name_part,
-                course='BUMS',
+                name_english=off_name,
+                course=off_course,
                 batch='37th',
-                roll_no='01',
-                class_roll='01',
-                unique_id='37101',
+                roll_no=off_roll,
+                class_roll=off_roll,
+                unique_id=generate_diu_id('37', off_course, off_roll),
+                blood_group='A+',
                 password_hash=generate_password_hash('guamc123')
             )
             db.session.add(student)
@@ -123,6 +157,7 @@ def login():
             
     return render_template('login.html')
 
+# স্টুডেন্ট ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -148,6 +183,7 @@ def dashboard():
 def academic():
     return redirect(url_for('dashboard'))
 
+# লগআউট
 @app.route('/logout')
 @login_required
 def logout():
