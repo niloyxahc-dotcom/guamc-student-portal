@@ -13,11 +13,13 @@ app.config['SECRET_KEY'] = 'guamc-master-bulletproof-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_v13_calc.db')
+# Render PostgreSQL অথবা Local SQLite
+db_url = os.environ.get('DATABASE_URL')
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url or ('sqlite:///' + os.path.join(basedir, 'portal_master_v14_permanent.db'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-    'connect_args': {'timeout': 30, 'check_same_thread': False}
-}
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -46,14 +48,11 @@ def extract_drive_id(val):
         return ""
     val = str(val).strip()
     m1 = re.search(r'id=([a-zA-Z0-9_-]{20,})', val)
-    if m1:
-        return m1.group(1)
+    if m1: return m1.group(1)
     m2 = re.search(r'/d/([a-zA-Z0-9_-]{20,})', val)
-    if m2:
-        return m2.group(1)
+    if m2: return m2.group(1)
     m3 = re.search(r'open\?id=([a-zA-Z0-9_-]{20,})', val)
-    if m3:
-        return m3.group(1)
+    if m3: return m3.group(1)
     return ""
 
 def format_bd_phone(raw_val):
@@ -81,7 +80,7 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
 
-# সরাসরি CSV থেকে ডাটা সিঙ্ক
+# সমস্ত স্টুডেন্টের ভুল প্রোফাইল আসল CSV থেকে অটো-ফিক্স ও সিঙ্ক করার ফাংশন
 def sync_students_csv():
     csv_path = os.path.join(basedir, 'students.csv')
     if not os.path.exists(csv_path):
@@ -99,7 +98,7 @@ def sync_students_csv():
                     if not em:
                         continue
 
-                    student = Student.query.filter_by(email=em).first()
+                    student = Student.query.filter(db.func.lower(Student.email) == em).first()
                     if not student:
                         student = Student(email=em)
                         db.session.add(student)
@@ -107,31 +106,37 @@ def sync_students_csv():
                     raw_eng_name = ""
                     raw_ban_name = ""
                     raw_father_name = ""
-                    raw_class_roll = "01"
+                    raw_class_roll = ""
                     raw_course = "BUMS"
 
                     for k, v in r.items():
                         if not k or not v:
                             continue
                         k_l = str(k).lower().strip()
+                        v_s = str(v).strip()
                         
-                        if 'class roll' in k_l or k_l == 'roll' or 'class_roll' in k_l:
-                            digits = re.sub(r'\D', '', str(v).strip())
+                        if 'roll' in k_l or 'class roll' in k_l or 'রোল' in k_l:
+                            digits = re.sub(r'\D', '', v_s)
                             if digits:
                                 raw_class_roll = digits.zfill(2)
-                        elif 'course' in k_l:
-                            c_val = str(v).strip().upper()
+                        elif 'course' in k_l or 'কোর্স' in k_l:
+                            c_val = v_s.upper()
                             if 'BAMS' in c_val or 'AYURVEDIC' in c_val:
                                 raw_course = 'BAMS'
                             else:
                                 raw_course = 'BUMS'
-                        elif ("father's name" in k_l or "father name" in k_l or (k_l.startswith('father') and 'name' in k_l) or 'পিতা' in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l):
-                            raw_father_name = str(v).strip()
-                        elif 'bangla' in k_l:
-                            raw_ban_name = str(v).strip()
+                        elif ("father" in k_l or "পিতা" in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l):
+                            raw_father_name = v_s
+                        elif 'bangla' in k_l or 'বাংলা' in k_l:
+                            raw_ban_name = v_s
                         elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name and not ('father' in k_l or 'mother' in k_l or 'guardian' in k_l):
-                            raw_eng_name = str(v).strip()
+                            raw_eng_name = v_s
 
+                    # যদি রোল না পাওয়া যায় তবে ডিফল্ট ০১
+                    if not raw_class_roll:
+                        raw_class_roll = "01"
+
+                    # ডাটাবেসে আসল ডাটা দিয়ে ওভাররাইট
                     student.name_english = raw_eng_name if raw_eng_name else em.split('@')[0].title()
                     student.name_bangla = raw_ban_name
                     student.father_name = raw_father_name
@@ -139,14 +144,14 @@ def sync_students_csv():
                     student.batch = '37th'
                     student.roll_no = str(raw_class_roll).zfill(2)
                     student.class_roll = str(raw_class_roll).zfill(2)
+                    student.unique_id = generate_diu_id('37', raw_course, student.roll_no)
 
                     st_contact = ""
                     em_contact = ""
                     for k, v in r.items():
-                        if not k or not v:
-                            continue
+                        if not k or not v: continue
                         k_l = str(k).lower()
-                        if ('emergency' in k_l or 'guardian' in k_l or 'father' in k_l) and ('contact' in k_l or 'number' in k_l or 'phone' in k_l):
+                        if ('emergency' in k_l or 'guardian' in k_l or 'father' in k_l) and ('contact' in k_l or 'phone' in k_l or 'number' in k_l):
                             em_contact = format_bd_phone(v)
                         elif ('contact' in k_l or 'mobile' in k_l or 'phone' in k_l) and not st_contact:
                             st_contact = format_bd_phone(v)
@@ -163,12 +168,13 @@ def sync_students_csv():
                             student.photo = str(col_v).strip()
                             break
 
-                    student.unique_id = generate_diu_id('37', raw_course, student.roll_no)
-                    
                     if em in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
                         student.password_hash = generate_password_hash('6456994')
                     elif not student.password_hash:
                         student.password_hash = generate_password_hash('guamc123')
+                    
+                    if student.attendance is None:
+                        student.attendance = 85.0
                     
                     db.session.commit()
                 except Exception as row_err:
@@ -238,19 +244,8 @@ def login():
                 student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
             if not student:
-                student = Student(
-                    email=email,
-                    name_english=email.split('@')[0].title(),
-                    course='BUMS',
-                    batch='37th',
-                    roll_no='01',
-                    class_roll='01',
-                    unique_id=f"371_{int(os.urandom(2).hex(), 16)}",
-                    blood_group='A+',
-                    password_hash=generate_password_hash('guamc123' if email not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com'] else '6456994')
-                )
-                db.session.add(student)
-                db.session.commit()
+                flash('Email not found in registered 37th batch database!', 'danger')
+                return render_template('login.html')
 
             if email in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
                 if password == '6456994' or check_password_hash(student.password_hash, password):
@@ -282,13 +277,13 @@ def admin_panel():
     if request.method == 'POST':
         student_id = request.form.get('student_id')
         new_att = request.form.get('attendance')
-        if student_id and new_att:
+        if student_id and new_att is not None:
             student = Student.query.get(student_id)
             if student:
                 try:
                     student.attendance = float(new_att)
                     db.session.commit()
-                    flash(f"Updated attendance for {student.name_english} to {new_att}%", "success")
+                    flash(f"Updated attendance for {student.name_english} to {new_att}% successfully!", "success")
                 except Exception as e:
                     db.session.rollback()
                     flash("Failed to update attendance.", "danger")
@@ -307,18 +302,17 @@ def dashboard():
         course = (current_user.course or 'BUMS').upper()
         if 'BAMS' in course:
             subjects = [
-                {"name": "1. Padartha Vijnana wa Ayurveda Itihas (Basic Principles)"},
-                {"name": "2. Astanga Hrdaya (Sutra Sthana)"},
-                {"name": "3. Dravyaguna Vijnana (Materia Medica & Pharmacology)"},
-                {"name": "4. Rachana Sharir (Anatomy)"},
-                {"name": "5. Kriya Sharir (Physiology)"}
+                {"name": "1. Rachana Sharir (Anatomy)"},
+                {"name": "2. Kriya Sharir (Physiology)"},
+                {"name": "3. Padartha Vigyan"},
+                {"name": "4. Ashtanga Hridaya"}
             ]
         else:
             subjects = [
                 {"name": "1. Tashreeh-ul-Badan (Anatomy)"},
                 {"name": "2. Afal-ul A'za (Physiology)"},
                 {"name": "3. Hiyat-e Kimia (Biochemistry)"},
-                {"name": "4. Kulliat-e-Tibb wa Tarikh-e Tibb (Principles & History of Medicine)"}
+                {"name": "4. Kulliat-e-Tibb wa Tarikh-e Tibb"}
             ]
         return render_template('dashboard.html', subjects=subjects)
     except Exception as e:
