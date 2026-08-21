@@ -12,7 +12,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v10.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_official_v13.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -69,65 +69,77 @@ def format_bd_phone(raw_val):
         return digits[2:]
     return val
 
-OFFICIAL_STUDENTS = {
+# অফিসিয়াল ক্লাস রোল ও কোর্স ম্যাপিং ডাটা
+OFFICIAL_ROLL_MAP = {
     # --- BUMS ---
-    "ARBIN HOSSAIN": {"roll": "01", "course": "BUMS", "name": "MD. ARBIN HOSSAIN PURNA"},
-    "MORIOM BEGUM": {"roll": "02", "course": "BUMS", "name": "MORIOM BEGUM SYNTHI"},
-    "AYESHA KHATUN": {"roll": "03", "course": "BUMS", "name": "BIBI AYESHA KHATUN"},
-    "JOYONTEE": {"roll": "04", "course": "BUMS", "name": "JOYONTEE DEBNATH"},
-    "AYESHA BINTE": {"roll": "05", "course": "BUMS", "name": "AYESHA BINTE AMIN"},
-    "SHUMAIA": {"roll": "06", "course": "BUMS", "name": "SHUMAIA SHARA"},
-    "JANNATARA": {"roll": "07", "course": "BUMS", "name": "MOST. JANNATARA KHATUN"},
-    "SHAHRIAR": {"roll": "08", "course": "BUMS", "name": "MD. SHAHRIAR AHMED"},
-    "ISRAT ISLAM": {"roll": "09", "course": "BUMS", "name": "ISRAT ISLAM MIM"},
-    "SABRINA ALAM": {"roll": "10", "course": "BUMS", "name": "SABRINA ALAM LISA"},
-    "TOMA AFRIN": {"roll": "11", "course": "BUMS", "name": "MST. TOMA AFRIN"},
-    "MUSFIQUR": {"roll": "12", "course": "BUMS", "name": "MUSFIQUR RAHMAN TAQEE"},
-    "JUBEDA": {"roll": "13", "course": "BUMS", "name": "JUBEDA AKTER JUI"},
-    "SUROVY": {"roll": "14", "course": "BUMS", "name": "SUROVY MONY TUSTO"},
-    "SABIHA": {"roll": "15", "course": "BUMS", "name": "MST. SABIHA TUN NUR"},
-    "MOBASHWIRA": {"roll": "16", "course": "BUMS", "name": "MOBASHWIRA MOMIN SNEHA"},
-    "RATNA AKTER": {"roll": "18", "course": "BUMS", "name": "MOST. RATNA AKTER SHAIKH"},
-    "SWEETY RANI": {"roll": "19", "course": "BUMS", "name": "SWEETY RANI"},
-    "SHARMIN": {"roll": "20", "course": "BUMS", "name": "SHARMIN SULTANA"},
-    "TABASSUM": {"roll": "21", "course": "BUMS", "name": "MST. UMME TABASSUM"},
-    "MAISHA": {"roll": "22", "course": "BUMS", "name": "MAISHA FARZANA"},
-    "ANONNO": {"roll": "23", "course": "BUMS", "name": "MST. ANONNO AKTER JONY"},
+    "ARBIN": {"roll": "01", "course": "BUMS"},
+    "PURNA": {"roll": "01", "course": "BUMS"},
+    "MORIOM": {"roll": "02", "course": "BUMS"},
+    "SYNTHI": {"roll": "02", "course": "BUMS"},
+    "AYESHA KHATUN": {"roll": "03", "course": "BUMS"},
+    "JOYONTEE": {"roll": "04", "course": "BUMS"},
+    "AYESHA BINTE": {"roll": "05", "course": "BUMS"},
+    "SHUMAIA": {"roll": "06", "course": "BUMS"},
+    "SHARA": {"roll": "06", "course": "BUMS"},
+    "JANNATARA": {"roll": "07", "course": "BUMS"},
+    "SHAHRIAR": {"roll": "08", "course": "BUMS"},
+    "ISRAT ISLAM": {"roll": "09", "course": "BUMS"},
+    "SABRINA ALAM": {"roll": "10", "course": "BUMS"},
+    "LISA": {"roll": "10", "course": "BUMS"},
+    "TOMA AFRIN": {"roll": "11", "course": "BUMS"},
+    "MUSFIQUR": {"roll": "12", "course": "BUMS"},
+    "TAQEE": {"roll": "12", "course": "BUMS"},
+    "JUBEDA": {"roll": "13", "course": "BUMS"},
+    "JUI": {"roll": "13", "course": "BUMS"},
+    "SUROVY": {"roll": "14", "course": "BUMS"},
+    "TUSTO": {"roll": "14", "course": "BUMS"},
+    "SABIHA": {"roll": "15", "course": "BUMS"},
+    "MOBASHWIRA": {"roll": "16", "course": "BUMS"},
+    "SNEHA": {"roll": "16", "course": "BUMS"},
+    "RATNA": {"roll": "18", "course": "BUMS"},
+    "SWEETY": {"roll": "19", "course": "BUMS"},
+    "SHARMIN": {"roll": "20", "course": "BUMS"},
+    "TABASSUM": {"roll": "21", "course": "BUMS"},
+    "MAISHA": {"roll": "22", "course": "BUMS"},
+    "ANONNO": {"roll": "23", "course": "BUMS"},
+    "JONY": {"roll": "23", "course": "BUMS"},
 
     # --- BAMS ---
-    "SUBAIIA": {"roll": "01", "course": "BAMS", "name": "MST. SUBAIIA YEASMIN"},
-    "JAKIA": {"roll": "01", "course": "BAMS", "name": "MST. SUBAIIA YEASMIN (JAKIA)"},
-    "ARPAN": {"roll": "02", "course": "BAMS", "name": "ARPAN CHANDRA ROY"},
-    "ISRAT JAHAN": {"roll": "03", "course": "BAMS", "name": "ISRAT JAHAN"},
-    "ABU RASHIED": {"roll": "04", "course": "BAMS", "name": "MD. ABU RASHIED JAMADAR"},
-    "AFSANA": {"roll": "06", "course": "BAMS", "name": "MST. AFSANA MIM"},
-    "UMMA KHADIJA": {"roll": "07", "course": "BAMS", "name": "MOST. UMMA KHADIJA TULL KUBRA HABIBA"},
-    "MONAREALLY": {"roll": "08", "course": "BAMS", "name": "MONAREALLY TRIPURA"},
-    "ESRAT JAHAN": {"roll": "09", "course": "BAMS", "name": "ESRAT JAHAN ESHA"},
-    "AMIR HOSSAIN": {"roll": "12", "course": "BAMS", "name": "MD. AMIR HOSSAIN"},
-    "ZOBAYER": {"roll": "13", "course": "BAMS", "name": "MD. ZOBAYER RAHMAN"},
-    "RAWFUN": {"roll": "14", "course": "BAMS", "name": "MST. RAWFUN JANNAT"},
-    "RAHUL": {"roll": "15", "course": "BAMS", "name": "RAHUL BABU"},
-    "SAMIA": {"roll": "16", "course": "BAMS", "name": "SAMIA AFRIN"},
-    "MISHAT": {"roll": "17", "course": "BAMS", "name": "UMME MISHAT TASNIM RINKY"},
-    "BUSHRA": {"roll": "18", "course": "BAMS", "name": "BUSHRA NAZIA"},
-    "SABA": {"roll": "19", "course": "BAMS", "name": "SABA TASNIM"},
-    "OISHY": {"roll": "20", "course": "BAMS", "name": "OISHY SIKDER SWARNA"}
+    "SUBAIIA": {"roll": "01", "course": "BAMS"},
+    "ARPAN": {"roll": "02", "course": "BAMS"},
+    "ISRAT JAHAN": {"roll": "03", "course": "BAMS"},
+    "ABU RASHIED": {"roll": "04", "course": "BAMS"},
+    "AFSANA": {"roll": "06", "course": "BAMS"},
+    "UMMA KHADIJA": {"roll": "07", "course": "BAMS"},
+    "HABIBA": {"roll": "07", "course": "BAMS"},
+    "MONAREALLY": {"roll": "08", "course": "BAMS"},
+    "ESRAT JAHAN": {"roll": "09", "course": "BAMS"},
+    "ESHA": {"roll": "09", "course": "BAMS"},
+    "JAKIA": {"roll": "09", "course": "BAMS"},
+    "AMIR HOSSAIN": {"roll": "12", "course": "BAMS"},
+    "ZOBAYER": {"roll": "13", "course": "BAMS"},
+    "RAWFUN": {"roll": "14", "course": "BAMS"},
+    "RAHUL": {"roll": "15", "course": "BAMS"},
+    "SAMIA AFRIN": {"roll": "16", "course": "BAMS"},
+    "MISHAT": {"roll": "17", "course": "BAMS"},
+    "RINKY": {"roll": "17", "course": "BAMS"},
+    "BUSHRA NAZIA": {"roll": "18", "course": "BAMS"},
+    "SABA TASNIM": {"roll": "19", "course": "BAMS"},
+    "OISHY": {"roll": "20", "course": "BAMS"},
+    "SWARNA": {"roll": "20", "course": "BAMS"}
 }
 
-def resolve_official_data(name_str, email_str, default_course='BUMS'):
+def resolve_official_roll(name_str, email_str, default_course='BUMS'):
     combined = f"{name_str} {email_str}".upper()
-    for key, data in OFFICIAL_STUDENTS.items():
+    for key, data in OFFICIAL_ROLL_MAP.items():
         if key in combined:
-            # যদি CSV ফাইলে নাম থাকে তবে সেটিকেই প্রাধান্য দেবে
-            final_name = name_str if (name_str and len(name_str) > 3) else data["name"]
-            return data["roll"], data["course"], final_name
-    return "01", default_course, (name_str if (name_str and len(name_str) > 3) else email_str.split('@')[0].title())
+            return data["roll"], data["course"]
+    return "01", default_course
 
 def generate_diu_id(batch, course, roll_two_digit):
     course_str = str(course).upper()
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
-    return f"37{c_code}{roll_two_digit}"
+    return f"37{c_code}{str(roll_two_digit).zfill(2)}"
 
 with app.app_context():
     db.create_all()
@@ -137,7 +149,7 @@ with app.app_context():
             with open(csv_path, mode='r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 for r in reader:
-                    # ইমেইল খোঁজা
+                    # ১. ইমেইল এক্সট্র্যাক্ট
                     em = ""
                     for k, v in r.items():
                         if k and 'email' in str(k).lower() and v:
@@ -151,34 +163,29 @@ with app.app_context():
                         student = Student(email=em)
                         db.session.add(student)
 
-                    # নাম খোঁজা (English name, Full Name, Student Name)
-                    raw_name = ""
-                    raw_bangla_name = ""
+                    # ২. নাম: শিক্ষার্থীদের ফর্মের কলাম থেকেই সরাসরি রিড করা হবে
+                    raw_eng_name = ""
+                    raw_ban_name = ""
                     for k, v in r.items():
                         if not k or not v:
                             continue
                         k_l = str(k).lower()
                         if 'bangla' in k_l:
-                            raw_bangla_name = str(v).strip()
-                        elif ('name' in k_l or 'নাম' in k_l) and not raw_name:
-                            raw_name = str(v).strip()
+                            raw_ban_name = str(v).strip()
+                        elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name:
+                            raw_eng_name = str(v).strip()
 
-                    # কোর্স খোঁজা
-                    raw_course = 'BUMS'
-                    for k, v in r.items():
-                        if k and 'course' in str(k).lower() and v:
-                            raw_course = str(v).strip().upper()
+                    # ৩. রোল ও কোর্স: আপনার দেওয়া ডাটাবেস থেকে স্বয়ংক্রিয়ভাবে নেওয়া হবে
+                    official_roll, official_course = resolve_official_roll(raw_eng_name, em, default_course='BUMS')
 
-                    official_roll, official_course, official_name = resolve_official_data(raw_name, em, raw_course)
-
-                    student.name_english = official_name
-                    student.name_bangla = raw_bangla_name
+                    student.name_english = raw_eng_name if raw_eng_name else em.split('@')[0].title()
+                    student.name_bangla = raw_ban_name
                     student.course = official_course
                     student.batch = '37th'
-                    student.roll_no = official_roll
-                    student.class_roll = official_roll
+                    student.roll_no = str(official_roll).zfill(2)
+                    student.class_roll = str(official_roll).zfill(2)
 
-                    # কন্টাক্ট নম্বর স্ক্যান
+                    # ৪. ফোন নম্বর
                     st_contact = ""
                     em_contact = ""
                     for k, v in r.items():
@@ -193,12 +200,12 @@ with app.app_context():
                     student.contact_number = st_contact
                     student.emergency_medical_contact = em_contact
 
-                    # ব্লাড গ্রুপ খোঁজা
+                    # ৫. ব্লাড গ্রুপ
                     for k, v in r.items():
                         if k and 'blood' in str(k).lower() and v:
                             student.blood_group = str(v).strip()
 
-                    # ছবি খোঁজা
+                    # ৬. ছবি
                     found_img = ""
                     for col_k, col_v in r.items():
                         if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower() or 'picture' in str(col_k).lower()):
@@ -207,12 +214,12 @@ with app.app_context():
                     if found_img:
                         student.photo = found_img
 
-                    student.unique_id = generate_diu_id('37', official_course, official_roll)
+                    student.unique_id = generate_diu_id('37', official_course, student.roll_no)
                     student.password_hash = generate_password_hash('guamc123')
                 
                 db.session.commit()
         except Exception as e:
-            print("CSV Startup Sync:", e)
+            print("CSV Sync:", e)
 
 # ফটো প্রক্সি
 @app.route('/avatar/<int:user_id>')
@@ -255,10 +262,10 @@ def login():
         student = Student.query.filter_by(email=email).first()
 
         if not student:
-            off_roll, off_course, off_name = resolve_official_data("", email, "BUMS")
+            off_roll, off_course = resolve_official_roll("", email, "BUMS")
             student = Student(
                 email=email,
-                name_english=off_name,
+                name_english=email.split('@')[0].title(),
                 course=off_course,
                 batch='37th',
                 roll_no=off_roll,
@@ -299,7 +306,7 @@ def dashboard():
         ]
     return render_template('dashboard.html', subjects=subjects)
 
-# আইডি কার্ড
+# ডিজিটাল আইডি কার্ড
 @app.route('/id-card')
 @login_required
 def id_card():
