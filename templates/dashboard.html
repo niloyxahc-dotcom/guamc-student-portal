@@ -14,7 +14,7 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between">
 
-    <!-- Sticky Navigation Header -->
+    <!-- Header Navigation -->
     <header class="bg-[#124e3f] text-white sticky top-0 z-50 shadow-md">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
             
@@ -52,7 +52,7 @@
 
         </div>
 
-        <!-- Mobile Scrollable Sub-menu -->
+        <!-- Mobile Scroll Menu -->
         <div class="lg:hidden flex items-center gap-4 px-4 py-2 bg-[#0e3f33] text-[11px] font-medium text-emerald-200 overflow-x-auto no-scrollbar border-t border-emerald-800/60">
             <a href="{{ url_for('dashboard') }}" class="text-white font-bold shrink-0">Dashboard</a>
             <a href="#" class="shrink-0 hover:text-white">Results</a>
@@ -66,7 +66,7 @@
         </div>
     </header>
 
-    <!-- Main Content Grid -->
+    <!-- Main Container Grid -->
     <main class="max-w-5xl w-full mx-auto p-4 sm:p-6 my-auto">
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -84,14 +84,28 @@
             <!-- Left Side: Profile Card -->
             <div class="md:col-span-5 bg-gradient-to-b from-[#e0f2fe] via-[#eff6ff] to-white rounded-3xl shadow-sm border border-blue-100 p-6 flex flex-col items-center text-center">
                 
-                <div class="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow bg-blue-200 flex items-center justify-center mb-3">
-                    {% if current_user.photo %}
-                        <img src="{{ current_user.photo }}" alt="{{ current_user.name_english }}" class="w-full h-full object-cover">
-                    {% else %}
-                        <svg class="w-16 h-16 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                <!-- Avatar with Upload Button -->
+                <div class="relative group mb-3">
+                    <div class="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow bg-blue-200 flex items-center justify-center">
+                        {% if current_user.photo %}
+                            <img src="{{ current_user.photo }}" alt="{{ current_user.name_english }}" class="w-full h-full object-cover" onerror="this.src='https://ui-avatars.com/api/?name={{ current_user.name_english }}&background=0D8ABC&color=fff'">
+                        {% else %}
+                            <svg class="w-16 h-16 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                            </svg>
+                        {% endif %}
+                    </div>
+                    
+                    <form id="photoForm" action="{{ url_for('upload_photo') }}" method="POST" enctype="multipart/form-data" class="hidden">
+                        <input type="file" name="photo" id="photoInput" accept="image/*" onchange="document.getElementById('photoForm').submit();">
+                    </form>
+
+                    <button type="button" onclick="document.getElementById('photoInput').click();" title="Change Photo" class="absolute bottom-0 right-0 bg-emerald-700 hover:bg-emerald-800 text-white p-2 rounded-full shadow border-2 border-white transition flex items-center justify-center">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
-                    {% endif %}
+                    </button>
                 </div>
 
                 <span class="inline-flex items-center px-3.5 py-0.5 rounded-full text-[11px] font-black bg-[#65a30d] text-white mb-2 shadow-sm">
@@ -148,7 +162,10 @@
                     </div>
                 </div>
 
-                <div class="w-full pt-4 mt-2">
+                <div class="w-full pt-4 mt-2 flex flex-col gap-2">
+                    <button type="button" onclick="document.getElementById('photoInput').click();" class="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-sm">
+                        <span>📷 Update Profile Photo</span>
+                    </button>
                     <a href="{{ url_for('change_password') }}" class="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-sm">
                         <span>🔒 Change Password</span>
                     </a>

@@ -5,6 +5,7 @@ from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
@@ -12,6 +13,11 @@ app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 basedir = os.path.abspath(os.path.dirname(__file__))
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
 from models import db, Student
 db.init_app(app)
@@ -24,7 +30,26 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return Student.query.get(int(user_id))
 
-# অফিসিয়াল রোল শিটের মাস্টার ডেটা
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def format_drive_image_url(url):
+    if not url:
+        return ""
+    url = str(url).strip()
+    if "drive.google.com" in url:
+        file_id = ""
+        id_match = re.search(r'id=([a-zA-Z0-9_-]+)', url)
+        if id_match:
+            file_id = id_match.group(1)
+        else:
+            d_match = re.search(r'/d/([a-zA-Z0-9_-]+)', url)
+            if d_match:
+                file_id = d_match.group(1)
+        if file_id:
+            return f"https://lh3.googleusercontent.com/d/{file_id}"
+    return url
+
 OFFICIAL_STUDENTS = {
     # --- BUMS ---
     "ARBIN HOSSAIN": {"roll": "01", "course": "BUMS", "name": "MD. ARBIN HOSSAIN PURNA"},
@@ -82,7 +107,6 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{roll_two_digit}"
 
-# সার্ভার চালুর সময় ডেটাবেস ইনিশিয়ালাইজেশন
 with app.app_context():
     db.create_all()
     csv_path = os.path.join(basedir, 'students.csv')
@@ -116,7 +140,11 @@ with app.app_context():
                     student.blood_group = clean_r.get('blood_group', 'A+')
                     student.gender = clean_r.get('gender', '')
                     student.date_of_birth = clean_r.get('date_of_birth', '')
-                    student.photo = clean_r.get('photo', '')
+                    
+                    raw_photo = clean_r.get('photo', '')
+                    if not student.photo or 'drive.google.com' in student.photo:
+                        student.photo = format_drive_image_url(raw_photo)
+
                     student.unique_id = generate_diu_id('37', official_course, official_roll)
                     student.password_hash = generate_password_hash('guamc123')
                 
@@ -124,7 +152,6 @@ with app.app_context():
         except Exception as e:
             print("CSV Startup Sync Notice:", e)
 
-# লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -160,7 +187,32 @@ def login():
             
     return render_template('login.html')
 
-# পাসওয়ার্ড পরিবর্তন
+@app.route('/upload-photo', methods=['POST'])
+@login_required
+def upload_photo():
+    if 'photo' not in request.files:
+        flash('No file selected!', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    file = request.files['photo']
+    if file.filename == '':
+        flash('No file selected!', 'danger')
+        return redirect(url_for('dashboard'))
+    
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"user_{current_user.id}_{current_user.unique_id}.{ext}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        current_user.photo = url_for('static', filename=f'uploads/{filename}')
+        db.session.commit()
+        flash('Profile photo updated successfully!', 'success')
+    else:
+        flash('Allowed formats: JPG, PNG, JPEG, WEBP', 'warning')
+        
+    return redirect(url_for('dashboard'))
+
 @app.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -188,7 +240,6 @@ def change_password():
 
     return render_template('change_password.html')
 
-# স্টুডেন্ট ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -214,7 +265,6 @@ def dashboard():
 def academic():
     return redirect(url_for('dashboard'))
 
-# লগআউট
 @app.route('/logout')
 @login_required
 def logout():
