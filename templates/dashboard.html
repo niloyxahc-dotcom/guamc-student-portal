@@ -1,248 +1,185 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GUAMC Portal - Student Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
-</head>
-<body class="min-h-screen flex flex-col justify-between">
+{% extends "base.html" %}
+{% block title %}Dashboard - GUAMC Portal{% endblock %}
 
-    <!-- Top Navigation Header -->
-    <header class="bg-[#124e3f] text-white sticky top-0 z-50 shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
-            
-            <div class="flex items-center gap-2.5 shrink-0">
-                <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Logo" class="h-8 w-auto object-contain bg-white rounded-full p-0.5">
-                <div>
-                    <h1 class="font-extrabold text-sm leading-tight">GUAMC Portal</h1>
-                    <p class="text-[9px] text-emerald-200">Govt. Unani & Ayurvedic Medical College</p>
-                </div>
-            </div>
-
-            <!-- Navbar Links (Submission সহ) -->
-            <nav class="hidden lg:flex items-center gap-5 text-xs font-semibold text-emerald-100">
-                <a href="{{ url_for('dashboard') }}" class="text-white font-bold border-b-2 border-emerald-400 pb-0.5">Dashboard</a>
-                <a href="{{ url_for('id_card') }}" class="hover:text-white transition">Digital ID Card</a>
-                <a href="#" class="hover:text-white transition">Results</a>
-                <a href="#" class="hover:text-white transition">Academic Hub</a>
-                <a href="#" class="hover:text-white transition">Discussions</a>
-                <a href="#" class="hover:text-white transition">CR & Coordinators</a>
-                <a href="#" class="hover:text-white transition">Clubs</a>
-                <a href="#" class="hover:text-white transition bg-emerald-700/60 px-2.5 py-1 rounded-lg border border-emerald-500/40 flex items-center gap-1">
-                    <span>✍️</span> Submit Post
-                </a>
-            </nav>
-
-            <div class="flex items-center gap-2 shrink-0">
-                <a href="{{ url_for('change_password') }}" class="px-2.5 py-1.5 rounded-lg bg-emerald-800/80 hover:bg-emerald-700 text-white text-xs font-semibold transition border border-emerald-600/50 flex items-center gap-1">
-                    <span>🔑</span> <span class="hidden sm:inline">Password</span>
-                </a>
-                <a href="{{ url_for('logout') }}" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm">
-                    Logout
-                </a>
-            </div>
-
-        </div>
-
-        <!-- Mobile Scroll Menu (Submission সহ) -->
-        <div class="lg:hidden flex items-center gap-4 px-4 py-2 bg-[#0e3f33] text-[11px] font-medium text-emerald-200 overflow-x-auto no-scrollbar border-t border-emerald-800/60">
-            <a href="{{ url_for('dashboard') }}" class="text-white font-bold shrink-0">Dashboard</a>
-            <a href="{{ url_for('id_card') }}" class="shrink-0 hover:text-white">ID Card</a>
-            <a href="#" class="shrink-0 hover:text-white">Results</a>
-            <a href="#" class="shrink-0 hover:text-white">Academic Hub</a>
-            <a href="#" class="shrink-0 hover:text-white">Discussions</a>
-            <a href="#" class="shrink-0 hover:text-white">CR & Coordinators</a>
-            <a href="#" class="shrink-0 hover:text-white">Clubs</a>
-            <a href="#" class="shrink-0 text-emerald-300 font-bold hover:text-white flex items-center gap-1">
-                <span>✍️</span> Submit Post
-            </a>
-        </div>
-    </header>
-
-    <!-- Main Container -->
-    <main class="max-w-5xl w-full mx-auto p-4 sm:p-6 my-auto">
-
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="mb-4 p-3 text-xs font-bold rounded-xl {% if category == 'success' %}bg-emerald-50 text-emerald-800 border border-emerald-200{% else %}bg-rose-50 text-rose-700 border border-rose-200{% endif %}">
-                {{ message }}
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
-        <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-            
-            <!-- Left Side: Profile Card -->
-            <div class="md:col-span-5 bg-gradient-to-b from-[#e0f2fe] via-[#eff6ff] to-white rounded-3xl shadow-sm border border-blue-100 p-6 flex flex-col items-center text-center">
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+    
+    <!-- Welcome Header -->
+    <div class="bg-gradient-to-r from-emerald-800 to-emerald-950 rounded-3xl p-6 md:p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+        <div class="relative z-10 flex flex-col md:flex-row items-center gap-6">
+            <div class="relative group">
+                <img src="{{ current_user.photo or url_for('static', filename='images/default_avatar.png') }}" 
+                     alt="Profile" 
+                     class="w-28 h-28 md:w-32 md:h-32 rounded-full border-4 border-emerald-500/30 object-cover shadow-2xl bg-white">
                 
-                <!-- Avatar with Upload Overlay -->
-                <div class="relative group mb-3">
-                    <div class="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow bg-blue-100 flex items-center justify-center">
-                        <img src="{{ url_for('user_avatar', user_id=current_user.id) }}" alt="{{ current_user.name_english }}" class="w-full h-full object-cover">
-                    </div>
-                    
-                    <form id="photoForm" action="{{ url_for('upload_photo') }}" method="POST" enctype="multipart/form-data" class="hidden">
-                        <input type="file" name="photo" id="photoInput" accept="image/*" onchange="document.getElementById('photoForm').submit();">
-                    </form>
-
-                    <button type="button" onclick="document.getElementById('photoInput').click();" title="Change Photo" class="absolute bottom-0 right-0 bg-emerald-700 hover:bg-emerald-800 text-white p-2 rounded-full shadow border-2 border-white transition flex items-center justify-center">
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <!-- Upload Photo Form -->
+                <form action="{{ url_for('upload_photo') }}" method="POST" enctype="multipart/form-data" class="absolute bottom-0 right-0 bg-white text-emerald-900 p-1.5 rounded-full shadow-lg border-2 border-emerald-50 cursor-pointer hover:bg-emerald-50 transition">
+                    <label for="photo-upload" class="cursor-pointer">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
-                    </button>
-                </div>
-
-                <span class="inline-flex items-center px-3.5 py-0.5 rounded-full text-[11px] font-black bg-[#65a30d] text-white mb-2 shadow-sm">
-                    ✓ Active
-                </span>
-
-                <h2 class="text-xl font-black text-slate-900 leading-tight">
-                    {{ current_user.name_english or current_user.name_bangla }}
-                </h2>
-                <p class="text-[11px] font-bold text-slate-600 mt-1 mb-4">
-                    {% if 'BAMS' in (current_user.course or '') %}
-                        Bachelor of Ayurvedic Medicine and Surgery (BAMS)
-                    {% else %}
-                        Bachelor of Unani Medicine and Surgery (BUMS)
-                    {% endif %}
-                </p>
-
-                <div class="w-full space-y-2.5 text-left text-xs font-semibold text-slate-700 border-t border-blue-200/60 pt-3.5">
-                    <div class="flex items-center gap-2.5 font-bold text-blue-900 bg-blue-50 p-2 rounded-xl border border-blue-100">
-                        <span class="text-base">🎓</span>
-                        <span>Student ID: {{ current_user.unique_id }}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2.5 px-1">
-                        <span class="text-base">💳</span>
-                        <span>Roll: {{ current_user.roll_no }}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2.5 px-1">
-                        <span class="text-base">👥</span>
-                        <span>Batch: {{ current_user.batch or '37th' }}</span>
-                    </div>
-
-                    <div class="flex items-center gap-2.5 px-1">
-                        <span class="text-base">✉️</span>
-                        <span class="truncate">{{ current_user.email }}</span>
-                    </div>
-
-                    {% if current_user.contact_number %}
-                    <div class="flex items-center gap-2.5 px-1">
-                        <span class="text-base">📞</span>
-                        <span>{{ current_user.contact_number }}</span>
-                    </div>
-                    {% endif %}
-
-                    <div class="flex items-center gap-2.5 px-1">
-                        <span class="text-base">🏛️</span>
-                        <span>GUAMC, Mirpur-13</span>
-                    </div>
-
-                    <div class="flex items-center gap-2.5 px-1">
-                        <span class="text-base text-red-500">🩸</span>
-                        <span>Blood Group: {{ current_user.blood_group or 'A+' }}</span>
-                    </div>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="w-full pt-4 mt-2 flex flex-col gap-2">
-                    <a href="{{ url_for('id_card') }}" class="w-full py-2.5 px-3 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-md">
-                        <span>🪪 View & Download ID Card</span>
-                    </a>
-                    <button type="button" onclick="document.getElementById('photoInput').click();" class="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-sm">
-                        <span>📷 Update Profile Photo</span>
-                    </button>
-                    <a href="{{ url_for('change_password') }}" class="w-full py-2 px-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition shadow-sm">
-                        <span>🔒 Change Password</span>
-                    </a>
-                </div>
-
+                    </label>
+                    <input id="photo-upload" type="file" name="photo" class="hidden" onchange="this.form.submit()">
+                </form>
             </div>
-
-            <!-- Right Side: Academic Clearance Card -->
-            <div class="md:col-span-7 bg-white rounded-3xl shadow-sm border border-gray-200 p-6 space-y-4">
+            
+            <div class="text-center md:text-left flex-1">
+                <h1 class="text-3xl md:text-4xl font-black mb-2">{{ current_user.name_english }}</h1>
+                <p class="text-emerald-100 font-medium text-sm md:text-base mb-4 opacity-90">{{ current_user.name_bangla or '' }}</p>
                 
-                <div class="flex justify-between items-center pb-3 border-b border-gray-100">
-                    <div>
-                        <h3 class="text-sm font-extrabold text-gray-900">Academic & Exam Clearance</h3>
-                        <p class="text-[11px] text-amber-700 font-semibold flex items-center gap-1 mt-0.5">
-                            <span>⏳</span> 1st Professional (Session Ongoing)
-                        </p>
-                    </div>
-                    <span class="px-3 py-1 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-200">
-                        DU Affiliated
+                <div class="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                    <span class="px-3 py-1 bg-emerald-700/50 backdrop-blur-sm rounded-lg text-xs font-bold border border-emerald-600/50">
+                        {{ current_user.course }} ({{ current_user.batch }})
+                    </span>
+                    <span class="px-3 py-1 bg-emerald-700/50 backdrop-blur-sm rounded-lg text-xs font-bold border border-emerald-600/50">
+                        Roll: {{ current_user.roll_no }}
+                    </span>
+                    <span class="px-3 py-1 bg-emerald-700/50 backdrop-blur-sm rounded-lg text-xs font-bold border border-emerald-600/50 font-mono">
+                        ID: {{ current_user.unique_id }}
                     </span>
                 </div>
+            </div>
 
-                <!-- Metrics Grid -->
-                <div class="grid grid-cols-2 gap-3">
-                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p class="text-[11px] font-bold text-gray-400 uppercase">Current Attendance</p>
-                        <p class="text-xl font-black text-emerald-800 mt-0.5">86.5%</p>
-                        <p class="text-[10px] text-slate-400 mt-0.5">Min 75% required</p>
-                    </div>
-                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p class="text-[11px] font-bold text-gray-400 uppercase">Prof Eligibility</p>
-                        <p class="text-sm font-extrabold text-blue-700 mt-1 flex items-center gap-1">
-                            <span>⏱️</span> Provisional
-                        </p>
-                        <p class="text-[10px] text-amber-600 font-medium mt-0.5">Subject to session-end avg</p>
-                    </div>
+            <div class="hidden md:flex flex-col items-end gap-2">
+                <div class="text-right">
+                    <p class="text-xs font-bold text-emerald-300 uppercase tracking-widest">Blood Group</p>
+                    <p class="text-3xl font-black text-white drop-shadow-md">{{ current_user.blood_group or 'N/A' }}</p>
                 </div>
+            </div>
+        </div>
+        
+        <!-- Decorative bg -->
+        <div class="absolute -top-24 -right-24 w-64 h-64 bg-emerald-600 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob"></div>
+        <div class="absolute -bottom-24 -left-24 w-64 h-64 bg-emerald-900 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-blob animation-delay-2000"></div>
+    </div>
 
-                <!-- Subject Items List -->
-                <div class="pt-2">
-                    <div class="flex justify-between items-center mb-2.5">
-                        <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Subject Items & Logbook</h4>
-                        <span class="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Assessment Ongoing</span>
-                    </div>
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <!-- Live Attendance Card -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition">
+            <div>
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Attendance Rate</p>
+                <p class="text-3xl font-black text-emerald-800 mt-1">
+                    {{ "%.1f"|format(current_user.attendance or 85.0) }}%
+                </p>
+                <span class="inline-block mt-1.5 px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-extrabold rounded-md">
+                    {% if (current_user.attendance or 85.0) >= 75.0 %}Good Standing{% else %}Needs Attention{% endif %}
+                </span>
+            </div>
+            <div class="w-14 h-14 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl shadow-inner">
+                📊
+            </div>
+        </div>
 
-                    <div class="space-y-2">
-                        {% for sub in subjects %}
-                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/70 flex justify-between items-center">
-                            <div>
-                                <p class="text-xs font-bold text-gray-800">{{ sub.name }}</p>
-                                <p class="text-[10px] text-slate-500 font-medium mt-0.5">Card & Item Continuous Evaluation</p>
-                            </div>
-                            <span class="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md flex items-center gap-1.5 shrink-0">
-                                <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> In Progress
-                            </span>
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition">
+            <div>
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Assignments</p>
+                <p class="text-3xl font-black text-slate-800 mt-1">2 <span class="text-lg text-slate-400 font-bold">/ 3</span></p>
+                <span class="inline-block mt-1.5 px-2 py-0.5 bg-blue-100 text-blue-800 text-[10px] font-extrabold rounded-md">1 Pending</span>
+            </div>
+            <div class="w-14 h-14 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl shadow-inner">
+                📝
+            </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between hover:shadow-md transition">
+            <div>
+                <p class="text-xs font-bold text-slate-500 uppercase tracking-wider">Notices</p>
+                <p class="text-3xl font-black text-slate-800 mt-1">0</p>
+                <span class="inline-block mt-1.5 px-2 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-extrabold rounded-md">Up to date</span>
+            </div>
+            <div class="w-14 h-14 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center text-2xl shadow-inner">
+                🔔
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Left Column: Subjects & Quick Info -->
+        <div class="lg:col-span-2 space-y-8">
+            
+            <!-- Current Subjects -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <span>📚</span> Current Subjects
+                    </h2>
+                </div>
+                <div class="p-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {% for subject in subjects %}
+                        <div class="p-4 rounded-xl border border-slate-100 bg-slate-50 hover:bg-emerald-50 hover:border-emerald-100 transition group cursor-default">
+                            <p class="text-sm font-bold text-slate-700 group-hover:text-emerald-900">{{ subject.name }}</p>
                         </div>
                         {% endfor %}
                     </div>
                 </div>
+            </div>
 
-                <!-- Academic Advisory Note -->
-                <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
-                    <p class="font-bold flex items-center gap-1.5">
-                        <span>⚠️</span> Attendance & Clearance Notice:
-                    </p>
-                    <p class="leading-relaxed text-[10px] text-amber-800">
-                        All item completion and attendance statuses are <strong>provisional</strong>. Class absence will reduce the current percentage. Final sent-up clearance for the DU Prof Exam form fill-up will be evaluated at the end of the academic session.
-                    </p>
+            <!-- Notice Board Preview -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h2 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                        <span>📌</span> Recent Notices
+                    </h2>
                 </div>
+                <div class="p-6 text-center">
+                    <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <span class="text-2xl opacity-50">📭</span>
+                    </div>
+                    <p class="text-slate-500 font-semibold text-sm">No new notices at the moment.</p>
+                </div>
+            </div>
+        </div>
 
+        <!-- Right Column: Profile Info & Quick Actions -->
+        <div class="space-y-6">
+            
+            <!-- Personal Info Card -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 class="text-sm font-black text-slate-800 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span class="text-emerald-600">👤</span> Contact Info
+                </h3>
+                
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Email Address</p>
+                        <p class="text-sm font-bold text-slate-700 break-all">{{ current_user.email }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Phone Number</p>
+                        <p class="text-sm font-bold text-slate-700">{{ current_user.contact_number or 'Not provided' }}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Emergency Contact</p>
+                        <p class="text-sm font-bold text-rose-600">{{ current_user.emergency_medical_contact or 'Not provided' }}</p>
+                    </div>
+                    <div class="pt-4 mt-2 border-t border-slate-100">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Father's Name</p>
+                        <p class="text-sm font-bold text-slate-700">{{ current_user.father_name or 'N/A' }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-2xl border border-emerald-100 p-6">
+                <h3 class="text-sm font-black text-emerald-900 uppercase tracking-widest mb-4">Quick Links</h3>
+                <div class="space-y-3">
+                    <a href="{{ url_for('id_card') }}" class="flex items-center gap-3 p-3 bg-white rounded-xl text-sm font-bold text-emerald-800 hover:shadow-md transition">
+                        <span class="text-xl">🪪</span> Download ID Card
+                    </a>
+                    <a href="{{ url_for('submission_hub') }}" class="flex items-center gap-3 p-3 bg-white rounded-xl text-sm font-bold text-emerald-800 hover:shadow-md transition">
+                        <span class="text-xl">📤</span> Submit Assignment
+                    </a>
+                    <a href="{{ url_for('change_password') }}" class="flex items-center gap-3 p-3 bg-white rounded-xl text-sm font-bold text-slate-600 hover:shadow-md transition">
+                        <span class="text-xl">🔐</span> Change Password
+                    </a>
+                </div>
             </div>
 
         </div>
-
-    </main>
-
-    <footer class="text-center py-4 text-xs text-slate-400">
-        © 2026 GUAMC Portal. All Rights Reserved.
-    </footer>
-
-</body>
-</html>
+    </div>
+</div>
+{% endblock %}
