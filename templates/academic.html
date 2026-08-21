@@ -1,84 +1,110 @@
-{% extends 'base.html' %}
-{% block title %}Academic Resources Hub - GUAMC{% endblock %}
+{% extends "base.html" %}
 
 {% block content %}
-<div class="space-y-8">
-    <div class="border-b pb-3">
-        <h1 class="text-2xl font-bold text-slate-800">Academic & Resource Hub</h1>
-        <p class="text-xs text-slate-500 mt-1">Access medical textbooks, lecture materials, past questions, and clinical demonstration videos.</p>
-    </div>
+<div class="max-w-xl mx-auto space-y-6">
 
-    <!-- E-Books Section -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
-        <div class="flex items-center justify-between border-b pb-2">
-            <h2 class="text-base font-bold text-slate-800">📚 Standard Textbooks & E-Books</h2>
-            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">PDF Library</span>
+    <!-- DIU Style Profile Card -->
+    <div class="bg-gradient-to-b from-[#dbeafe] via-[#eff6ff] to-white rounded-3xl shadow-md border border-blue-100 p-8 flex flex-col items-center text-center">
+        
+        <!-- Profile Avatar -->
+        <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-md bg-blue-200 flex items-center justify-center mb-4">
+            <svg class="w-20 h-20 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            {% for book in resources.ebooks %}
-            <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 flex justify-between items-center">
-                <div>
-                    <p class="font-bold text-slate-800">{{ book.title }}</p>
-                    <p class="text-slate-500 text-[11px] mt-0.5">Subject: {{ book.category }}</p>
-                </div>
-                <a href="{{ book.link }}" class="text-emerald-800 font-semibold hover:underline">Download</a>
+
+        <!-- Active Badge -->
+        <span class="inline-flex items-center px-4 py-1 rounded-full text-xs font-black bg-[#65a30d] text-white mb-3">
+            ✓ Active
+        </span>
+
+        <!-- Name & Degree -->
+        <h2 class="text-2xl font-black text-slate-900 leading-tight">
+            {{ current_user.name }}
+        </h2>
+        <p class="text-sm font-bold text-slate-600 mt-1 mb-6">
+            Bachelor of Unani Medicine and Surgery (BUMS)
+        </p>
+
+        <!-- Information List with Icons -->
+        <div class="w-full space-y-3 text-left text-sm font-semibold text-slate-700 border-t border-blue-200/60 pt-5">
+            <div class="flex items-center gap-3">
+                <span class="text-base">🪪</span>
+                <span>{{ current_user.reg_no or '2023-GUAMC-001' }}</span>
             </div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Lecture Sheets & Handouts -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
-        <div class="flex items-center justify-between border-b pb-2">
-            <h2 class="text-base font-bold text-slate-800">📝 Departmental Lecture Sheets & Notes</h2>
-            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">Class Notes</span>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            {% for sheet in resources.sheets %}
-            <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-3">
-                <div>
-                    <p class="font-bold text-slate-800">{{ sheet.title }}</p>
-                    <p class="text-slate-500 text-[11px] mt-1">{{ sheet.author }}</p>
-                </div>
-                <a href="{{ sheet.link }}" class="text-emerald-800 font-semibold hover:underline">View Document &rarr;</a>
+            <div class="flex items-center gap-3">
+                <span class="text-base">💳</span>
+                <span>Roll: {{ current_user.roll_no }}</span>
             </div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Question Bank -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
-        <div class="flex items-center justify-between border-b pb-2">
-            <h2 class="text-base font-bold text-slate-800">🗂 Professional Exam Question Bank</h2>
-            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">Archive</span>
-        </div>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-            {% for q in resources.questions %}
-            <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-3">
-                <div>
-                    <p class="font-bold text-slate-800">{{ q.title }}</p>
-                    <p class="text-emerald-700 font-medium text-[11px] mt-1">{{ q.type }}</p>
-                </div>
-                <a href="{{ q.link }}" class="text-emerald-800 font-semibold hover:underline">Access Paper &rarr;</a>
+            <div class="flex items-center gap-3">
+                <span class="text-base">👥</span>
+                <span>{{ current_user.batch if current_user.batch else '37th' }} Batch</span>
             </div>
-            {% endfor %}
+            <div class="flex items-center gap-3">
+                <span class="text-base">✉️</span>
+                <span class="truncate">{{ current_user.email }}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-base">📞</span>
+                <span>{{ current_user.phone or '017XXXXXXXX' }}</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-base">🏛️</span>
+                <span>GUAMC, Mirpur-13</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-base">🩸</span>
+                <span>{{ current_user.blood_group or 'A+' }}</span>
+            </div>
         </div>
+
     </div>
 
-    <!-- Video Lectures -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
-        <h2 class="text-base font-bold text-slate-800 border-b pb-2">🎥 Clinical & Lab Lecture Videos</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-            {% for video in resources.videos %}
+    <!-- 1st Professional Academic Clearance (Replaced Old SSC Section) -->
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <div class="flex justify-between items-center pb-3 border-b border-gray-100">
+            <div>
+                <h3 class="text-base font-extrabold text-gray-900">Academic & Exam Clearance</h3>
+                <p class="text-xs text-gray-500">1st Professional Assessment</p>
+            </div>
+            <span class="px-3 py-1 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-200">
+                DU Affiliated
+            </span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+            <div class="p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
+                <p class="text-[11px] font-bold text-gray-400 uppercase">Attendance</p>
+                <p class="text-xl font-black text-emerald-800 mt-0.5">86.5%</p>
+            </div>
+            <div class="p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
+                <p class="text-[11px] font-bold text-gray-400 uppercase">Prof Clearance</p>
+                <p class="text-sm font-extrabold text-emerald-700 mt-1">✓ Eligible</p>
+            </div>
+        </div>
+
+        <div class="pt-2">
+            <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Subject Clearance & Logbooks</h4>
             <div class="space-y-2">
-                <div class="aspect-video w-full rounded-lg overflow-hidden border border-slate-200 bg-black">
-                    <iframe class="w-full h-full" src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                <div class="p-3 bg-gray-50 rounded-xl border border-gray-200/70 flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-800">1. Anatomy (Tashrih / Rachana Sharir)</span>
+                    <span class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Cleared</span>
                 </div>
-                <p class="font-bold text-slate-800">{{ video.title }}</p>
-                <p class="text-slate-500 text-[11px]">{{ video.channel }}</p>
+                <div class="p-3 bg-gray-50 rounded-xl border border-gray-200/70 flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-800">2. Physiology (Munafeul Aza / Kriya Sharir)</span>
+                    <span class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Cleared</span>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-xl border border-gray-200/70 flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-800">3. Kulliyat / Padartha Vigyan</span>
+                    <span class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Cleared</span>
+                </div>
+                <div class="p-3 bg-gray-50 rounded-xl border border-gray-200/70 flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-800">4. Materia Medica / Dravyaguna</span>
+                    <span class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Cleared</span>
+                </div>
             </div>
-            {% endfor %}
         </div>
     </div>
+
 </div>
 {% endblock %}
