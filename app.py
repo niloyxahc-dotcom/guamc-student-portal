@@ -12,7 +12,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_official_v13.db')
+# ডাটাবেস সম্পূর্ণ নতুন ভার্সনে লোড হবে
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_official_final_v2.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -20,7 +21,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
-from models import db, Student
+from models import db, Student, Post, Notice
 db.init_app(app)
 
 login_manager = LoginManager()
@@ -34,6 +35,7 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ড্রাইভ লিংক থেকে ফাইল আইডি বের করার ফাংশন
 def extract_drive_id(val):
     if not val:
         return ""
@@ -49,6 +51,7 @@ def extract_drive_id(val):
         return m3.group(1)
     return ""
 
+# মোবাইল নম্বর ক্লিন করে ১১ ডিজিট ফরম্যাট (01XXXXXXXXX) নিশ্চিত করা
 def format_bd_phone(raw_val):
     if not raw_val:
         return ""
@@ -69,7 +72,7 @@ def format_bd_phone(raw_val):
         return digits[2:]
     return val
 
-# অফিসিয়াল ক্লাস রোল ও কোর্স ম্যাপিং ডাটা
+# অফিসিয়াল ক্লাস রোল ও কোর্স ম্যাপিং ডিকশনারি
 OFFICIAL_ROLL_MAP = {
     # --- BUMS ---
     "ARBIN": {"roll": "01", "course": "BUMS"},
@@ -141,6 +144,7 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
 
+# ডেটাবেস ইনিশিয়ালাইজ ও সিএসভি সিঙ্ক
 with app.app_context():
     db.create_all()
     csv_path = os.path.join(basedir, 'students.csv')
@@ -149,7 +153,7 @@ with app.app_context():
             with open(csv_path, mode='r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 for r in reader:
-                    # ১. ইমেইল এক্সট্র্যাক্ট
+                    # ১. ইমেইল ফিল্টার
                     em = ""
                     for k, v in r.items():
                         if k and 'email' in str(k).lower() and v:
@@ -163,29 +167,42 @@ with app.app_context():
                         student = Student(email=em)
                         db.session.add(student)
 
-                    # ২. নাম: শিক্ষার্থীদের ফর্মের কলাম থেকেই সরাসরি রিড করা হবে
+                    # ২. নাম ও পিতার নাম সরাসরি ফর্মের কলাম থেকে গ্রহণ
                     raw_eng_name = ""
                     raw_ban_name = ""
+                    raw_father_name = ""
+
                     for k, v in r.items():
                         if not k or not v:
                             continue
-                        k_l = str(k).lower()
-                        if 'bangla' in k_l:
+                        k_l = str(k).lower().strip()
+                        
+                        # পিতার নাম নির্ভুল ডিটেকশন
+                        if ("father's name" in k_l or "father name" in k_l or (k_l.startswith('father') and 'name' in k_l) or 'পিতা' in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l):
+                            raw_father_name = str(v).strip()
+                        elif 'bangla' in k_l:
                             raw_ban_name = str(v).strip()
-                        elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name:
+                        elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name and not ('father' in k_l or 'mother' in k_l or 'guardian' in k_l):
                             raw_eng_name = str(v).strip()
 
-                    # ৩. রোল ও কোর্স: আপনার দেওয়া ডাটাবেস থেকে স্বয়ংক্রিয়ভাবে নেওয়া হবে
-                    official_roll, official_course = resolve_official_roll(raw_eng_name, em, default_course='BUMS')
+                    # ৩. কোর্স
+                    raw_course = 'BUMS'
+                    for k, v in r.items():
+                        if k and 'course' in str(k).lower() and v:
+                            raw_course = str(v).strip().upper()
+
+                    # ৪. অফিসিয়াল রোল ম্যাপিং
+                    official_roll, official_course = resolve_official_roll(raw_eng_name, em, default_course=raw_course)
 
                     student.name_english = raw_eng_name if raw_eng_name else em.split('@')[0].title()
                     student.name_bangla = raw_ban_name
+                    student.father_name = raw_father_name
                     student.course = official_course
                     student.batch = '37th'
                     student.roll_no = str(official_roll).zfill(2)
                     student.class_roll = str(official_roll).zfill(2)
 
-                    # ৪. ফোন নম্বর
+                    # ৫. কন্টাক্ট নম্বর
                     st_contact = ""
                     em_contact = ""
                     for k, v in r.items():
@@ -200,12 +217,12 @@ with app.app_context():
                     student.contact_number = st_contact
                     student.emergency_medical_contact = em_contact
 
-                    # ৫. ব্লাড গ্রুপ
+                    # ৬. রক্তের গ্রুপ
                     for k, v in r.items():
                         if k and 'blood' in str(k).lower() and v:
                             student.blood_group = str(v).strip()
 
-                    # ৬. ছবি
+                    # ৭. ড্রাইভের ছবির লিঙ্ক
                     found_img = ""
                     for col_k, col_v in r.items():
                         if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower() or 'picture' in str(col_k).lower()):
@@ -219,7 +236,7 @@ with app.app_context():
                 
                 db.session.commit()
         except Exception as e:
-            print("CSV Sync:", e)
+            print("CSV Startup Sync:", e)
 
 # ফটো প্রক্সি
 @app.route('/avatar/<int:user_id>')
@@ -310,7 +327,7 @@ def dashboard():
 @app.route('/id-card')
 @login_required
 def id_card():
-    emergency_contact = current_user.emergency_medical_contact or current_user.father_contact or current_user.contact_number or '017XXXXXXXX'
+    emergency_contact = current_user.emergency_medical_contact or current_user.contact_number or '017XXXXXXXX'
     return render_template('id_card.html', emergency_contact=emergency_contact)
 
 # ফটো আপলোড
