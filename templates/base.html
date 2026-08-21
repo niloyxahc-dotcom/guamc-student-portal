@@ -3,58 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}GUAMC Student Portal{% endblock %}</title>
+    <title>GUAMC Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }</style>
 </head>
-<body class="bg-slate-50 min-h-screen flex flex-col justify-between font-sans">
-    <!-- Navbar -->
-    <nav class="bg-emerald-900 text-white shadow-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <div class="flex items-center space-x-3">
-                    <span class="text-xl">🌿</span>
-                    <div>
-                        <a href="/dashboard" class="font-bold text-base md:text-lg tracking-wide hover:text-emerald-200">GUAMC Portal</a>
-                        <p class="text-[10px] text-emerald-300">Govt. Unani & Ayurvedic Medical College</p>
-                    </div>
-                </div>
+<body class="min-h-screen pb-12">
 
-                {% if current_user.is_authenticated %}
-                <div class="hidden lg:flex items-center space-x-1 text-xs font-medium">
-                    <a href="/dashboard" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Dashboard</a>
-                    <a href="/results" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Results</a>
-                    <a href="/academic" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Academic Hub</a>
-                    <a href="/forum" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Discussions</a>
-                    <a href="/representatives" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">CR & Coordinators</a>
-                    <a href="/clubs" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Clubs</a>
-                    <a href="/vlogs" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Vlogs</a>
-                    <a href="/articles" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Articles</a>
-                    <a href="/submit-post" class="bg-emerald-700 hover:bg-emerald-600 px-3 py-2 rounded-md transition font-bold text-emerald-100">➕ Submit</a>
-                    <a href="/logout" class="bg-red-700 hover:bg-red-800 px-2.5 py-2 rounded-md transition">Logout</a>
-                </div>
-                {% endif %}
+    <!-- Sticky Navigation Bar with Logout -->
+    <nav class="bg-emerald-900 text-white shadow-md px-4 sm:px-6 py-3.5 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-2.5">
+            <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Logo" class="h-8 w-auto object-contain bg-white rounded-full p-0.5">
+            <div>
+                <h1 class="font-extrabold text-sm sm:text-base leading-tight">GUAMC Portal</h1>
+                <p class="text-[10px] text-emerald-200">Govt. Unani & Ayurvedic Medical College</p>
             </div>
+        </div>
+        <div>
+            <a href="{{ url_for('logout') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                Logout
+            </a>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 w-full flex-grow">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-          {% if messages %}
-            {% for category, message in messages %}
-              <div class="text-sm p-3 rounded-lg mb-6 text-center border font-medium {% if category == 'error' %}bg-red-50 text-red-700 border-red-200{% elif category == 'success' %}bg-green-50 text-green-700 border-green-200{% else %}bg-blue-50 text-blue-700 border-blue-200{% endif %}">
-                  {{ message }}
-              </div>
-            {% endfor %}
-          {% endif %}
-        {% endwith %}
-
+    <main class="max-w-4xl mx-auto p-4">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
-        &copy; 2026 Govt. Unani & Ayurvedic Medical College (GUAMC). Mirpur-13, Dhaka-1221. All Rights Reserved.
-    </footer>
 </body>
 </html>
