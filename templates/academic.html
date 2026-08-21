@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}Academic Resources Hub - GUAMC{% endblock %}
+
+{% block content %}
+<div class="space-y-8">
+    <div class="border-b pb-3">
+        <h1 class="text-2xl font-bold text-slate-800">Academic & Resource Hub</h1>
+        <p class="text-xs text-slate-500 mt-1">Access medical textbooks, lecture materials, past questions, and clinical demonstration videos.</p>
+    </div>
+
+    <!-- E-Books Section -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <div class="flex items-center justify-between border-b pb-2">
+            <h2 class="text-base font-bold text-slate-800">📚 Standard Textbooks & E-Books</h2>
+            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">PDF Library</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            {% for book in resources.ebooks %}
+            <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-slate-800">{{ book.title }}</p>
+                    <p class="text-slate-500 text-[11px] mt-0.5">Subject: {{ book.category }}</p>
+                </div>
+                <a href="{{ book.link }}" class="text-emerald-800 font-semibold hover:underline">Download</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Lecture Sheets & Handouts -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <div class="flex items-center justify-between border-b pb-2">
+            <h2 class="text-base font-bold text-slate-800">📝 Departmental Lecture Sheets & Notes</h2>
+            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">Class Notes</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            {% for sheet in resources.sheets %}
+            <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-3">
+                <div>
+                    <p class="font-bold text-slate-800">{{ sheet.title }}</p>
+                    <p class="text-slate-500 text-[11px] mt-1">{{ sheet.author }}</p>
+                </div>
+                <a href="{{ sheet.link }}" class="text-emerald-800 font-semibold hover:underline">View Document &rarr;</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Question Bank -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <div class="flex items-center justify-between border-b pb-2">
+            <h2 class="text-base font-bold text-slate-800">🗂 Professional Exam Question Bank</h2>
+            <span class="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-medium">Archive</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+            {% for q in resources.questions %}
+            <div class="p-3 rounded-lg border border-slate-200 bg-slate-50 flex flex-col justify-between space-y-3">
+                <div>
+                    <p class="font-bold text-slate-800">{{ q.title }}</p>
+                    <p class="text-emerald-700 font-medium text-[11px] mt-1">{{ q.type }}</p>
+                </div>
+                <a href="{{ q.link }}" class="text-emerald-800 font-semibold hover:underline">Access Paper &rarr;</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Video Lectures -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+        <h2 class="text-base font-bold text-slate-800 border-b pb-2">🎥 Clinical & Lab Lecture Videos</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
+            {% for video in resources.videos %}
+            <div class="space-y-2">
+                <div class="aspect-video w-full rounded-lg overflow-hidden border border-slate-200 bg-black">
+                    <iframe class="w-full h-full" src="https://www.youtube.com/embed/{{ video.video_id }}" frameborder="0" allowfullscreen></iframe>
+                </div>
+                <p class="font-bold text-slate-800">{{ video.title }}</p>
+                <p class="text-slate-500 text-[11px]">{{ video.channel }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

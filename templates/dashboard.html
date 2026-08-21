@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - GUAMC Portal{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Student Header & Profile Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 mb-6 gap-4">
+            <div>
+                <h1 class="text-2xl font-extrabold text-slate-800">{{ current_user.name }}</h1>
+                <p class="text-emerald-800 font-semibold text-sm mt-0.5">{{ current_user.course }} | Batch: {{ current_user.batch }}</p>
+            </div>
+            <div>
+                {% if clearance and clearance.is_eligible %}
+                <span class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-3 py-1 rounded-full border border-emerald-300">
+                    ✓ Exam Eligible
+                </span>
+                {% else %}
+                <span class="bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 rounded-full border border-amber-300">
+                    Clearance Pending
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+            <div>
+                <p class="text-xs text-slate-500 font-medium uppercase">Roll Number</p>
+                <p class="font-semibold text-slate-800 mt-0.5">{{ current_user.roll_no }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 font-medium uppercase">Email Address</p>
+                <p class="font-semibold text-slate-800 mt-0.5">{{ current_user.email }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 font-medium uppercase">Phone Number</p>
+                <p class="font-semibold text-slate-800 mt-0.5">{{ current_user.phone }}</p>
+            </div>
+            <div>
+                <p class="text-xs text-slate-500 font-medium uppercase">Guardian Name</p>
+                <p class="font-semibold text-slate-800 mt-0.5">{{ current_user.guardian_name }}</p>
+            </div>
+            <div class="md:col-span-2">
+                <p class="text-xs text-slate-500 font-medium uppercase">Present Address</p>
+                <p class="font-semibold text-slate-800 mt-0.5">{{ current_user.address }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance & Academic Clearance Status -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <div class="flex items-center justify-between border-b pb-3 mb-4">
+            <h2 class="text-base font-bold text-slate-800">Academic & Exam Clearance Status (1st Professional)</h2>
+            <span class="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded font-medium">DU Affiliated</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <p class="text-slate-500 font-medium">Total Attendance</p>
+                <p class="text-xl font-extrabold text-emerald-800 mt-1">{{ clearance.attendance_pct }}%</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Req: Minimum 75%</p>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <p class="text-slate-500 font-medium">Term-1 Status</p>
+                <p class="text-sm font-bold text-emerald-700 mt-2">✓ {{ clearance.term_1_status }}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Written & OSPE Cleared</p>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <p class="text-slate-500 font-medium">Term-2 Status</p>
+                <p class="text-sm font-bold text-blue-700 mt-2">⏳ {{ clearance.term_2_status }}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">Under Assessment</p>
+            </div>
+
+            <div class="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <p class="text-slate-500 font-medium">Card & Item Completion</p>
+                <p class="text-sm font-bold text-emerald-700 mt-2">✓ {{ clearance.card_completion }}</p>
+                <p class="text-[10px] text-slate-400 mt-0.5">All Dept Logbooks Signed</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Secondary Info Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Academic History -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide border-b pb-2">Academic Record (SSC)</h2>
+            <div class="space-y-2 text-xs">
+                <p><span class="text-slate-500">Institution:</span> <span class="font-semibold text-slate-800">{{ current_user.ssc_school }}</span></p>
+                <p><span class="text-slate-500">Result (GPA):</span> <span class="font-semibold text-slate-800">{{ current_user.ssc_gpa }}</span></p>
+                <p><span class="text-slate-500">Passing Year:</span> <span class="font-semibold text-slate-800">{{ current_user.ssc_year }}</span></p>
+            </div>
+        </div>
+
+        <!-- Registered Clubs -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide">Club Memberships</h2>
+                <a href="/clubs" class="text-xs text-emerald-800 font-semibold hover:underline">Update &rarr;</a>
+            </div>
+            <div class="space-y-2">
+                {% if my_clubs %}
+                    {% for club in my_clubs %}
+                    <span class="inline-block bg-emerald-50 text-emerald-800 text-xs px-2.5 py-1 rounded border border-emerald-200 font-medium">
+                        ✓ {{ club }}
+                    </span>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-xs text-slate-500 italic">Not enrolled in any club yet.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Academic Notice Board -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide border-b pb-2">Notice Board</h2>
+            <div class="space-y-3">
+                {% for notice in notices %}
+                <div class="p-3 bg-emerald-50 rounded-lg border border-emerald-100 text-xs">
+                    <p class="font-bold text-emerald-900 mb-1">{{ notice.title }}</p>
+                    <p class="text-slate-600 leading-relaxed">{{ notice.content }}</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

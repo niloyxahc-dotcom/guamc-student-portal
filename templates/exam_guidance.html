@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% block title %}Professional Exam Guidance - GUAMC{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="border-b pb-3">
+        <h1 class="text-2xl font-bold text-slate-800">Professional Examination Guidance</h1>
+        <p class="text-xs text-slate-500 mt-1">Framework, subject weightage, practical OSPE breakdown, and viva strategy.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h2 class="font-bold text-emerald-900 text-base">Anatomy & Histology (Tashreeh)</h2>
+                <span class="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">1st Prof</span>
+            </div>
+            <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                <li>Focus on Gross Anatomy viscera attachments and blood supply.</li>
+                <li>High yield: Thoracic cavity, Abdominal quadrants, and CNS tracts.</li>
+                <li>OSPE checklist: Soft part identification and surface markings.</li>
+            </ul>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h2 class="font-bold text-emerald-900 text-base">Physiology & Biochemistry (Munafeul Aza)</h2>
+                <span class="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">1st Prof</span>
+            </div>
+            <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                <li>Core physiological systems: CVS, Renal mechanisms, Endocrinology.</li>
+                <li>Biochemistry: Carbohydrate & lipid metabolic pathways.</li>
+                <li>Practical viva: Hematology experiments, ESR, and blood indices.</li>
+            </ul>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h2 class="font-bold text-emerald-900 text-base">Ilmul Advia / Dravyaguna (Pharmacognosy)</h2>
+                <span class="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">Core Specialty</span>
+            </div>
+            <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                <li>Medicinal plants: Botanical classification, Mizaj/temperament, active constituents.</li>
+                <li>Practical identification: Crude drug specimens and herbarium sheets.</li>
+                <li>Formulations, compounding, and therapeutic dosage calculations.</li>
+            </ul>
+        </div>
+
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-3">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h2 class="font-bold text-emerald-900 text-base">Bedside Clinical Methods</h2>
+                <span class="text-[11px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold">Clinical Viva</span>
+            </div>
+            <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
+                <li>Systematic General Physical Examination (GPE) checklists.</li>
+                <li>Pulse examination according to classical principles (Nabz/Nadi).</li>
+                <li>Case presentation methodology and structured clinical history taking.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Medical Discussions Forum - GUAMC{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex flex-col md:flex-row md:items-center justify-between border-b pb-4 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Medical Case & Academic Discussions</h1>
+            <p class="text-xs text-slate-500 mt-1">Peer-to-peer discussions, clinical queries, and herbal pharmacology debates.</p>
+        </div>
+        <div class="flex space-x-2 text-xs">
+            <a href="/forum?tag=All" class="px-3 py-1.5 rounded-lg border font-semibold {% if selected_tag == 'All' %}bg-emerald-800 text-white{% else %}bg-white text-slate-700{% endif %}">All</a>
+            <a href="/forum?tag=BUMS" class="px-3 py-1.5 rounded-lg border font-semibold {% if selected_tag == 'BUMS' %}bg-emerald-800 text-white{% else %}bg-white text-slate-700{% endif %}">BUMS</a>
+            <a href="/forum?tag=BAMS" class="px-3 py-1.5 rounded-lg border font-semibold {% if selected_tag == 'BAMS' %}bg-emerald-800 text-white{% else %}bg-white text-slate-700{% endif %}">BAMS</a>
+        </div>
+    </div>
+
+    <!-- Start New Topic Card -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3">💬 Start a New Discussion Topic</h2>
+        <form method="POST" action="/forum/new" class="space-y-3 text-xs">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="md:col-span-3">
+                    <input type="text" name="title" required placeholder="Topic Title / Question (e.g. Action of Withania somnifera in Anxiety)" class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none">
+                </div>
+                <div>
+                    <select name="course_tag" class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none">
+                        <option value="General">General / All</option>
+                        <option value="BUMS">BUMS Focused</option>
+                        <option value="BAMS">BAMS Focused</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <textarea name="content" required rows="2" placeholder="Elaborate on your clinical query or academic argument..." class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none"></textarea>
+            </div>
+            <button type="submit" class="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-5 py-2 rounded-lg transition">Post Topic</button>
+        </form>
+    </div>
+
+    <!-- Topics Stream -->
+    <div class="space-y-4">
+        {% for topic in topics %}
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-4">
+            <div class="flex justify-between items-start">
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="bg-slate-100 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded border border-slate-200">{{ topic.course_tag }}</span>
+                        <span class="text-xs text-slate-400">By <strong class="text-slate-700">{{ topic.author_name }}</strong></span>
+                    </div>
+                    <h3 class="text-base font-bold text-slate-800 mt-1">{{ topic.title }}</h3>
+                </div>
+            </div>
+            <p class="text-xs text-slate-600 leading-relaxed">{{ topic.content }}</p>
+
+            <!-- Replies Section -->
+            <div class="pt-3 border-t space-y-3">
+                {% if topic.replies %}
+                <div class="space-y-2 pl-4 border-l-2 border-emerald-700">
+                    {% for reply in topic.replies %}
+                    <div class="text-xs bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+                        <p class="font-bold text-emerald-900">{{ reply.author_name }}:</p>
+                        <p class="text-slate-600 mt-0.5">{{ reply.content }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Reply Form -->
+                <form method="POST" action="/forum/reply/{{ topic.id }}" class="flex gap-2 text-xs pt-1">
+                    <input type="text" name="content" required placeholder="Write a response or clinical view..." class="flex-grow px-3 py-1.5 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none">
+                    <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-semibold px-4 py-1.5 rounded-lg transition">Reply</button>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

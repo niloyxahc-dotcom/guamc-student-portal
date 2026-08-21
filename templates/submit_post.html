@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Submit Content - GUAMC{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 md:p-8 space-y-6">
+        <div class="border-b pb-3">
+            <h1 class="text-xl font-bold text-slate-800">Student Submission Portal</h1>
+            <p class="text-xs text-slate-500 mt-1">Submit campus vlogs, class/exam routines, or academic research articles directly to the portal.</p>
+        </div>
+
+        <form method="POST" action="/submit-post" class="space-y-4 text-xs">
+            <div>
+                <label class="block font-bold uppercase text-slate-600 mb-1">Select Submission Type</label>
+                <select name="post_type" required class="w-full px-3 py-2.5 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none text-xs">
+                    <option value="vlog">Campus Vlog / Clinical Demonstration (YouTube Link)</option>
+                    <option value="article">Academic Article / Case Study / Research Paper</option>
+                    <option value="routine">Class Routine / Clinical Ward Notice</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block font-bold uppercase text-slate-600 mb-1">Title / Heading</label>
+                <input type="text" name="title" required placeholder="e.g. Batch 37 Biochemistry Practical Routine or Heart Dissection Vlog" class="w-full px-3 py-2.5 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none">
+            </div>
+
+            <div>
+                <label class="block font-bold uppercase text-slate-600 mb-1">Link / URL (YouTube Video or Article Document)</label>
+                <input type="url" name="content_url" placeholder="https://www.youtube.com/watch?v=... or https://pubmed.ncbi.nlm.nih.gov/..." class="w-full px-3 py-2.5 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none">
+                <p class="text-[10px] text-slate-400 mt-1">Required for Vlogs and external Articles.</p>
+            </div>
+
+            <div>
+                <label class="block font-bold uppercase text-slate-600 mb-1">Description / Routine Content</label>
+                <textarea name="description" rows="4" placeholder="Enter article summary, schedule breakdown, or video description..." class="w-full px-3 py-2.5 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none"></textarea>
+            </div>
+
+            <button type="submit" class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-bold py-2.5 rounded-lg transition duration-150">
+                Submit & Publish Immediately
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

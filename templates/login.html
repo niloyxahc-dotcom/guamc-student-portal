@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - GUAMC Student Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+    <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md border border-slate-200">
+        <div class="text-center mb-6">
+            <span class="text-4xl">🌿</span>
+            <h1 class="text-xl font-bold text-emerald-900 mt-2">Govt. Unani & Ayurvedic Medical College</h1>
+            <p class="text-xs text-slate-500 mt-1">Mirpur-13, Dhaka-1221</p>
+            <div class="inline-block mt-4 px-3 py-1 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-full border border-emerald-200">
+                Official Student Portal
+            </div>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="bg-red-50 text-red-600 text-xs p-3 rounded-lg mb-4 border border-red-200 text-center font-medium">
+                  {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="/login" class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Student Email</label>
+                <input type="email" name="email" required placeholder="example@gmail.com" 
+                       class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700">
+            </div>
+            <div>
+                <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Password</label>
+                <input type="password" name="password" required placeholder="••••••••" 
+                       class="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-700">
+                <p class="text-[11px] text-slate-400 mt-1">Default credential password: <code>guamc123</code></p>
+            </div>
+            <button type="submit" 
+                    class="w-full bg-emerald-800 hover:bg-emerald-900 text-white font-semibold py-2.5 rounded-lg transition duration-200 text-sm">
+                Sign In to Dashboard
+            </button>
+        </form>
+    </div>
+</body>
+</html>

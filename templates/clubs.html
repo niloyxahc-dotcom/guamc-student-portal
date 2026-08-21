@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Clubs & Societies - GUAMC{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <div class="border-b pb-3">
+        <h1 class="text-2xl font-bold text-slate-800">Campus Club Registration</h1>
+        <p class="text-xs text-slate-500 mt-1">Select the clubs you want to join, or choose 'Not interested'.</p>
+    </div>
+
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 md:p-8">
+        <form method="POST" action="/clubs" class="space-y-6">
+            <div class="space-y-4">
+                <p class="text-sm font-bold text-slate-800">Do you want to join any of the following club? <span class="text-red-500">*</span></p>
+
+                <div class="space-y-3">
+                    {% for club in clubs %}
+                    <label class="flex items-start space-x-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
+                        <input type="checkbox" name="clubs" value="{{ club.name }}" 
+                               {% if club.name in my_clubs %}checked{% endif %}
+                               class="mt-1 h-4 w-4 text-emerald-800 focus:ring-emerald-700 border-slate-300 rounded">
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800">{{ club.name }}</p>
+                            <p class="text-xs text-slate-500 leading-relaxed mt-0.5">{{ club.desc }}</p>
+                        </div>
+                    </label>
+                    {% endfor %}
+
+                    <label class="flex items-center space-x-3 p-3.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer transition">
+                        <input type="checkbox" name="clubs" value="Not interested" 
+                               {% if not my_clubs %}checked{% endif %}
+                               class="h-4 w-4 text-emerald-800 focus:ring-emerald-700 border-slate-300 rounded">
+                        <span class="text-sm font-medium text-slate-700">Not interested</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t">
+                <button type="submit" class="w-full sm:w-auto bg-emerald-800 hover:bg-emerald-900 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition duration-150">
+                    Save Preferences
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

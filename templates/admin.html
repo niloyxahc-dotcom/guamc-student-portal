@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}Admin Panel - GUAMC{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between border-b pb-3">
+        <div>
+            <h1 class="text-2xl font-bold text-slate-800">Faculty & Academic Admin Panel</h1>
+            <p class="text-xs text-slate-500 mt-0.5">Publish notices, add research publications, and review enrolled students.</p>
+        </div>
+        <span class="bg-red-100 text-red-800 text-xs font-bold px-3 py-1 rounded-full border border-red-300">Admin Mode</span>
+    </div>
+
+    <!-- Forms Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Add Notice Form -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-base font-bold text-slate-800 mb-3 border-b pb-2">📢 Publish Official Notice</h2>
+            <form method="POST" action="/admin/add-notice" class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">Notice Title</label>
+                    <input type="text" name="title" required placeholder="e.g. Card Examination Schedule" class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">Content / Details</label>
+                    <textarea name="content" required rows="3" placeholder="Write notice details..." class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none"></textarea>
+                </div>
+                <button type="submit" class="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-4 py-2 rounded-lg transition">Publish Notice</button>
+            </form>
+        </div>
+
+        <!-- Add Article Form -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 class="text-base font-bold text-slate-800 mb-3 border-b pb-2">📄 Add Research Article</h2>
+            <form method="POST" action="/admin/add-article" class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="block font-bold text-slate-600 mb-1">Title</label>
+                        <input type="text" name="title" required placeholder="Article Title" class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-600 mb-1">Author</label>
+                        <input type="text" name="author" required placeholder="Author / Cell" class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">Summary</label>
+                    <textarea name="summary" required rows="2" placeholder="Summary..." class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none"></textarea>
+                </div>
+                <div>
+                    <label class="block font-bold text-slate-600 mb-1">Journal Link (Optional)</label>
+                    <input type="url" name="link" placeholder="https://pubmed.ncbi.nlm.nih.gov/..." class="w-full px-3 py-2 border rounded-lg bg-slate-50 focus:ring-2 focus:ring-emerald-700 focus:outline-none">
+                </div>
+                <button type="submit" class="bg-emerald-800 hover:bg-emerald-900 text-white font-bold px-4 py-2 rounded-lg transition">Save Article</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Active Notices Table with Delete -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h2 class="text-base font-bold text-slate-800 mb-3 border-b pb-2">Active Notices Management</h2>
+        <div class="space-y-2">
+            {% for n in notices %}
+            <div class="flex justify-between items-center p-3 bg-slate-50 border rounded-lg text-xs">
+                <div>
+                    <p class="font-bold text-slate-800">{{ n.title }}</p>
+                    <p class="text-slate-500 text-[11px]">{{ n.content }}</p>
+                </div>
+                <a href="/admin/delete-notice/{{ n.id }}" class="text-red-600 hover:underline font-bold">Delete</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Enrolled Students Directory -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+        <h2 class="text-base font-bold text-slate-800 mb-3 border-b pb-2">Enrolled Students Roster ({{ students|length }})</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+                <thead>
+                    <tr class="bg-slate-100 border-b font-bold text-slate-700">
+                        <th class="p-2.5">Roll</th>
+                        <th class="p-2.5">Name</th>
+                        <th class="p-2.5">Course</th>
+                        <th class="p-2.5">Batch</th>
+                        <th class="p-2.5">Phone</th>
+                        <th class="p-2.5">Email</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for s in students %}
+                    <tr class="hover:bg-slate-50">
+                        <td class="p-2.5 font-bold">{{ s.roll_no }}</td>
+                        <td class="p-2.5">{{ s.name }}</td>
+                        <td class="p-2.5 font-semibold text-emerald-800">{{ s.course }}</td>
+                        <td class="p-2.5">{{ s.batch }}</td>
+                        <td class="p-2.5">{{ s.phone }}</td>
+                        <td class="p-2.5 text-slate-500">{{ s.email }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

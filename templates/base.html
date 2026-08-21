@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GUAMC Student Portal{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col justify-between font-sans">
+    <!-- Navbar -->
+    <nav class="bg-emerald-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xl">🌿</span>
+                    <div>
+                        <a href="/dashboard" class="font-bold text-base md:text-lg tracking-wide hover:text-emerald-200">GUAMC Portal</a>
+                        <p class="text-[10px] text-emerald-300">Govt. Unani & Ayurvedic Medical College</p>
+                    </div>
+                </div>
+
+                {% if current_user.is_authenticated %}
+                <div class="hidden lg:flex items-center space-x-1 text-xs font-medium">
+                    <a href="/dashboard" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Dashboard</a>
+                    <a href="/results" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Results</a>
+                    <a href="/academic" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Academic Hub</a>
+                    <a href="/forum" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Discussions</a>
+                    <a href="/representatives" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">CR & Coordinators</a>
+                    <a href="/clubs" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Clubs</a>
+                    <a href="/vlogs" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Vlogs</a>
+                    <a href="/articles" class="hover:bg-emerald-800 px-2.5 py-2 rounded-md transition">Articles</a>
+                    <a href="/submit-post" class="bg-emerald-700 hover:bg-emerald-600 px-3 py-2 rounded-md transition font-bold text-emerald-100">➕ Submit</a>
+                    <a href="/logout" class="bg-red-700 hover:bg-red-800 px-2.5 py-2 rounded-md transition">Logout</a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 w-full flex-grow">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="text-sm p-3 rounded-lg mb-6 text-center border font-medium {% if category == 'error' %}bg-red-50 text-red-700 border-red-200{% elif category == 'success' %}bg-green-50 text-green-700 border-green-200{% else %}bg-blue-50 text-blue-700 border-blue-200{% endif %}">
+                  {{ message }}
+              </div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+        &copy; 2026 Govt. Unani & Ayurvedic Medical College (GUAMC). Mirpur-13, Dhaka-1221. All Rights Reserved.
+    </footer>
+</body>
+</html>
