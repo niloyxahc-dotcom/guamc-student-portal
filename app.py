@@ -80,7 +80,7 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
 
-# সমস্ত স্টুডেন্টের ভুল প্রোফাইল আসল CSV থেকে অটো-ফিক্স ও সিঙ্ক করার ফাংশন
+# সেভ করা অ্যাটেনডেন্সকে সুরক্ষিত রেখে প্রোফাইল সিঙ্ক
 def sync_students_csv():
     csv_path = os.path.join(basedir, 'students.csv')
     if not os.path.exists(csv_path):
@@ -99,8 +99,10 @@ def sync_students_csv():
                         continue
 
                     student = Student.query.filter(db.func.lower(Student.email) == em).first()
+                    is_new = False
                     if not student:
                         student = Student(email=em)
+                        is_new = True
                         db.session.add(student)
 
                     raw_eng_name = ""
@@ -132,14 +134,12 @@ def sync_students_csv():
                         elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name and not ('father' in k_l or 'mother' in k_l or 'guardian' in k_l):
                             raw_eng_name = v_s
 
-                    # যদি রোল না পাওয়া যায় তবে ডিফল্ট ০১
                     if not raw_class_roll:
                         raw_class_roll = "01"
 
-                    # ডাটাবেসে আসল ডাটা দিয়ে ওভাররাইট
                     student.name_english = raw_eng_name if raw_eng_name else em.split('@')[0].title()
-                    student.name_bangla = raw_ban_name
-                    student.father_name = raw_father_name
+                    if raw_ban_name: student.name_bangla = raw_ban_name
+                    if raw_father_name: student.father_name = raw_father_name
                     student.course = raw_course
                     student.batch = '37th'
                     student.roll_no = str(raw_class_roll).zfill(2)
@@ -156,8 +156,8 @@ def sync_students_csv():
                         elif ('contact' in k_l or 'mobile' in k_l or 'phone' in k_l) and not st_contact:
                             st_contact = format_bd_phone(v)
 
-                    student.contact_number = st_contact
-                    student.emergency_medical_contact = em_contact
+                    if st_contact: student.contact_number = st_contact
+                    if em_contact: student.emergency_medical_contact = em_contact
 
                     for k, v in r.items():
                         if k and 'blood' in str(k).lower() and v:
@@ -173,7 +173,8 @@ def sync_students_csv():
                     elif not student.password_hash:
                         student.password_hash = generate_password_hash('guamc123')
                     
-                    if student.attendance is None:
+                    # শুধুমাত্র একদম নতুন ছাত্রের জন্য ডিফল্ট ৮৫% হবে, যাদের মান ইতিমধ্যে সেভ আছে তা কখনোই পরিবর্তন হবে না
+                    if is_new and student.attendance is None:
                         student.attendance = 85.0
                     
                     db.session.commit()
@@ -239,13 +240,35 @@ def login():
 
             student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
+            # যদি Rezaul Salim বানানে ভুল করে থাকে (rezaulsalim বা razaulsalim), অটো-ম্যাচ করবে
+            if not student:
+                if 'rezaulsalim13' in email or 'razaulsalim13' in email:
+                    student = Student.query.filter(
+                        (db.func.lower(Student.email) == 'razaulsalim13@gmail.com') | 
+                        (db.func.lower(Student.email) == 'rezaulsalim13@gmail.com')
+                    ).first()
+
+            # যদি এখনো না পাওয়া যায় তবে একবার CSV সিঙ্ক চেষ্টা করবে
             if not student:
                 sync_students_csv()
                 student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
+            # যদি কোনো ছাত্র ফর্ম বা CSV-র বাইরে থেকেও লগইন করে, তাকে ব্লক না করে অটো একাউন্ট তৈরি করে দিবে
             if not student:
-                flash('Email not found in registered 37th batch database!', 'danger')
-                return render_template('login.html')
+                student = Student(
+                    email=email,
+                    name_english=email.split('@')[0].title(),
+                    course='BUMS',
+                    batch='37th',
+                    roll_no='01',
+                    class_roll='01',
+                    unique_id=f"371_{int(os.urandom(2).hex(), 16)}",
+                    blood_group='A+',
+                    attendance=85.0,
+                    password_hash=generate_password_hash('guamc123' if email not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com'] else '6456994')
+                )
+                db.session.add(student)
+                db.session.commit()
 
             if email in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
                 if password == '6456994' or check_password_hash(student.password_hash, password):
