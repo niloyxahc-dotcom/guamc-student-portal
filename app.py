@@ -6,7 +6,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'guamc-portal-secret-2026'
+app.config['SECRET_KEY'] = 'guamc-portal-2026-secret'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///portal.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -19,22 +19,22 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    return Student.query.get(int(user_id))
+    try:
+        return Student.query.get(int(user_id))
+    except Exception:
+        return None
 
-@app.before_request
-def create_tables():
-    db.create_all()
-
-# Login Route
+# রুট বা লগইন পেজ
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('admin_dashboard' if current_user.is_admin else 'dashboard'))
+        return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '').strip()
         
+        # ডিফল্ট অ্যাডমিন
         if email == 'admin@guamc.edu.bd' and password == 'admin123':
             admin_user = Student.query.filter_by(email=email).first()
             if not admin_user:
@@ -49,25 +49,27 @@ def login():
                 db.session.add(admin_user)
                 db.session.commit()
             login_user(admin_user)
-            return redirect(url_for('admin_dashboard'))
+            return redirect(url_for('dashboard'))
 
-        student = Student.query.filter_by(email=email).first()
-        if student and check_password_hash(student.password_hash, password):
-            login_user(student)
-            return redirect(url_for('admin_dashboard' if student.is_admin else 'dashboard'))
-        else:
-            flash('Invalid email or password!', 'danger')
+        try:
+            student = Student.query.filter_by(email=email).first()
+            if student and check_password_hash(student.password_hash, password):
+                login_user(student)
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Invalid email or password!', 'danger')
+        except Exception:
+            flash('Database updating, please try again in a few seconds.', 'danger')
             
     return render_template('login.html')
 
-# Student Dashboard
+# স্টুডেন্ট ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    if current_user.is_admin:
-        return redirect(url_for('admin_dashboard'))
+    course = getattr(current_user, 'course_type', 'BUMS') or 'BUMS'
     
-    if getattr(current_user, 'course_type', 'BUMS') == 'BAMS':
+    if course == 'BAMS':
         subjects = [
             {"name": "1. Rachana Sharir (Anatomy)", "items": "8/10 Completed", "att": "87%"},
             {"name": "2. Kriya Sharir (Physiology)", "items": "9/10 Completed", "att": "86%"},
@@ -84,29 +86,47 @@ def dashboard():
         
     return render_template('dashboard.html', subjects=subjects)
 
-# Fallback Routes
+# ব্যাকওয়ার্ড কম্প্যাটিবিলিটি রাউট
 @app.route('/academic')
 @login_required
 def academic():
     return redirect(url_for('dashboard'))
 
-@app.route('/admin')
-@login_required
-def admin_dashboard():
-    if not current_user.is_admin:
-        flash('Access denied!', 'danger')
-        return redirect(url_for('dashboard'))
-    students = Student.query.filter(Student.email != 'admin@guamc.edu.bd').all()
-    return render_template('admin.html', students=students)
-
-# Logout
+# লগআউট
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
+    flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
 
+# সার্ভার স্টার্টের সময় টেবিল ও কলাম অটো-সিঙ্ক
+with app.app_context():
+    db.create_all()
+    # যদি CSV থাকে তাহলে ডাটা অটো ইমপোর্ট হবে
+    if os.path.exists('students.csv'):
+        try:
+            with open('students.csv', mode='r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    r_no = row.get('Roll') or row.get('roll_no')
+                    if r_no and not Student.query.filter_by(roll_no=r_no).first():
+                        s = Student(
+                            roll_no=r_no,
+                            reg_no=row.get('Reg_No', ''),
+                            session=row.get('Session', ''),
+                            batch=row.get('Batch', '37th'),
+                            course_type=row.get('Course', 'BUMS'),
+                            name=row.get('Name', 'Student'),
+                            email=row.get('Email', f"{r_no}@guamc.edu.bd"),
+                            phone=row.get('Phone', ''),
+                            blood_group=row.get('Blood_Group', ''),
+                            password_hash=generate_password_hash('guamc123')
+                        )
+                        db.session.add(s)
+                db.session.commit()
+        except Exception as e:
+            print("Auto-import notice:", e)
+
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True)
