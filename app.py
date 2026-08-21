@@ -8,8 +8,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-secret-key-2026'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///portal.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db.init_db = None # placeholder
 from models import db, Student
 db.init_app(app)
 
@@ -21,17 +21,17 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return Student.query.get(int(user_id))
 
-# রুট বা লগইন পেজ
+# লগইন রাউট
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('admin_dashboard' if current_user.is_admin else 'dashboard'))
     
     if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
+        email = request.form.get('email', '').strip()
+        password = request.form.get('password', '').strip()
         
-        # ডিফল্ট অ্যাডমিন অ্যাকাউন্ট চেক
+        # অ্যাডমিন লগইন চেক
         if email == 'admin@guamc.edu.bd' and password == 'admin123':
             admin_user = Student.query.filter_by(email=email).first()
             if not admin_user:
@@ -57,14 +57,13 @@ def login():
             
     return render_template('login.html')
 
-# স্টুডেন্ট ড্যাশবোর্ড
+# স্টুডেন্ট ড্যাশবোর্ড রাউট (BAMS ও BUMS সাবজেক্ট ফিল্টারিং সহ)
 @app.route('/dashboard')
 @login_required
 def dashboard():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
-    # কোর্স অনুযায়ী ডায়নামিক সাবজেক্ট নির্ধারণ
     if current_user.course_type == 'BAMS':
         subjects = [
             {"name": "1. Rachana Sharir (Anatomy)", "items": "8/10 Completed", "att": "87%"},
@@ -82,7 +81,13 @@ def dashboard():
         
     return render_template('dashboard.html', subjects=subjects)
 
-# অ্যাডমিন ড্যাশবোর্ড
+# একাডেমিক রাউট (যদি নেভিগেশন বার থেকে কেউ এক্সেস করে, সরাসরি ড্যাশবোর্ডেই রিডাইরেক্ট হবে)
+@app.route('/academic')
+@login_required
+def academic():
+    return redirect(url_for('dashboard'))
+
+# অ্যাডমিন ড্যাশবোর্ড রাউট
 @app.route('/admin')
 @login_required
 def admin_dashboard():
@@ -92,11 +97,12 @@ def admin_dashboard():
     students = Student.query.filter(Student.email != 'admin@guamc.edu.bd').all()
     return render_template('admin.html', students=students)
 
-# লগআউট
+# লগআউট রাউট
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
+    flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
