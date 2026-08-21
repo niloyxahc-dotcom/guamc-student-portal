@@ -79,7 +79,7 @@
             <!-- Left Side: Profile Card -->
             <div class="md:col-span-5 bg-gradient-to-b from-[#e0f2fe] via-[#eff6ff] to-white rounded-3xl shadow-sm border border-blue-100 p-6 flex flex-col items-center text-center">
                 
-                <!-- Profile Image with Avatar Proxy & Upload Overlay -->
+                <!-- Avatar with Upload Overlay -->
                 <div class="relative group mb-3">
                     <div class="w-28 h-28 rounded-full overflow-hidden border-4 border-white shadow bg-blue-100 flex items-center justify-center">
                         <img src="{{ url_for('user_avatar', user_id=current_user.id) }}" alt="{{ current_user.name_english }}" class="w-full h-full object-cover">
@@ -166,40 +166,67 @@
 
             </div>
 
-            <!-- Right Side: Clearance Card -->
+            <!-- Right Side: Academic & Exam Clearance Card (In-Progress Design) -->
             <div class="md:col-span-7 bg-white rounded-3xl shadow-sm border border-gray-200 p-6 space-y-4">
                 
                 <div class="flex justify-between items-center pb-3 border-b border-gray-100">
                     <div>
                         <h3 class="text-sm font-extrabold text-gray-900">Academic & Exam Clearance</h3>
-                        <p class="text-[11px] text-gray-500">1st Professional Assessment</p>
+                        <p class="text-[11px] text-amber-700 font-semibold flex items-center gap-1 mt-0.5">
+                            <span>⏳</span> 1st Professional (Session Ongoing)
+                        </p>
                     </div>
                     <span class="px-3 py-1 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-200">
                         DU Affiliated
                     </span>
                 </div>
 
+                <!-- Metrics Grid -->
                 <div class="grid grid-cols-2 gap-3">
                     <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p class="text-[11px] font-bold text-gray-400 uppercase">Attendance</p>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase">Current Attendance</p>
                         <p class="text-xl font-black text-emerald-800 mt-0.5">86.5%</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Min 75% required</p>
                     </div>
                     <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-100">
-                        <p class="text-[11px] font-bold text-gray-400 uppercase">Prof Clearance</p>
-                        <p class="text-sm font-extrabold text-emerald-700 mt-1">✓ Eligible</p>
+                        <p class="text-[11px] font-bold text-gray-400 uppercase">Prof Eligibility</p>
+                        <p class="text-sm font-extrabold text-blue-700 mt-1 flex items-center gap-1">
+                            <span>⏱️</span> Provisional
+                        </p>
+                        <p class="text-[10px] text-amber-600 font-medium mt-0.5">Subject to session-end avg</p>
                     </div>
                 </div>
 
+                <!-- Subject Items List (In-Progress State) -->
                 <div class="pt-2">
-                    <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2.5">Subject Items & Logbook</h4>
+                    <div class="flex justify-between items-center mb-2.5">
+                        <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Subject Items & Logbook</h4>
+                        <span class="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200">Assessment Ongoing</span>
+                    </div>
+
                     <div class="space-y-2">
                         {% for sub in subjects %}
                         <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/70 flex justify-between items-center">
-                            <span class="text-xs font-bold text-gray-800">{{ sub.name }}</span>
-                            <span class="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-md">Cleared</span>
+                            <div>
+                                <p class="text-xs font-bold text-gray-800">{{ sub.name }}</p>
+                                <p class="text-[10px] text-slate-500 font-medium mt-0.5">Card & Item Continuous Evaluation</p>
+                            </div>
+                            <span class="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md flex items-center gap-1.5 shrink-0">
+                                <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> In Progress
+                            </span>
                         </div>
                         {% endfor %}
                     </div>
+                </div>
+
+                <!-- Academic Advisory Note -->
+                <div class="p-3 bg-amber-50 rounded-2xl border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
+                    <p class="font-bold flex items-center gap-1.5">
+                        <span>⚠️</span> Attendance & Clearance Notice:
+                    </p>
+                    <p class="leading-relaxed text-[10px] text-amber-800">
+                        All item completion and attendance statuses are <strong>provisional</strong>. Class absence will reduce the current percentage. Final sent-up clearance for the DU Prof Exam form fill-up will be evaluated at the end of the academic session.
+                    </p>
                 </div>
 
             </div>
