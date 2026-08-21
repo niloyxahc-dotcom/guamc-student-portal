@@ -12,7 +12,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v6.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v8.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -34,21 +34,23 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# ড্রাইভ থেকে ফাইল আইডি বের করার ফাংশন
-def get_drive_file_id(url):
-    if not url:
+# গুগল ড্রাইভ ফাইল আইডি খোঁজার নিখুঁত রেজেক্স
+def extract_drive_id(val):
+    if not val:
         return ""
-    url = str(url).strip()
-    id_match = re.search(r'id=([a-zA-Z0-9_-]+)', url)
-    if id_match:
-        return id_match.group(1)
-    d_match = re.search(r'/d/([a-zA-Z0-9_-]+)', url)
-    if d_match:
-        return d_match.group(1)
-    # যদি গুগল ড্রাইভের ওপেন লিঙ্ক থাকে
-    open_match = re.search(r'open\?id=([a-zA-Z0-9_-]+)', url)
-    if open_match:
-        return open_match.group(1)
+    val = str(val).strip()
+    # Pattern 1: id=XXXX
+    m1 = re.search(r'id=([a-zA-Z0-9_-]{20,})', val)
+    if m1:
+        return m1.group(1)
+    # Pattern 2: /d/XXXX
+    m2 = re.search(r'/d/([a-zA-Z0-9_-]{20,})', val)
+    if m2:
+        return m2.group(1)
+    # Pattern 3: open?id=XXXX
+    m3 = re.search(r'open\?id=([a-zA-Z0-9_-]{20,})', val)
+    if m3:
+        return m3.group(1)
     return ""
 
 OFFICIAL_STUDENTS = {
@@ -108,7 +110,7 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{roll_two_digit}"
 
-# ডাটাবেস ইনিশিয়ালাইজেশন
+# ডাটাবেস ইনিশিয়ালাইজেশন
 with app.app_context():
     db.create_all()
     csv_path = os.path.join(basedir, 'students.csv')
@@ -144,62 +146,67 @@ with app.app_context():
                     student.gender = clean_r.get('gender', '')
                     student.date_of_birth = clean_r.get('date_of_birth', '')
                     
-                    # যেকোনো কলাম থেকে ছবির লিঙ্ক শনাক্তকরণ
-                    found_photo = ""
-                    for k, v in clean_r.items():
-                        if ('photo' in k or 'image' in k or 'picture' in k or 'drive.google.com' in v) and v:
-                            found_photo = v
+                    # সিএসভি থেকে যেকোনো কলামের ছবি লিংক শনাক্ত
+                    found_img = ""
+                    for col_k, col_v in clean_r.items():
+                        if col_v and ('drive.google.com' in col_v or 'photo' in col_k or 'image' in col_k or 'picture' in col_k):
+                            found_img = col_v
                             break
-                    student.photo = found_photo
+                    student.photo = found_img
 
                     student.unique_id = generate_diu_id('37', official_course, official_roll)
                     student.password_hash = generate_password_hash('guamc123')
                 
                 db.session.commit()
         except Exception as e:
-            print("CSV Startup Sync Notice:", e)
+            print("CSV Startup Sync:", e)
 
-# গুগল ড্রাইভ এবং লোকাল ইমেজ লোডার প্রক্সি
+# ফটো প্রক্সি রাউট
 @app.route('/avatar/<int:user_id>')
 def user_avatar(user_id):
     student = Student.query.get(user_id)
     if student and student.photo:
-        # ১. লোকাল ডিরেক্টরি থেকে আপলোড করা ফাইল
+        # ১. লোকাল আপলোড ফাইল
         if student.photo.startswith('/static/'):
             return redirect(student.photo)
         
-        # ২. গুগল ড্রাইভ থেকে সরাসরি ফেচ করা (মাল্টিপল এন্ডপয়েন্ট ট্রাই)
-        drive_id = get_drive_file_id(student.photo)
+        # ২. ড্রাইভ থেকে ডিরেক্ট ফেচ
+        drive_id = extract_drive_id(student.photo)
         if drive_id:
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
             
-            candidate_urls = [
-                f"https://drive.google.com/thumbnail?id={drive_id}&sz=w1000",
-                f"https://lh3.googleusercontent.com/d/{drive_id}",
-                f"https://drive.google.com/uc?export=download&id={drive_id}"
-            ]
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
             
-            for fetch_url in candidate_urls:
-                try:
-                    req = urllib.request.Request(
-                        fetch_url,
-                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-                    )
-                    with urllib.request.urlopen(req, context=ctx, timeout=4) as response:
-                        content = response.read()
-                        content_type = response.headers.get('Content-Type', '')
-                        if 'image' in content_type and len(content) > 1000:
-                            return Response(content, mimetype=content_type)
-                except Exception:
-                    continue
+            # ট্রাই ১: গুগল ইউজারকন্টেন্ট সিডিএন
+            try:
+                cdn_url = f"https://lh3.googleusercontent.com/d/{drive_id}"
+                req = urllib.request.Request(cdn_url, headers=headers)
+                with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
+                    data = resp.read()
+                    if len(data) > 800:
+                        return Response(data, mimetype="image/jpeg")
+            except Exception:
+                pass
 
-    # ফলব্যাক ডিফল্ট আভাটার
+            # ট্রাই ২: থাম্বনেইল এপিআই
+            try:
+                thumb_url = f"https://drive.google.com/thumbnail?id={drive_id}&sz=w1000"
+                req = urllib.request.Request(thumb_url, headers=headers)
+                with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
+                    data = resp.read()
+                    if len(data) > 800:
+                        return Response(data, mimetype="image/jpeg")
+            except Exception:
+                pass
+
+    # যদি ড্রাইভ থেকে ছবি না পায় তবে চমৎকার কালারফুল ডিফল্ট আভাটার
     name = student.name_english if (student and student.name_english) else 'Student'
-    return redirect(f"https://ui-avatars.com/api/?name={name}&background=0D8ABC&color=fff&size=256")
+    return redirect(f"https://ui-avatars.com/api/?name={name}&background=124E3F&color=fff&size=256&bold=true")
 
-# লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -235,7 +242,6 @@ def login():
             
     return render_template('login.html')
 
-# স্টুডেন্ট ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -256,14 +262,12 @@ def dashboard():
         ]
     return render_template('dashboard.html', subjects=subjects)
 
-# ডিজিটাল আইডি কার্ড
 @app.route('/id-card')
 @login_required
 def id_card():
     emergency_contact = current_user.emergency_medical_contact or current_user.father_contact or current_user.contact_number or '017XXXXXXXX'
     return render_template('id_card.html', emergency_contact=emergency_contact)
 
-# ফটো আপলোড
 @app.route('/upload-photo', methods=['POST'])
 @login_required
 def upload_photo():
@@ -290,7 +294,6 @@ def upload_photo():
         
     return redirect(url_for('dashboard'))
 
-# পাসওয়ার্ড পরিবর্তন
 @app.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -318,7 +321,6 @@ def change_password():
 
     return render_template('change_password.html')
 
-# লগআউট
 @app.route('/logout')
 @login_required
 def logout():
