@@ -223,7 +223,7 @@ def user_avatar(user_id):
     except Exception:
         return redirect("https://ui-avatars.com/api/?name=Student&background=124E3F&color=fff&size=256&bold=true")
 
-# ১০০% এরর-প্রুফ লগইন
+# লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -241,12 +241,10 @@ def login():
 
             student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
-            # ডাটাবেসে না পেলে রিসাঙ্ক
             if not student:
                 sync_students_csv()
                 student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
-            # যদি নতুন অ্যাকাউন্ট বানাতে হয়
             if not student:
                 student = Student(
                     email=email,
@@ -272,6 +270,28 @@ def login():
             flash('Error logging in. Please try again with default password guamc123', 'danger')
             
     return render_template('login.html')
+
+# অ্যাডমিন প্যানেল (অ্যাটেনডেন্স ম্যানেজার)
+@app.route('/admin', methods=['GET', 'POST'])
+@login_required
+def admin_panel():
+    if request.method == 'POST':
+        student_id = request.form.get('student_id')
+        new_att = request.form.get('attendance')
+        if student_id and new_att:
+            student = Student.query.get(student_id)
+            if student:
+                try:
+                    student.attendance = float(new_att)
+                    db.session.commit()
+                    flash(f"Updated attendance for {student.name_english} to {new_att}%", "success")
+                except Exception as e:
+                    db.session.rollback()
+                    flash("Failed to update attendance.", "danger")
+        return redirect(url_for('admin_panel'))
+
+    students = Student.query.order_by(Student.course, Student.roll_no).all()
+    return render_template('admin.html', students=students)
 
 # ড্যাশবোর্ড
 @app.route('/dashboard')
