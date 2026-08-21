@@ -2,6 +2,7 @@ import os
 import csv
 import re
 import urllib.request
+import ssl
 from flask import Flask, render_template, redirect, url_for, request, flash, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
@@ -11,7 +12,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v5.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v6.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -33,6 +34,7 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ড্রাইভ থেকে ফাইল আইডি বের করার ফাংশন
 def get_drive_file_id(url):
     if not url:
         return ""
@@ -43,6 +45,10 @@ def get_drive_file_id(url):
     d_match = re.search(r'/d/([a-zA-Z0-9_-]+)', url)
     if d_match:
         return d_match.group(1)
+    # যদি গুগল ড্রাইভের ওপেন লিঙ্ক থাকে
+    open_match = re.search(r'open\?id=([a-zA-Z0-9_-]+)', url)
+    if open_match:
+        return open_match.group(1)
     return ""
 
 OFFICIAL_STUDENTS = {
@@ -102,7 +108,7 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{roll_two_digit}"
 
-# স্টার্টআপ ডেটাবেস সিঙ্ক
+# ডাটাবেস ইনিশিয়ালাইজেশন
 with app.app_context():
     db.create_all()
     csv_path = os.path.join(basedir, 'students.csv')
@@ -137,39 +143,63 @@ with app.app_context():
                     student.blood_group = clean_r.get('blood_group', 'A+')
                     student.gender = clean_r.get('gender', '')
                     student.date_of_birth = clean_r.get('date_of_birth', '')
-                    student.photo = clean_r.get('photo', '')
+                    
+                    # যেকোনো কলাম থেকে ছবির লিঙ্ক শনাক্তকরণ
+                    found_photo = ""
+                    for k, v in clean_r.items():
+                        if ('photo' in k or 'image' in k or 'picture' in k or 'drive.google.com' in v) and v:
+                            found_photo = v
+                            break
+                    student.photo = found_photo
+
                     student.unique_id = generate_diu_id('37', official_course, official_roll)
                     student.password_hash = generate_password_hash('guamc123')
                 
                 db.session.commit()
         except Exception as e:
-            print("CSV Sync Note:", e)
+            print("CSV Startup Sync Notice:", e)
 
-# ফটো প্রক্সি রাউট
+# গুগল ড্রাইভ এবং লোকাল ইমেজ লোডার প্রক্সি
 @app.route('/avatar/<int:user_id>')
 def user_avatar(user_id):
     student = Student.query.get(user_id)
     if student and student.photo:
+        # ১. লোকাল ডিরেক্টরি থেকে আপলোড করা ফাইল
         if student.photo.startswith('/static/'):
             return redirect(student.photo)
         
+        # ২. গুগল ড্রাইভ থেকে সরাসরি ফেচ করা (মাল্টিপল এন্ডপয়েন্ট ট্রাই)
         drive_id = get_drive_file_id(student.photo)
         if drive_id:
-            try:
-                fetch_url = f"https://drive.google.com/uc?export=download&id={drive_id}"
-                req = urllib.request.Request(fetch_url, headers={'User-Agent': 'Mozilla/5.0'})
-                with urllib.request.urlopen(req, timeout=5) as response:
-                    content = response.read()
-                    content_type = response.headers.get('Content-Type', 'image/jpeg')
-                    if 'image' in content_type:
-                        return Response(content, mimetype=content_type)
-            except Exception:
-                pass
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            
+            candidate_urls = [
+                f"https://drive.google.com/thumbnail?id={drive_id}&sz=w1000",
+                f"https://lh3.googleusercontent.com/d/{drive_id}",
+                f"https://drive.google.com/uc?export=download&id={drive_id}"
+            ]
+            
+            for fetch_url in candidate_urls:
+                try:
+                    req = urllib.request.Request(
+                        fetch_url,
+                        headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+                    )
+                    with urllib.request.urlopen(req, context=ctx, timeout=4) as response:
+                        content = response.read()
+                        content_type = response.headers.get('Content-Type', '')
+                        if 'image' in content_type and len(content) > 1000:
+                            return Response(content, mimetype=content_type)
+                except Exception:
+                    continue
 
+    # ফলব্যাক ডিফল্ট আভাটার
     name = student.name_english if (student and student.name_english) else 'Student'
     return redirect(f"https://ui-avatars.com/api/?name={name}&background=0D8ABC&color=fff&size=256")
 
-# লগইন রাউট
+# লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -205,7 +235,7 @@ def login():
             
     return render_template('login.html')
 
-# ড্যাশবোর্ড রাউট
+# স্টুডেন্ট ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -226,14 +256,14 @@ def dashboard():
         ]
     return render_template('dashboard.html', subjects=subjects)
 
-# ডিজিটাল আইডি কার্ড রাউট
+# ডিজিটাল আইডি কার্ড
 @app.route('/id-card')
 @login_required
 def id_card():
     emergency_contact = current_user.emergency_medical_contact or current_user.father_contact or current_user.contact_number or '017XXXXXXXX'
     return render_template('id_card.html', emergency_contact=emergency_contact)
 
-# ছবি আপলোড
+# ফটো আপলোড
 @app.route('/upload-photo', methods=['POST'])
 @login_required
 def upload_photo():
