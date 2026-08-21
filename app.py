@@ -13,8 +13,8 @@ app.config['SECRET_KEY'] = 'guamc-master-bulletproof-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-# SQLite Lock এবং Crash প্রতিরোধ করার কনফিগারেশন
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_v9_stable.db')
+# নতুন CSV থেকে রিফ্রেশ হওয়ার জন্য ফ্রেশ ডাটাবেস
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_v11_csv_direct.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'connect_args': {'timeout': 30, 'check_same_thread': False}
@@ -82,7 +82,7 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
 
-# নিরাপদ CSV সিঙ্ক
+# সরাসরি CSV থেকে নিখুঁত ডাটা লোড
 def sync_students_csv():
     csv_path = os.path.join(basedir, 'students.csv')
     if not os.path.exists(csv_path):
@@ -116,7 +116,7 @@ def sync_students_csv():
                             continue
                         k_l = str(k).lower().strip()
                         
-                        # ক্লাস রোল
+                        # ক্লাস রোল কলাম (Class roll / Roll)
                         if 'class roll' in k_l or k_l == 'roll' or 'class_roll' in k_l:
                             digits = re.sub(r'\D', '', str(v).strip())
                             if digits:
@@ -148,7 +148,7 @@ def sync_students_csv():
                     student.roll_no = str(raw_class_roll).zfill(2)
                     student.class_roll = str(raw_class_roll).zfill(2)
 
-                    # যোগাযোগ
+                    # মোবাইল ও ইমার্জেন্সি মোবাইল
                     st_contact = ""
                     em_contact = ""
                     for k, v in r.items():
@@ -163,16 +163,18 @@ def sync_students_csv():
                     student.contact_number = st_contact
                     student.emergency_medical_contact = em_contact
 
-                    # রক্ত ও ছবি
+                    # ব্লাড গ্রুপ
                     for k, v in r.items():
                         if k and 'blood' in str(k).lower() and v:
                             student.blood_group = str(v).strip()
 
+                    # ফটো
                     for col_k, col_v in r.items():
                         if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower() or 'picture' in str(col_k).lower()):
                             student.photo = str(col_v).strip()
                             break
 
+                    # ডায়নামিক ইউনিক আইডি (BUMS রোল ১৪ -> 37114, BAMS রোল ১৭ -> 37217)
                     student.unique_id = generate_diu_id('37', raw_course, student.roll_no)
                     if not student.password_hash:
                         student.password_hash = generate_password_hash('guamc123')
@@ -182,15 +184,15 @@ def sync_students_csv():
                     db.session.rollback()
                     continue
     except Exception as e:
-        print("CSV Sync Exception:", e)
+        print("CSV Direct Sync Exception:", e)
 
-# সার্ভার ইনিশিয়ালাইজেশন
+# সার্ভার স্টার্টআপে রান
 with app.app_context():
     try:
         db.create_all()
         sync_students_csv()
     except Exception as ex:
-        print("App Context Init Exception:", ex)
+        print("Startup Error:", ex)
 
 # ছবি রাউট
 @app.route('/avatar/<int:user_id>')
