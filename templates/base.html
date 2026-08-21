@@ -3,35 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GUAMC Portal</title>
+    <title>GUAMC Student Portal</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }</style>
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+    </style>
 </head>
-<body class="min-h-screen pb-12">
+<body class="min-h-screen flex flex-col justify-between">
 
-    <!-- Sticky Navigation Bar with Logout -->
-    <nav class="bg-emerald-900 text-white shadow-md px-4 sm:px-6 py-3.5 flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-2.5">
-            <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Logo" class="h-8 w-auto object-contain bg-white rounded-full p-0.5">
-            <div>
-                <h1 class="font-extrabold text-sm sm:text-base leading-tight">GUAMC Portal</h1>
-                <p class="text-[10px] text-emerald-200">Govt. Unani & Ayurvedic Medical College</p>
+    <!-- Top Navigation Header -->
+    <header class="bg-[#124e3f] text-white sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+            
+            <div class="flex items-center gap-3">
+                <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="GUAMC Logo" class="h-8 w-auto object-contain bg-white rounded-full p-0.5">
+                <div>
+                    <h1 class="font-extrabold text-sm sm:text-base leading-none">GUAMC Portal</h1>
+                    <p class="text-[10px] text-emerald-200 mt-0.5">Govt. Unani & Ayurvedic Medical College</p>
+                </div>
             </div>
-        </div>
-        <div>
-            <a href="{{ url_for('logout') }}" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                Logout
-            </a>
-        </div>
-    </nav>
 
-    <main class="max-w-4xl mx-auto p-4">
+            <!-- Navigation Links & Logout Button -->
+            <div class="flex items-center gap-2 sm:gap-4">
+                <a href="{{ url_for('logout') }}" class="px-3.5 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold transition shadow-sm">
+                    Logout
+                </a>
+            </div>
+
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-grow">
         {% block content %}{% endblock %}
     </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-gray-200 bg-white py-4 text-center text-xs text-gray-500 mt-8">
+        © 2026 Govt. Unani & Ayurvedic Medical College (GUAMC). Mirpur-13, Dhaka-1221. All Rights Reserved.
+    </footer>
 
 </body>
 </html>

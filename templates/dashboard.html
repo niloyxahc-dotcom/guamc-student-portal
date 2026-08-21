@@ -1,100 +1,119 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Student Dashboard - GUAMC</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <style>body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }</style>
-</head>
-<body class="min-h-screen pb-12">
+{% extends "base.html" %}
 
-    <!-- Top Navigation Bar with Direct Visible Logout -->
-    <nav class="bg-emerald-900 text-white shadow-md px-4 sm:px-6 py-3.5 flex justify-between items-center sticky top-0 z-50">
-        <div class="flex items-center gap-2">
-            <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Logo" class="h-8 w-auto object-contain bg-white rounded-full p-0.5">
-            <div>
-                <h1 class="font-extrabold text-sm sm:text-base leading-tight">GUAMC Portal</h1>
-                <p class="text-[10px] text-emerald-200">Govt. Unani & Ayurvedic Medical College</p>
-            </div>
-        </div>
-        <div>
-            <a href="{{ url_for('logout') }}" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm transition">
-                Logout
-            </a>
-        </div>
-    </nav>
+{% block content %}
+<div class="space-y-6">
 
-    <main class="max-w-4xl mx-auto p-4 space-y-5 mt-2">
-        
-        <!-- Student Info Header Card -->
-        <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-5 sm:p-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <!-- Academic & Exam Clearance Status Header Banner -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-5 border-b border-gray-100">
             <div>
-                <h2 class="text-xl sm:text-2xl font-black text-gray-900">{{ current_user.name }}</h2>
-                <div class="flex items-center gap-2 mt-1">
-                    <span class="text-sm font-extrabold text-emerald-800">{{ current_user.course_type }}</span>
-                    <span class="text-gray-300">|</span>
-                    <span class="text-xs font-bold text-gray-600">Batch: {{ current_user.batch }}</span>
-                </div>
-                <p class="text-xs text-gray-500 mt-1">Roll: <span class="font-bold text-gray-800">{{ current_user.roll_no }}</span> | Email: {{ current_user.email }}</p>
+                <h2 class="text-lg font-bold text-gray-900">
+                    Academic & Exam Clearance Status ({{ current_user.batch if current_user.batch else '37th Batch' }})
+                </h2>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Course: <span class="font-bold text-emerald-800">{{ current_user.course_type if current_user.course_type else 'BUMS' }}</span> | 
+                    Roll: <span class="font-bold text-gray-800">{{ current_user.roll_no }}</span>
+                </p>
             </div>
-            <span class="px-3 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded-full border border-emerald-200">
-                ✓ Exam Eligible
+            <span class="px-3 py-1 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-200">
+                DU Affiliated
             </span>
         </div>
 
-        <!-- Academic & Exam Clearance Status -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-emerald-100">
-                <p class="text-[11px] font-bold text-gray-500 uppercase">Total Attendance</p>
-                <h3 class="text-2xl font-black text-emerald-800 mt-1">86.5%</h3>
-                <p class="text-[11px] text-emerald-600 font-medium mt-0.5">Req: Minimum 75%</p>
+        <!-- Metric Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-5">
+            <div class="bg-gray-50/70 p-4 rounded-xl border border-gray-200/60">
+                <p class="text-xs font-semibold text-gray-500 uppercase">Total Attendance</p>
+                <h3 class="text-2xl font-extrabold text-emerald-900 mt-1">86.5%</h3>
+                <p class="text-[11px] text-gray-500 mt-1">Req: Minimum 75%</p>
             </div>
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-emerald-100">
-                <p class="text-[11px] font-bold text-gray-500 uppercase">Term-1 & 2 Status</p>
-                <h3 class="text-lg font-bold text-emerald-700 mt-1">✓ Cleared</h3>
-                <p class="text-[11px] text-gray-500 mt-0.5">Written & OSPE Cleared</p>
+
+            <div class="bg-gray-50/70 p-4 rounded-xl border border-gray-200/60">
+                <p class="text-xs font-semibold text-gray-500 uppercase">Term-1 Status</p>
+                <h3 class="text-base font-bold text-emerald-700 mt-1">✓ Cleared</h3>
+                <p class="text-[11px] text-gray-500 mt-1">Written & OSPE Cleared</p>
             </div>
-            <div class="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-emerald-100">
-                <p class="text-[11px] font-bold text-gray-500 uppercase">Card & Item Completion</p>
-                <h3 class="text-lg font-bold text-emerald-700 mt-1">✓ Completed</h3>
-                <p class="text-[11px] text-gray-500 mt-0.5">All Dept Logbooks Signed</p>
+
+            <div class="bg-gray-50/70 p-4 rounded-xl border border-gray-200/60">
+                <p class="text-xs font-semibold text-gray-500 uppercase">Term-2 Status</p>
+                <h3 class="text-base font-bold text-amber-600 mt-1">⏳ In Progress</h3>
+                <p class="text-[11px] text-gray-500 mt-1">Under Assessment</p>
+            </div>
+
+            <div class="bg-gray-50/70 p-4 rounded-xl border border-gray-200/60">
+                <p class="text-xs font-semibold text-gray-500 uppercase">Card & Item Completion</p>
+                <h3 class="text-base font-bold text-emerald-700 mt-1">✓ Completed</h3>
+                <p class="text-[11px] text-gray-500 mt-1">All Dept Logbooks Signed</p>
             </div>
         </div>
+    </div>
 
-        <!-- Subject List (Clickable) -->
-        <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-5 sm:p-6">
-            <div class="mb-3.5">
-                <h3 class="text-base font-extrabold text-gray-900">Academic Subjects ({{ current_user.course_type }})</h3>
-                <p class="text-xs text-gray-500">Click on any subject to inspect individual item logs and attendance records.</p>
-            </div>
+    <!-- Subject Wise Assessment & Item Clearance (Replaced SSC Section) -->
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6">
+        <div class="mb-4">
+            <h3 class="text-base font-bold text-gray-900">1st Professional Subjects & Item Clearance</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Click on each subject to check individual card sign-off and lecture attendance.</p>
+        </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {% for sub in subjects %}
-                <div onclick="alert('Subject: {{ sub.name }}\nAttendance: {{ sub.att }}\nItems Log: {{ sub.items }}')" class="p-4 rounded-xl border border-gray-200 hover:border-emerald-600 hover:bg-emerald-50/40 transition cursor-pointer group">
-                    <div class="flex justify-between items-center">
-                        <h4 class="font-bold text-gray-800 group-hover:text-emerald-900 text-sm">{{ sub.name }}</h4>
-                        <span class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Details</span>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-1.5">Items: {{ sub.items }} | Attendance: {{ sub.att }}</p>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div onclick="alert('Anatomy (Tashrih / Rachana Sharir):\nAttendance: 88%\nLogbook: Signed\nItem Clearance: Cleared')" class="p-4 rounded-xl border border-gray-200 hover:border-emerald-600 hover:bg-emerald-50/30 transition cursor-pointer">
+                <div class="flex justify-between items-center">
+                    <h4 class="font-bold text-gray-800 text-sm">1. Anatomy & Histology</h4>
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Eligible</span>
                 </div>
-                {% endfor %}
+                <p class="text-xs text-gray-500 mt-2">Card Items: 10/10 Signed | Attendance: 88%</p>
+            </div>
+
+            <div onclick="alert('Physiology (Munafeul Aza / Kriya Sharir):\nAttendance: 85%\nLogbook: Signed\nItem Clearance: Cleared')" class="p-4 rounded-xl border border-gray-200 hover:border-emerald-600 hover:bg-emerald-50/30 transition cursor-pointer">
+                <div class="flex justify-between items-center">
+                    <h4 class="font-bold text-gray-800 text-sm">2. Physiology & Biochemistry</h4>
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Eligible</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Card Items: 9/10 Signed | Attendance: 85%</p>
+            </div>
+
+            <div onclick="alert('Principles & Basic Theory:\nAttendance: 82%\nLogbook: Signed\nItem Clearance: Cleared')" class="p-4 rounded-xl border border-gray-200 hover:border-emerald-600 hover:bg-emerald-50/30 transition cursor-pointer">
+                <div class="flex justify-between items-center">
+                    <h4 class="font-bold text-gray-800 text-sm">3. Basic Principles & Philosophy</h4>
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Eligible</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Card Items: 8/10 Signed | Attendance: 82%</p>
+            </div>
+
+            <div onclick="alert('Materia Medica / Dravyaguna:\nAttendance: 90%\nLogbook: Signed\nItem Clearance: Cleared')" class="p-4 rounded-xl border border-gray-200 hover:border-emerald-600 hover:bg-emerald-50/30 transition cursor-pointer">
+                <div class="flex justify-between items-center">
+                    <h4 class="font-bold text-gray-800 text-sm">4. Materia Medica & Pharmacology</h4>
+                    <span class="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Eligible</span>
+                </div>
+                <p class="text-xs text-gray-500 mt-2">Card Items: 10/10 Signed | Attendance: 90%</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Row: Club Memberships & Notice Board -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- Club Memberships -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider">Club Memberships</h3>
+                <a href="#" class="text-xs font-bold text-emerald-700 hover:underline">Update &rarr;</a>
+            </div>
+            <p class="text-xs text-gray-500 italic mt-2">Not enrolled in any club yet.</p>
+        </div>
+
+        <!-- Notice Board -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-200/80 p-6">
+            <h3 class="text-sm font-bold text-gray-900 uppercase tracking-wider mb-3">Notice Board</h3>
+            <div class="p-3.5 rounded-xl bg-emerald-50/60 border border-emerald-100">
+                <h4 class="text-xs font-bold text-emerald-950">1st Year BUMS & BAMS Professional Exam & Term-2 Schedule</h4>
+                <p class="text-[11px] text-emerald-800 mt-1 leading-relaxed">
+                    Students are instructed to complete card sign-offs and verify minimum 75% attendance for examination eligibility.
+                </p>
             </div>
         </div>
 
-        <!-- Scholarship & Higher Opportunities -->
-        <div class="bg-gradient-to-r from-emerald-900 to-teal-900 rounded-2xl shadow-sm p-5 text-white">
-            <div class="flex items-center justify-between mb-1.5">
-                <h3 class="text-sm sm:text-base font-extrabold">🎓 Scholarship & Opportunities</h3>
-                <span class="text-[10px] bg-emerald-700/60 px-2 py-0.5 rounded-full font-semibold uppercase">Active</span>
-            </div>
-            <p class="text-xs text-emerald-100 leading-relaxed">
-                Higher studies, research grants, and governmental scholarship notifications for BUMS & BAMS graduates will appear here.
-            </p>
-        </div>
+    </div>
 
-    </main>
-
-</body>
-</html>
+</div>
+{% endblock %}
