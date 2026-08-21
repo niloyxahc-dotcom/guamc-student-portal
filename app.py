@@ -9,12 +9,16 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'guamc-master-key-2026-production'
+app.config['SECRET_KEY'] = 'guamc-master-bulletproof-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-# সম্পূর্ণ ফ্রেশ ও নির্ভুল ডাটাবেস
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_v8_master_clean.db')
+
+# SQLite Lock এবং Crash প্রতিরোধ করার কনফিগারেশন
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_v9_stable.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'connect_args': {'timeout': 30, 'check_same_thread': False}
+}
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -78,8 +82,8 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
 
-# CSV থেকে ডাটাবেসে তথ্য লোড করার মূল ফাংশন
-def populate_from_csv():
+# নিরাপদ CSV সিঙ্ক
+def sync_students_csv():
     csv_path = os.path.join(basedir, 'students.csv')
     if not os.path.exists(csv_path):
         return
@@ -87,205 +91,212 @@ def populate_from_csv():
         with open(csv_path, mode='r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             for r in reader:
-                em = ""
-                for k, v in r.items():
-                    if k and 'email' in str(k).lower() and v:
-                        em = str(v).strip().lower()
-                        break
-                if not em:
-                    continue
-
-                student = Student.query.filter_by(email=em).first()
-                if not student:
-                    student = Student(email=em)
-                    db.session.add(student)
-
-                raw_eng_name = ""
-                raw_ban_name = ""
-                raw_father_name = ""
-                raw_class_roll = "01"
-                raw_course = "BUMS"
-
-                for k, v in r.items():
-                    if not k or not v:
+                try:
+                    em = ""
+                    for k, v in r.items():
+                        if k and 'email' in str(k).lower() and v:
+                            em = str(v).strip().lower()
+                            break
+                    if not em:
                         continue
-                    k_l = str(k).lower().strip()
+
+                    student = Student.query.filter_by(email=em).first()
+                    if not student:
+                        student = Student(email=em)
+                        db.session.add(student)
+
+                    raw_eng_name = ""
+                    raw_ban_name = ""
+                    raw_father_name = ""
+                    raw_class_roll = "01"
+                    raw_course = "BUMS"
+
+                    for k, v in r.items():
+                        if not k or not v:
+                            continue
+                        k_l = str(k).lower().strip()
+                        
+                        # ক্লাস রোল
+                        if 'class roll' in k_l or k_l == 'roll' or 'class_roll' in k_l:
+                            digits = re.sub(r'\D', '', str(v).strip())
+                            if digits:
+                                raw_class_roll = digits.zfill(2)
+
+                        # কোর্স
+                        elif 'course' in k_l:
+                            c_val = str(v).strip().upper()
+                            if 'BAMS' in c_val or 'AYURVEDIC' in c_val:
+                                raw_course = 'BAMS'
+                            else:
+                                raw_course = 'BUMS'
+
+                        # পিতার নাম
+                        elif ("father's name" in k_l or "father name" in k_l or (k_l.startswith('father') and 'name' in k_l) or 'পিতা' in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l):
+                            raw_father_name = str(v).strip()
+                        # বাংলা নাম
+                        elif 'bangla' in k_l:
+                            raw_ban_name = str(v).strip()
+                        # ইংরেজি নাম
+                        elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name and not ('father' in k_l or 'mother' in k_l or 'guardian' in k_l):
+                            raw_eng_name = str(v).strip()
+
+                    student.name_english = raw_eng_name if raw_eng_name else em.split('@')[0].title()
+                    student.name_bangla = raw_ban_name
+                    student.father_name = raw_father_name
+                    student.course = raw_course
+                    student.batch = '37th'
+                    student.roll_no = str(raw_class_roll).zfill(2)
+                    student.class_roll = str(raw_class_roll).zfill(2)
+
+                    # যোগাযোগ
+                    st_contact = ""
+                    em_contact = ""
+                    for k, v in r.items():
+                        if not k or not v:
+                            continue
+                        k_l = str(k).lower()
+                        if ('emergency' in k_l or 'guardian' in k_l or 'father' in k_l) and ('contact' in k_l or 'number' in k_l or 'phone' in k_l):
+                            em_contact = format_bd_phone(v)
+                        elif ('contact' in k_l or 'mobile' in k_l or 'phone' in k_l) and not st_contact:
+                            st_contact = format_bd_phone(v)
+
+                    student.contact_number = st_contact
+                    student.emergency_medical_contact = em_contact
+
+                    # রক্ত ও ছবি
+                    for k, v in r.items():
+                        if k and 'blood' in str(k).lower() and v:
+                            student.blood_group = str(v).strip()
+
+                    for col_k, col_v in r.items():
+                        if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower() or 'picture' in str(col_k).lower()):
+                            student.photo = str(col_v).strip()
+                            break
+
+                    student.unique_id = generate_diu_id('37', raw_course, student.roll_no)
+                    if not student.password_hash:
+                        student.password_hash = generate_password_hash('guamc123')
                     
-                    # ক্লাস রোল কলাম
-                    if 'class roll' in k_l or k_l == 'roll' or 'class_roll' in k_l:
-                        digits = re.sub(r'\D', '', str(v).strip())
-                        if digits:
-                            raw_class_roll = digits.zfill(2)
-
-                    # কোর্স ডিটেকশন
-                    elif 'course' in k_l:
-                        c_val = str(v).strip().upper()
-                        if 'BAMS' in c_val or 'AYURVEDIC' in c_val:
-                            raw_course = 'BAMS'
-                        else:
-                            raw_course = 'BUMS'
-
-                    # পিতার নাম
-                    elif ("father's name" in k_l or "father name" in k_l or (k_l.startswith('father') and 'name' in k_l) or 'পিতা' in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l):
-                        raw_father_name = str(v).strip()
-                    # বাংলা নাম
-                    elif 'bangla' in k_l:
-                        raw_ban_name = str(v).strip()
-                    # ইংরেজি নাম
-                    elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name and not ('father' in k_l or 'mother' in k_l or 'guardian' in k_l):
-                        raw_eng_name = str(v).strip()
-
-                student.name_english = raw_eng_name if raw_eng_name else em.split('@')[0].title()
-                student.name_bangla = raw_ban_name
-                student.father_name = raw_father_name
-                student.course = raw_course
-                student.batch = '37th'
-                student.roll_no = str(raw_class_roll).zfill(2)
-                student.class_roll = str(raw_class_roll).zfill(2)
-
-                # কন্টাক্ট ও ইমার্জেন্সি মোবাইল
-                st_contact = ""
-                em_contact = ""
-                for k, v in r.items():
-                    if not k or not v:
-                        continue
-                    k_l = str(k).lower()
-                    if ('emergency' in k_l or 'guardian' in k_l or 'father' in k_l) and ('contact' in k_l or 'number' in k_l or 'phone' in k_l):
-                        em_contact = format_bd_phone(v)
-                    elif ('contact' in k_l or 'mobile' in k_l or 'phone' in k_l) and not st_contact:
-                        st_contact = format_bd_phone(v)
-
-                student.contact_number = st_contact
-                student.emergency_medical_contact = em_contact
-
-                # ব্লাড গ্রুপ
-                for k, v in r.items():
-                    if k and 'blood' in str(k).lower() and v:
-                        student.blood_group = str(v).strip()
-
-                # ছবি
-                found_img = ""
-                for col_k, col_v in r.items():
-                    if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower() or 'picture' in str(col_k).lower()):
-                        found_img = str(col_v).strip()
-                        break
-                if found_img:
-                    student.photo = found_img
-
-                # ইউনিক আইডি তৈরি (BUMS রোল ১৪ -> 37114, BAMS রোল ০৫ -> 37205)
-                student.unique_id = generate_diu_id('37', raw_course, student.roll_no)
-                if not student.password_hash:
-                    student.password_hash = generate_password_hash('guamc123')
-            
-            db.session.commit()
+                    db.session.commit()
+                except Exception as row_err:
+                    db.session.rollback()
+                    continue
     except Exception as e:
-        print("CSV Sync Error:", e)
+        print("CSV Sync Exception:", e)
 
-# সার্ভার স্টার্টআপে রান
+# সার্ভার ইনিশিয়ালাইজেশন
 with app.app_context():
     try:
         db.create_all()
-        populate_from_csv()
+        sync_students_csv()
     except Exception as ex:
-        print("Init Error:", ex)
+        print("App Context Init Exception:", ex)
 
-# গুগল ড্রাইভ ফটো প্রক্সি
+# ছবি রাউট
 @app.route('/avatar/<int:user_id>')
 def user_avatar(user_id):
-    student = Student.query.get(user_id)
-    if student and student.photo:
-        if student.photo.startswith('/static/'):
-            return redirect(student.photo)
-        
-        drive_id = extract_drive_id(student.photo)
-        if drive_id:
-            ctx = ssl.create_default_context()
-            ctx.check_hostname = False
-            ctx.verify_mode = ssl.CERT_NONE
-            headers = {'User-Agent': 'Mozilla/5.0'}
+    try:
+        student = Student.query.get(user_id)
+        if student and student.photo:
+            if student.photo.startswith('/static/'):
+                return redirect(student.photo)
             
-            for fetch_url in [f"https://lh3.googleusercontent.com/d/{drive_id}", f"https://drive.google.com/thumbnail?id={drive_id}&sz=w1000"]:
-                try:
-                    req = urllib.request.Request(fetch_url, headers=headers)
-                    with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
-                        data = resp.read()
-                        if len(data) > 800:
-                            return Response(data, mimetype="image/jpeg")
-                except Exception:
-                    continue
+            drive_id = extract_drive_id(student.photo)
+            if drive_id:
+                ctx = ssl.create_default_context()
+                ctx.check_hostname = False
+                ctx.verify_mode = ssl.CERT_NONE
+                headers = {'User-Agent': 'Mozilla/5.0'}
+                
+                for fetch_url in [f"https://lh3.googleusercontent.com/d/{drive_id}", f"https://drive.google.com/thumbnail?id={drive_id}&sz=w1000"]:
+                    try:
+                        req = urllib.request.Request(fetch_url, headers=headers)
+                        with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
+                            data = resp.read()
+                            if len(data) > 800:
+                                return Response(data, mimetype="image/jpeg")
+                    except Exception:
+                        continue
 
-    name = student.name_english if (student and student.name_english) else 'Student'
-    return redirect(f"https://ui-avatars.com/api/?name={name}&background=124E3F&color=fff&size=256&bold=true")
+        name = student.name_english if (student and student.name_english) else 'Student'
+        return redirect(f"https://ui-avatars.com/api/?name={name}&background=124E3F&color=fff&size=256&bold=true")
+    except Exception:
+        return redirect("https://ui-avatars.com/api/?name=Student&background=124E3F&color=fff&size=256&bold=true")
 
-# লগইন রাউট (১০০% বুলেটপ্রুফ)
+# ১০০% এরর-প্রুফ লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
-        raw_email = request.form.get('email', '')
-        email = raw_email.strip().lower()
-        password = request.form.get('password', '').strip()
+        try:
+            raw_email = request.form.get('email', '')
+            email = raw_email.strip().lower()
+            password = request.form.get('password', '').strip()
 
-        if not email:
-            flash('Please enter your registered email address!', 'warning')
-            return render_template('login.html')
+            if not email:
+                flash('Please enter your email address!', 'warning')
+                return render_template('login.html')
 
-        # ১. ডাটাবেসে খোঁজা
-        student = Student.query.filter(db.func.lower(Student.email) == email).first()
-
-        # ২. যদি কোনো কারণে ডাটাবেসে মিসিং থাকে, সাথে সাথে CSV সিঙ্ক করবে
-        if not student:
-            populate_from_csv()
             student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
-        # ৩. তাও না পেলে ইনস্ট্যান্ট তৈরি করে লগইন করিয়ে দিবে যাতে কেউ আটকে না থাকে
-        if not student:
-            student = Student(
-                email=email,
-                name_english=email.split('@')[0].title(),
-                course='BUMS',
-                batch='37th',
-                roll_no='01',
-                class_roll='01',
-                unique_id=generate_diu_id('37', 'BUMS', '01'),
-                blood_group='A+',
-                password_hash=generate_password_hash('guamc123')
-            )
-            db.session.add(student)
-            db.session.commit()
+            # ডাটাবেসে না পেলে রিসাঙ্ক
+            if not student:
+                sync_students_csv()
+                student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
-        # ৪. পাসওয়ার্ড চেক
-        if student and (check_password_hash(student.password_hash, password) or password == 'guamc123'):
-            login_user(student)
-            return redirect(url_for('dashboard'))
-        else:
-            flash('Incorrect password! Default password is: guamc123', 'danger')
+            # যদি নতুন অ্যাকাউন্ট বানাতে হয়
+            if not student:
+                student = Student(
+                    email=email,
+                    name_english=email.split('@')[0].title(),
+                    course='BUMS',
+                    batch='37th',
+                    roll_no='01',
+                    class_roll='01',
+                    unique_id=f"371_{int(os.urandom(2).hex(), 16)}",
+                    blood_group='A+',
+                    password_hash=generate_password_hash('guamc123')
+                )
+                db.session.add(student)
+                db.session.commit()
+
+            if student and (check_password_hash(student.password_hash, password) or password == 'guamc123'):
+                login_user(student)
+                return redirect(url_for('dashboard'))
+            else:
+                flash('Incorrect password! Default password is: guamc123', 'danger')
+        except Exception as e:
+            db.session.rollback()
+            flash('Error logging in. Please try again with default password guamc123', 'danger')
             
     return render_template('login.html')
 
-# ড্যাশবোর্ড (ভেরিফায়েড বিষয় তালিকা সহ)
+# ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
-    course = (current_user.course or 'BUMS').upper()
-    if 'BAMS' in course:
-        subjects = [
-            {"name": "1. Padartha Vijnana wa Ayurveda Itihas (Basic Principles)"},
-            {"name": "2. Astanga Hrdaya (Sutra Sthana)"},
-            {"name": "3. Dravyaguna Vijnana (Materia Medica & Pharmacology)"},
-            {"name": "4. Rachana Sharir (Anatomy)"},
-            {"name": "5. Kriya Sharir (Physiology)"}
-        ]
-    else:
-        subjects = [
-            {"name": "1. Tashreeh-ul-Badan (Anatomy)"},
-            {"name": "2. Afal-ul A'za (Physiology)"},
-            {"name": "3. Hiyat-e Kimia (Biochemistry)"},
-            {"name": "4. Kulliat-e-Tibb wa Tarikh-e Tibb (Principles & History of Medicine)"}
-        ]
-    return render_template('dashboard.html', subjects=subjects)
+    try:
+        course = (current_user.course or 'BUMS').upper()
+        if 'BAMS' in course:
+            subjects = [
+                {"name": "1. Padartha Vijnana wa Ayurveda Itihas (Basic Principles)"},
+                {"name": "2. Astanga Hrdaya (Sutra Sthana)"},
+                {"name": "3. Dravyaguna Vijnana (Materia Medica & Pharmacology)"},
+                {"name": "4. Rachana Sharir (Anatomy)"},
+                {"name": "5. Kriya Sharir (Physiology)"}
+            ]
+        else:
+            subjects = [
+                {"name": "1. Tashreeh-ul-Badan (Anatomy)"},
+                {"name": "2. Afal-ul A'za (Physiology)"},
+                {"name": "3. Hiyat-e Kimia (Biochemistry)"},
+                {"name": "4. Kulliat-e-Tibb wa Tarikh-e Tibb (Principles & History of Medicine)"}
+            ]
+        return render_template('dashboard.html', subjects=subjects)
+    except Exception as e:
+        return f"Error loading dashboard: {str(e)}", 500
 
 # ডিজিটাল আইডি কার্ড
 @app.route('/id-card')
@@ -311,7 +322,10 @@ def resources():
 @app.route('/discussions')
 @login_required
 def discussions():
-    posts = Post.query.order_by(Post.created_at.desc()).all()
+    try:
+        posts = Post.query.order_by(Post.created_at.desc()).all()
+    except Exception:
+        posts = []
     return render_template('discussions.html', posts=posts)
 
 # পোস্ট সাবমিট
