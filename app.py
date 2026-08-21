@@ -5,12 +5,13 @@ from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'guamc-final-prod-2026'
+app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_v7.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_final.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -32,7 +33,6 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# গুগল ড্রাইভ ছবির সঠিক থাম্বনেইল ডিরেক্ট লিংক কনভার্টার
 def format_drive_image_url(url):
     if not url:
         return ""
@@ -47,7 +47,6 @@ def format_drive_image_url(url):
             if d_match:
                 file_id = d_match.group(1)
         if file_id:
-            # সবচেয়ে নির্ভরযোগ্য ড্রাইভ ইমেজ এম্বেড লিংক
             return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
     return url
 
@@ -142,7 +141,6 @@ with app.app_context():
                     student.gender = clean_r.get('gender', '')
                     student.date_of_birth = clean_r.get('date_of_birth', '')
                     
-                    # ছবি সরাসরি ফরম্যাট করে জোরপূর্বক আপডেট
                     raw_photo = clean_r.get('photo', '')
                     formatted_photo = format_drive_image_url(raw_photo)
                     if formatted_photo:
@@ -155,6 +153,7 @@ with app.app_context():
         except Exception as e:
             print("CSV Startup Sync Notice:", e)
 
+# লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -190,6 +189,34 @@ def login():
             
     return render_template('login.html')
 
+# স্টুডেন্ট ড্যাশবোর্ড
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    course = (current_user.course or 'BUMS').upper()
+    if 'BAMS' in course:
+        subjects = [
+            {"name": "1. Rachana Sharir (Anatomy)", "items": "8/10 Completed", "att": "87%"},
+            {"name": "2. Kriya Sharir (Physiology)", "items": "9/10 Completed", "att": "86%"},
+            {"name": "3. Padartha Vigyan", "items": "7/10 Completed", "att": "81%"},
+            {"name": "4. Ashtanga Hridaya", "items": "10/10 Completed", "att": "89%"}
+        ]
+    else:
+        subjects = [
+            {"name": "1. Tashrih (Anatomy)", "items": "8/10 Completed", "att": "88%"},
+            {"name": "2. Munafeul Aza (Physiology)", "items": "9/10 Completed", "att": "85%"},
+            {"name": "3. Kulliyat-e-Uloom-e-Paya", "items": "7/10 Completed", "att": "82%"},
+            {"name": "4. Advia Mufreda (Materia Medica)", "items": "10/10 Completed", "att": "90%"}
+        ]
+    return render_template('dashboard.html', subjects=subjects)
+
+# ডিজিটাল ভার্টিক্যাল আইডি কার্ড
+@app.route('/id-card')
+@login_required
+def id_card():
+    return render_template('id_card.html')
+
+# ছবি আপলোড / আপডেট
 @app.route('/upload-photo', methods=['POST'])
 @login_required
 def upload_photo():
@@ -216,6 +243,7 @@ def upload_photo():
         
     return redirect(url_for('dashboard'))
 
+# পাসওয়ার্ড পরিবর্তন
 @app.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -243,26 +271,7 @@ def change_password():
 
     return render_template('change_password.html')
 
-@app.route('/dashboard')
-@login_required
-def dashboard():
-    course = (current_user.course or 'BUMS').upper()
-    if 'BAMS' in course:
-        subjects = [
-            {"name": "1. Rachana Sharir (Anatomy)", "items": "8/10 Completed", "att": "87%"},
-            {"name": "2. Kriya Sharir (Physiology)", "items": "9/10 Completed", "att": "86%"},
-            {"name": "3. Padartha Vigyan", "items": "7/10 Completed", "att": "81%"},
-            {"name": "4. Ashtanga Hridaya", "items": "10/10 Completed", "att": "89%"}
-        ]
-    else:
-        subjects = [
-            {"name": "1. Tashrih (Anatomy)", "items": "8/10 Completed", "att": "88%"},
-            {"name": "2. Munafeul Aza (Physiology)", "items": "9/10 Completed", "att": "85%"},
-            {"name": "3. Kulliyat-e-Uloom-e-Paya", "items": "7/10 Completed", "att": "82%"},
-            {"name": "4. Advia Mufreda (Materia Medica)", "items": "10/10 Completed", "att": "90%"}
-        ]
-    return render_template('dashboard.html', subjects=subjects)
-
+# লগআউট
 @app.route('/logout')
 @login_required
 def logout():
