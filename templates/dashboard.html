@@ -3,95 +3,65 @@
 {% block content %}
 <div class="max-w-xl mx-auto space-y-6">
 
-    <!-- DIU Style Gradient Profile Card -->
-    <div class="bg-gradient-to-b from-[#e0f2fe] via-[#dbeafe] to-[#eff6ff] rounded-3xl shadow-lg border border-blue-100/80 p-8 flex flex-col items-center text-center">
+    <!-- DIU Style Profile Card -->
+    <div class="bg-gradient-to-b from-blue-100 via-blue-50 to-white rounded-3xl shadow-md border border-blue-100 p-8 flex flex-col items-center text-center">
         
-        <!-- Circular Profile Avatar -->
-        <div class="relative mb-4">
-            <div class="w-36 h-36 rounded-full overflow-hidden border-4 border-white shadow-md bg-blue-100 flex items-center justify-center">
-                <!-- স্টুডেন্টের ছবি থাকলে বা ডিফল্ট এভাটার -->
-                <svg class="w-24 h-24 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                </svg>
-            </div>
+        <!-- Profile Avatar -->
+        <div class="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-md bg-blue-200 flex items-center justify-center mb-4">
+            <svg class="w-20 h-20 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+            </svg>
         </div>
 
-        <!-- Active Status Badge -->
-        <div class="mb-3">
-            <span class="inline-flex items-center gap-1 px-4 py-1 rounded-full text-xs font-black bg-[#65a30d] text-white shadow-sm tracking-wide">
-                ✓ Active
-            </span>
-        </div>
+        <!-- Active Badge -->
+        <span class="inline-flex items-center px-4 py-1 rounded-full text-xs font-black bg-lime-600 text-white mb-3">
+            ✓ Active
+        </span>
 
-        <!-- Student Name & Degree -->
-        <h2 class="text-2xl sm:text-3xl font-black text-[#1e293b] tracking-tight">
+        <!-- Name & Course -->
+        <h2 class="text-2xl font-black text-slate-900 leading-tight">
             {{ current_user.name }}
         </h2>
-        <p class="text-sm font-bold text-[#475569] mt-1 mb-6">
-            {% if current_user.course_type == 'BAMS' %}
-                Bachelor of Ayurvedic Medicine and Surgery (BAMS)
-            {% else %}
-                Bachelor of Unani Medicine and Surgery (BUMS)
-            {% endif %}
+        <p class="text-sm font-bold text-slate-600 mt-1 mb-6">
+            Bachelor of Unani Medicine and Surgery (BUMS)
         </p>
 
-        <!-- Information List with Icons -->
-        <div class="w-full max-w-sm space-y-3 text-left text-sm font-semibold text-[#334155] border-t border-blue-200/60 pt-6">
-            
-            <!-- Registration No / ID -->
+        <!-- Information List -->
+        <div class="w-full space-y-3 text-left text-sm font-semibold text-slate-700 border-t border-blue-200/60 pt-5">
             <div class="flex items-center gap-3">
-                <span class="text-lg text-blue-600">🪪</span>
+                <span class="text-base">🪪</span>
                 <span>{{ current_user.reg_no or '2023-GUAMC-001' }}</span>
             </div>
-
-            <!-- Roll Number -->
             <div class="flex items-center gap-3">
-                <span class="text-lg text-blue-600">💳</span>
-                <span>Roll: {{ current_user.roll_no }}</span>
+                <span class="text-base">💳</span>
+                <span>{{ current_user.roll_no }}</span>
             </div>
-
-            <!-- Batch -->
             <div class="flex items-center gap-3">
-                <span class="text-lg text-blue-600">👥</span>
+                <span class="text-base">👥</span>
                 <span>{{ current_user.batch if current_user.batch else '37th' }} Batch</span>
             </div>
-
-            <!-- Email -->
             <div class="flex items-center gap-3">
-                <span class="text-lg text-blue-600">✉️</span>
+                <span class="text-base">✉️</span>
                 <span class="truncate">{{ current_user.email }}</span>
             </div>
-
-            <!-- Phone -->
             <div class="flex items-center gap-3">
-                <span class="text-lg text-blue-600">📞</span>
+                <span class="text-base">📞</span>
                 <span>{{ current_user.phone or '017XXXXXXXX' }}</span>
             </div>
-
-            <!-- Campus / College -->
             <div class="flex items-center gap-3">
-                <span class="text-lg text-blue-600">🏛️</span>
+                <span class="text-base">🏛️</span>
                 <span>GUAMC, Mirpur-13</span>
             </div>
-
-            <!-- Session -->
             <div class="flex items-center gap-3">
-                <span class="text-lg text-blue-600">📅</span>
-                <span>Session: {{ current_user.session or '2023-2024' }}</span>
-            </div>
-
-            <!-- Blood Group -->
-            <div class="flex items-center gap-3">
-                <span class="text-lg text-red-500">🩸</span>
+                <span class="text-base">🩸</span>
                 <span>{{ current_user.blood_group or 'A+' }}</span>
             </div>
-
         </div>
 
     </div>
 
-    <!-- 1st Professional Academic Clearance Section -->
-    <div class="bg-white rounded-3xl shadow-sm border border-gray-200/80 p-6 space-y-4">
+    <!-- 1st Professional Academic Clearance -->
+    <div class="bg-white rounded-3xl shadow-sm border border-gray-200 p-6 space-y-4">
         <div class="flex justify-between items-center pb-3 border-b border-gray-100">
             <div>
                 <h3 class="text-base font-extrabold text-gray-900">Academic & Exam Clearance</h3>
@@ -110,19 +80,6 @@
             <div class="p-3.5 bg-gray-50 rounded-2xl border border-gray-100">
                 <p class="text-[11px] font-bold text-gray-400 uppercase">Prof Clearance</p>
                 <p class="text-sm font-extrabold text-emerald-700 mt-1">✓ Eligible</p>
-            </div>
-        </div>
-
-        <!-- Subjects Details -->
-        <div class="pt-2">
-            <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">Subject Items & Logbook</h4>
-            <div class="space-y-2">
-                {% for sub in subjects %}
-                <div class="p-3 bg-gray-50/70 hover:bg-emerald-50/50 rounded-xl border border-gray-200/70 flex justify-between items-center transition">
-                    <span class="text-xs font-bold text-gray-800">{{ sub.name }}</span>
-                    <span class="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">Cleared</span>
-                </div>
-                {% endfor %}
             </div>
         </div>
     </div>
