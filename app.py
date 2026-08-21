@@ -4,13 +4,13 @@ from flask import Flask, render_template, redirect, url_for, request, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from models import db, Student
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-secret-key-2026'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///portal_v2.db'  # ফ্রেশ নতুন ডাটাবেস ফাইল
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///portal_clean.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-from models import db, Student
 db.init_app(app)
 
 login_manager = LoginManager()
@@ -21,47 +21,31 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return Student.query.get(int(user_id))
 
-def setup_database():
-    with app.app_context():
-        db.create_all()
-        # অ্যাডমিন ইউজার তৈরি
-        if not Student.query.filter_by(email='admin@guamc.edu.bd').first():
-            admin = Student(
-                roll_no='ADMIN01',
-                name='System Administrator',
-                email='admin@guamc.edu.bd',
-                batch='Admin',
-                course_type='Admin',
-                password_hash=generate_password_hash('admin123')
-            )
-            db.session.add(admin)
-        
-        # CSV থেকে সব স্টুডেন্ট ডাটা অটো লোড
-        if os.path.exists('students.csv'):
-            try:
-                with open('students.csv', mode='r', encoding='utf-8') as file:
-                    reader = csv.DictReader(file)
-                    for row in reader:
-                        r_no = row.get('Roll') or row.get('roll_no')
-                        if r_no and not Student.query.filter_by(roll_no=r_no).first():
-                            s = Student(
-                                roll_no=r_no,
-                                reg_no=row.get('Reg_No', ''),
-                                session=row.get('Session', ''),
-                                batch=row.get('Batch', '37th'),
-                                course_type=row.get('Course', 'BUMS'),
-                                name=row.get('Name', 'Student'),
-                                email=row.get('Email', f"{r_no}@guamc.edu.bd"),
-                                phone=row.get('Phone', ''),
-                                blood_group=row.get('Blood_Group', ''),
-                                password_hash=generate_password_hash('guamc123')
-                            )
-                            db.session.add(s)
-                    db.session.commit()
-            except Exception as e:
-                print("CSV Import Note:", e)
-
-setup_database()
+with app.app_context():
+    db.create_all()
+    if os.path.exists('students.csv'):
+        try:
+            with open('students.csv', mode='r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    r_no = row.get('Roll') or row.get('roll_no')
+                    if r_no and not Student.query.filter_by(roll_no=r_no).first():
+                        s = Student(
+                            roll_no=r_no,
+                            reg_no=row.get('Reg_No', ''),
+                            session=row.get('Session', ''),
+                            batch=row.get('Batch', '37th'),
+                            course_type=row.get('Course', 'BUMS'),
+                            name=row.get('Name', 'Student'),
+                            email=row.get('Email', f"{r_no}@guamc.edu.bd"),
+                            phone=row.get('Phone', ''),
+                            blood_group=row.get('Blood_Group', ''),
+                            password_hash=generate_password_hash('guamc123')
+                        )
+                        db.session.add(s)
+                db.session.commit()
+        except Exception as e:
+            print("Import info:", e)
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -100,6 +84,11 @@ def dashboard():
             {"name": "4. Advia Mufreda (Materia Medica)", "items": "10/10 Completed", "att": "90%"}
         ]
     return render_template('dashboard.html', subjects=subjects)
+
+@app.route('/academic')
+@login_required
+def academic():
+    return redirect(url_for('dashboard'))
 
 @app.route('/logout')
 @login_required
