@@ -5,6 +5,7 @@ db = SQLAlchemy()
 
 class Student(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
+    unique_id = db.Column(db.String(50), nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     course = db.Column(db.String(50), nullable=True)
     batch = db.Column(db.String(50), nullable=True)
@@ -12,7 +13,7 @@ class Student(db.Model, UserMixin):
     name_bangla = db.Column(db.String(150), nullable=True)
     photo = db.Column(db.String(255), nullable=True)
     merit = db.Column(db.String(50), nullable=True)
-    roll_no = db.Column(db.String(50), unique=True, nullable=True)
+    roll_no = db.Column(db.String(50), nullable=True)
     registration_no = db.Column(db.String(50), nullable=True)
     nid_birth_reg_no = db.Column(db.String(50), nullable=True)
     gender = db.Column(db.String(20), nullable=True)

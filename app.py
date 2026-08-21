@@ -8,7 +8,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-secret-key-2026'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///portal_clean_v3.db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///portal_production_v4.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 from models import db, Student
@@ -23,26 +23,17 @@ def load_user(user_id):
     return Student.query.get(int(user_id))
 
 def extract_two_digit_roll(val1, val2):
-    """
-    class_roll অথবা roll_no যে ঘরেই থাকুক না কেন, 
-    সেখান থেকে সংখ্যা বের করে বাধ্যতামূলক ২ ডিজিট ফরম্যাট (01-99) করবে।
-    """
-    # প্রথমে class_roll, না পেলে roll_no চেক করবে
     raw_str = str(val1).strip() if val1 else ''
     if not raw_str or raw_str.lower() == 'none':
         raw_str = str(val2).strip() if val2 else ''
     
     digits = re.findall(r'\d+', raw_str)
     if digits:
-        num = int(digits[-1])  # শেষ সংখ্যাটি নেওয়া (যেমন GUAMC-37-05 হলে 05 পাবে)
+        num = int(digits[-1])
         return f"{num:02d}"
     return "01"
 
 def generate_diu_id(batch, course, roll_two_digit):
-    """
-    Batch (37) + Course Code (BUMS=1, BAMS=2) + 2 Digit Roll
-    উদাহরণ: ৩৭তম ব্যাচ, ইউনানি, রোল ৫ -> 37105
-    """
     b_digits = re.findall(r'\d+', str(batch))
     b_num = b_digits[0] if b_digits else "37"
     
@@ -69,8 +60,6 @@ def sync_csv():
 
                 c_roll_raw = r.get('class_roll')
                 r_no_raw = r.get('roll_no')
-                
-                # রোল ও ক্লাস রোল একীভূত করে ২ ডিজিট নির্ধারণ
                 clean_two_digit_roll = extract_two_digit_roll(c_roll_raw, r_no_raw)
 
                 student.course = (r.get('course') or 'BUMS').strip()
@@ -85,12 +74,8 @@ def sync_csv():
                 student.blood_group = (r.get('blood_group') or '').strip()
                 student.gender = (r.get('gender') or '').strip()
                 student.date_of_birth = (r.get('date_of_birth') or '').strip()
-                
-                # ৩৭১০৫ ফরম্যাটে আইডি তৈরি
                 student.unique_id = generate_diu_id(student.batch, student.course, clean_two_digit_roll)
-                
-                if not student.password_hash:
-                    student.password_hash = generate_password_hash('guamc123')
+                student.password_hash = generate_password_hash('guamc123')
             
             db.session.commit()
     except Exception as e:
@@ -112,7 +97,8 @@ def login():
         sync_csv()
         student = Student.query.filter_by(email=email).first()
 
-        if student and (check_password_hash(student.password_hash, password) or password == 'guamc123'):
+        # পাসওয়ার্ড guamc123 অথবা হ্যাশ ভেরিফাই হলে লগইন হবে
+        if student and (password == 'guamc123' or check_password_hash(student.password_hash, password)):
             login_user(student)
             return redirect(url_for('dashboard'))
         else:
@@ -139,6 +125,11 @@ def dashboard():
             {"name": "4. Advia Mufreda (Materia Medica)", "items": "10/10 Completed", "att": "90%"}
         ]
     return render_template('dashboard.html', subjects=subjects)
+
+@app.route('/academic')
+@login_required
+def academic():
+    return redirect(url_for('dashboard'))
 
 @app.route('/logout')
 @login_required
