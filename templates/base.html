@@ -3,46 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GUAMC Student Portal</title>
-    <!-- Tailwind CSS -->
+    <title>{% block title %}GUAMC Portal{% endblock %}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f8fafc; }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; background-color: #f1f5f9; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between">
 
     <!-- Top Navigation Header -->
     <header class="bg-[#124e3f] text-white sticky top-0 z-50 shadow-md">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4">
             
-            <div class="flex items-center gap-3">
-                <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="GUAMC Logo" class="h-8 w-auto object-contain bg-white rounded-full p-0.5">
+            <div class="flex items-center gap-2.5 shrink-0">
+                <img src="{{ url_for('static', filename='logo.jpeg') }}" alt="Logo" class="h-8 w-auto object-contain bg-white rounded-full p-0.5">
                 <div>
-                    <h1 class="font-extrabold text-sm sm:text-base leading-none">GUAMC Portal</h1>
-                    <p class="text-[10px] text-emerald-200 mt-0.5">Govt. Unani & Ayurvedic Medical College</p>
+                    <h1 class="font-extrabold text-sm leading-tight">GUAMC Portal</h1>
+                    <p class="text-[9px] text-emerald-200">Govt. Unani & Ayurvedic Medical College</p>
                 </div>
             </div>
 
-            <!-- Navigation Links & Logout Button -->
-            <div class="flex items-center gap-2 sm:gap-4">
-                <a href="{{ url_for('logout') }}" class="px-3.5 py-1.5 rounded-lg bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold transition shadow-sm">
+            <!-- Desktop Links -->
+            <nav class="hidden lg:flex items-center gap-5 text-xs font-semibold text-emerald-100">
+                <a href="{{ url_for('dashboard') }}" class="hover:text-white transition">Dashboard</a>
+                <a href="{{ url_for('id_card') }}" class="hover:text-white transition">Digital ID Card</a>
+                <a href="#" class="hover:text-white transition">Results</a>
+                <a href="#" class="hover:text-white transition">Academic Hub</a>
+                <a href="#" class="hover:text-white transition">Discussions</a>
+                <a href="#" class="hover:text-white transition">CR & Coordinators</a>
+                <a href="#" class="hover:text-white transition">Clubs</a>
+                <a href="{{ url_for('dashboard') }}" class="hover:text-white transition bg-emerald-700 px-3 py-1 rounded-lg border border-emerald-500/50 flex items-center gap-1 text-white font-bold">
+                    <span>✍️</span> Submit Post
+                </a>
+            </nav>
+
+            <div class="flex items-center gap-2 shrink-0">
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('change_password') }}" class="px-2.5 py-1.5 rounded-lg bg-emerald-800/80 hover:bg-emerald-700 text-white text-xs font-semibold transition border border-emerald-600/50 flex items-center gap-1">
+                    <span>🔑</span> <span class="hidden sm:inline">Password</span>
+                </a>
+                <a href="{{ url_for('logout') }}" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition shadow-sm">
                     Logout
                 </a>
+                {% endif %}
             </div>
 
         </div>
+
+        <!-- Mobile Horizontal Scroll Menu (Submit Post একদম শুরুতে ও হাইলাইট করা) -->
+        <div class="lg:hidden flex items-center gap-3 px-4 py-2 bg-[#0e3f33] text-[11px] font-medium text-emerald-200 overflow-x-auto no-scrollbar border-t border-emerald-800/60">
+            <a href="{{ url_for('dashboard') }}" class="text-white font-bold shrink-0">Dashboard</a>
+            <a href="{{ url_for('dashboard') }}" class="shrink-0 bg-emerald-600 text-white font-bold px-2.5 py-0.5 rounded-md border border-emerald-400 flex items-center gap-1 shadow-sm">
+                <span>✍️</span> Submit Post
+            </a>
+            <a href="{{ url_for('id_card') }}" class="shrink-0 hover:text-white">ID Card</a>
+            <a href="#" class="shrink-0 hover:text-white">Results</a>
+            <a href="#" class="shrink-0 hover:text-white">Academic Hub</a>
+            <a href="#" class="shrink-0 hover:text-white">Discussions</a>
+            <a href="#" class="shrink-0 hover:text-white">CR & Coordinators</a>
+            <a href="#" class="shrink-0 hover:text-white">Clubs</a>
+        </div>
     </header>
 
-    <!-- Main Container -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-grow">
+    <!-- Main Dynamic Content -->
+    <main class="flex-grow">
         {% block content %}{% endblock %}
     </main>
 
-    <!-- Footer -->
-    <footer class="border-t border-gray-200 bg-white py-4 text-center text-xs text-gray-500 mt-8">
-        © 2026 Govt. Unani & Ayurvedic Medical College (GUAMC). Mirpur-13, Dhaka-1221. All Rights Reserved.
+    <footer class="text-center py-4 text-xs text-slate-400 bg-white border-t border-slate-200">
+        © 2026 GUAMC Portal • guamc.college.gov.bd
     </footer>
 
 </body>
