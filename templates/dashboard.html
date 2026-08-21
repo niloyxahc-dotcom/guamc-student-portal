@@ -26,7 +26,7 @@
                 </div>
             </div>
 
-            <!-- Navbar Links -->
+            <!-- Navbar Links (Submission সহ) -->
             <nav class="hidden lg:flex items-center gap-5 text-xs font-semibold text-emerald-100">
                 <a href="{{ url_for('dashboard') }}" class="text-white font-bold border-b-2 border-emerald-400 pb-0.5">Dashboard</a>
                 <a href="{{ url_for('id_card') }}" class="hover:text-white transition">Digital ID Card</a>
@@ -35,7 +35,9 @@
                 <a href="#" class="hover:text-white transition">Discussions</a>
                 <a href="#" class="hover:text-white transition">CR & Coordinators</a>
                 <a href="#" class="hover:text-white transition">Clubs</a>
-                <a href="#" class="hover:text-white transition">Articles</a>
+                <a href="#" class="hover:text-white transition bg-emerald-700/60 px-2.5 py-1 rounded-lg border border-emerald-500/40 flex items-center gap-1">
+                    <span>✍️</span> Submit Post
+                </a>
             </nav>
 
             <div class="flex items-center gap-2 shrink-0">
@@ -49,7 +51,7 @@
 
         </div>
 
-        <!-- Mobile Scroll Menu -->
+        <!-- Mobile Scroll Menu (Submission সহ) -->
         <div class="lg:hidden flex items-center gap-4 px-4 py-2 bg-[#0e3f33] text-[11px] font-medium text-emerald-200 overflow-x-auto no-scrollbar border-t border-emerald-800/60">
             <a href="{{ url_for('dashboard') }}" class="text-white font-bold shrink-0">Dashboard</a>
             <a href="{{ url_for('id_card') }}" class="shrink-0 hover:text-white">ID Card</a>
@@ -58,6 +60,9 @@
             <a href="#" class="shrink-0 hover:text-white">Discussions</a>
             <a href="#" class="shrink-0 hover:text-white">CR & Coordinators</a>
             <a href="#" class="shrink-0 hover:text-white">Clubs</a>
+            <a href="#" class="shrink-0 text-emerald-300 font-bold hover:text-white flex items-center gap-1">
+                <span>✍️</span> Submit Post
+            </a>
         </div>
     </header>
 
@@ -166,7 +171,7 @@
 
             </div>
 
-            <!-- Right Side: Academic & Exam Clearance Card (In-Progress Design) -->
+            <!-- Right Side: Academic Clearance Card -->
             <div class="md:col-span-7 bg-white rounded-3xl shadow-sm border border-gray-200 p-6 space-y-4">
                 
                 <div class="flex justify-between items-center pb-3 border-b border-gray-100">
@@ -197,7 +202,7 @@
                     </div>
                 </div>
 
-                <!-- Subject Items List (In-Progress State) -->
+                <!-- Subject Items List -->
                 <div class="pt-2">
                     <div class="flex justify-between items-center mb-2.5">
                         <h4 class="text-xs font-bold text-gray-700 uppercase tracking-wider">Subject Items & Logbook</h4>
