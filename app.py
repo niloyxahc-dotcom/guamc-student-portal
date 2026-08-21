@@ -6,7 +6,7 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'guamc-secret-key-2026'
+app.config['SECRET_KEY'] = 'guamc-portal-secret-2026'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///portal.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -21,7 +21,11 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return Student.query.get(int(user_id))
 
-# লগইন রাউট
+@app.before_request
+def create_tables():
+    db.create_all()
+
+# Login Route
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -31,7 +35,6 @@ def login():
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '').strip()
         
-        # অ্যাডমিন লগইন চেক
         if email == 'admin@guamc.edu.bd' and password == 'admin123':
             admin_user = Student.query.filter_by(email=email).first()
             if not admin_user:
@@ -57,21 +60,21 @@ def login():
             
     return render_template('login.html')
 
-# স্টুডেন্ট ড্যাশবোর্ড রাউট (BAMS ও BUMS সাবজেক্ট ফিল্টারিং সহ)
+# Student Dashboard
 @app.route('/dashboard')
 @login_required
 def dashboard():
     if current_user.is_admin:
         return redirect(url_for('admin_dashboard'))
     
-    if current_user.course_type == 'BAMS':
+    if getattr(current_user, 'course_type', 'BUMS') == 'BAMS':
         subjects = [
             {"name": "1. Rachana Sharir (Anatomy)", "items": "8/10 Completed", "att": "87%"},
             {"name": "2. Kriya Sharir (Physiology)", "items": "9/10 Completed", "att": "86%"},
             {"name": "3. Padartha Vigyan", "items": "7/10 Completed", "att": "81%"},
             {"name": "4. Ashtanga Hridaya", "items": "10/10 Completed", "att": "89%"}
         ]
-    else: # BUMS (Default)
+    else:
         subjects = [
             {"name": "1. Tashrih (Anatomy)", "items": "8/10 Completed", "att": "88%"},
             {"name": "2. Munafeul Aza (Physiology)", "items": "9/10 Completed", "att": "85%"},
@@ -81,13 +84,12 @@ def dashboard():
         
     return render_template('dashboard.html', subjects=subjects)
 
-# একাডেমিক রাউট (যদি নেভিগেশন বার থেকে কেউ এক্সেস করে, সরাসরি ড্যাশবোর্ডেই রিডাইরেক্ট হবে)
+# Fallback Routes
 @app.route('/academic')
 @login_required
 def academic():
     return redirect(url_for('dashboard'))
 
-# অ্যাডমিন ড্যাশবোর্ড রাউট
 @app.route('/admin')
 @login_required
 def admin_dashboard():
@@ -97,12 +99,11 @@ def admin_dashboard():
     students = Student.query.filter(Student.email != 'admin@guamc.edu.bd').all()
     return render_template('admin.html', students=students)
 
-# লগআউট রাউট
+# Logout
 @app.route('/logout')
 @login_required
 def logout():
     logout_user()
-    flash('You have been logged out successfully.', 'success')
     return redirect(url_for('login'))
 
 if __name__ == '__main__':
