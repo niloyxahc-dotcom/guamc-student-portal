@@ -50,10 +50,10 @@
         </div>
     </div>
 
-    <!-- Stats Cards Grid -->
+    <!-- Authentic Live Metrics Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         
-        <!-- Attendance Rate Card (Live Connected) -->
+        <!-- Attendance Rate Card (Live Database Connected) -->
         <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)] flex items-center justify-between">
             <div>
                 <p class="text-[11px] font-black tracking-wider uppercase text-slate-400 mb-1">Attendance Rate</p>
@@ -61,9 +61,20 @@
                     {{ "%.1f"|format(current_user.attendance if current_user.attendance is not none else 85.0) }}%
                 </h2>
                 <div class="mt-2 flex items-center gap-2">
-                    <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-lg">
-                        {% if (current_user.attendance or 85.0) >= 75.0 %}Good Standing{% else %}Needs Attention{% endif %}
-                    </span>
+                    {% set att_val = (current_user.attendance if current_user.attendance is not none else 85.0) %}
+                    {% if att_val >= 75.0 %}
+                        <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-lg">
+                            Collegiate (≥75%)
+                        </span>
+                    {% elif att_val >= 60.0 %}
+                        <span class="px-3 py-1 bg-amber-100 text-amber-800 text-[11px] font-black rounded-lg">
+                            Non-Collegiate (60-74%)
+                        </span>
+                    {% else %}
+                        <span class="px-3 py-1 bg-rose-100 text-rose-800 text-[11px] font-black rounded-lg">
+                            Dis-Collegiate (&lt;60%)
+                        </span>
+                    {% endif %}
                     <span class="text-[10px] font-bold text-slate-400">Min 75% required</span>
                 </div>
             </div>
@@ -73,23 +84,37 @@
             </div>
         </div>
 
-        <!-- Assignments Card -->
+        <!-- DU Prof Clearance Eligibility Card -->
         <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)] flex items-center justify-between">
             <div>
-                <p class="text-[11px] font-black tracking-wider uppercase text-slate-400 mb-1">Assignments</p>
-                <h2 class="text-3xl sm:text-4xl font-black text-slate-800 tracking-tight">
-                    2 <span class="text-xl text-slate-300 font-black">/ 3</span>
-                </h2>
-                <div class="mt-2 flex items-center gap-2">
-                    <span class="px-3 py-1 bg-blue-100 text-blue-800 text-[11px] font-black rounded-lg">
-                        1 Pending
-                    </span>
-                    <span class="text-[10px] font-bold text-slate-400">Term end avg</span>
-                </div>
+                <p class="text-[11px] font-black tracking-wider uppercase text-slate-400 mb-1">Prof Exam Sent-up</p>
+                {% set att_val = (current_user.attendance if current_user.attendance is not none else 85.0) %}
+                {% if att_val >= 75.0 %}
+                    <h2 class="text-2xl sm:text-3xl font-black text-emerald-700 tracking-tight">Eligible</h2>
+                    <div class="mt-2">
+                        <span class="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-black rounded-lg">
+                            Standard Clearance
+                        </span>
+                    </div>
+                {% elif att_val >= 60.0 %}
+                    <h2 class="text-2xl sm:text-3xl font-black text-amber-600 tracking-tight">Conditional</h2>
+                    <div class="mt-2">
+                        <span class="px-3 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-black rounded-lg">
+                            Subject to Fine / Recovery
+                        </span>
+                    </div>
+                {% else %}
+                    <h2 class="text-2xl sm:text-3xl font-black text-rose-600 tracking-tight">Shortage</h2>
+                    <div class="mt-2">
+                        <span class="px-3 py-1 bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-black rounded-lg">
+                            Critical Attendance
+                        </span>
+                    </div>
+                {% endif %}
             </div>
             
-            <div class="w-16 h-16 rounded-2xl bg-[#eff6ff] border border-blue-100 flex items-center justify-center text-3xl shadow-sm">
-                📝
+            <div class="w-16 h-16 rounded-2xl bg-[#f8fafc] border border-slate-200 flex items-center justify-center text-3xl shadow-sm">
+                🎓
             </div>
         </div>
 
