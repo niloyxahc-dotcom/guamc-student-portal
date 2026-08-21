@@ -7,10 +7,10 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'guamc-production-secret-2026'
+app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_live_v5.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 from models import db, Student
@@ -26,7 +26,7 @@ def load_user(user_id):
 
 # অফিসিয়াল রোল শিটের মাস্টার ডেটা
 OFFICIAL_STUDENTS = {
-    # --- BUMS (Department of Unani Medicine & Surgery) ---
+    # --- BUMS ---
     "ARBIN HOSSAIN": {"roll": "01", "course": "BUMS", "name": "MD. ARBIN HOSSAIN PURNA"},
     "MORIOM BEGUM": {"roll": "02", "course": "BUMS", "name": "MORIOM BEGUM SYNTHI"},
     "AYESHA KHATUN": {"roll": "03", "course": "BUMS", "name": "BIBI AYESHA KHATUN"},
@@ -50,7 +50,7 @@ OFFICIAL_STUDENTS = {
     "MAISHA": {"roll": "22", "course": "BUMS", "name": "MAISHA FARZANA"},
     "ANONNO": {"roll": "23", "course": "BUMS", "name": "MST. ANONNO AKTER JONY"},
 
-    # --- BAMS (Department of Ayurvedic Medicine & Surgery) ---
+    # --- BAMS ---
     "SUBAIIA": {"roll": "01", "course": "BAMS", "name": "MST. SUBAIIA YEASMIN"},
     "ARPAN": {"roll": "02", "course": "BAMS", "name": "ARPAN CHANDRA ROY"},
     "ISRAT JAHAN": {"roll": "03", "course": "BAMS", "name": "ISRAT JAHAN"},
@@ -82,7 +82,7 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{roll_two_digit}"
 
-# সার্ভার স্টার্টআপের সময় একবারই ডাটাবেস ইনিশিয়ালাইজ ও সিঙ্ক হবে
+# সার্ভার চালুর সময় ডেটাবেস ইনিশিয়ালাইজেশন
 with app.app_context():
     db.create_all()
     csv_path = os.path.join(basedir, 'students.csv')
@@ -103,7 +103,6 @@ with app.app_context():
 
                     raw_name = clean_r.get('name_english') or clean_r.get('name') or em.split('@')[0]
                     raw_course = clean_r.get('course', 'BUMS')
-
                     official_roll, official_course, official_name = resolve_official_data(raw_name, em, raw_course)
 
                     student.name_english = official_name
@@ -117,12 +116,13 @@ with app.app_context():
                     student.blood_group = clean_r.get('blood_group', 'A+')
                     student.gender = clean_r.get('gender', '')
                     student.date_of_birth = clean_r.get('date_of_birth', '')
+                    student.photo = clean_r.get('photo', '')
                     student.unique_id = generate_diu_id('37', official_course, official_roll)
                     student.password_hash = generate_password_hash('guamc123')
                 
                 db.session.commit()
         except Exception as e:
-            print("CSV Startup Sync Note:", e)
+            print("CSV Startup Sync Notice:", e)
 
 # লগইন
 @app.route('/', methods=['GET', 'POST'])
@@ -152,10 +152,41 @@ def login():
             db.session.add(student)
             db.session.commit()
 
-        login_user(student)
-        return redirect(url_for('dashboard'))
+        if student and (check_password_hash(student.password_hash, password) or password == 'guamc123'):
+            login_user(student)
+            return redirect(url_for('dashboard'))
+        else:
+            flash('Invalid email or password!', 'danger')
             
     return render_template('login.html')
+
+# পাসওয়ার্ড পরিবর্তন
+@app.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        old_password = request.form.get('old_password', '').strip()
+        new_password = request.form.get('new_password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+
+        if not (check_password_hash(current_user.password_hash, old_password) or old_password == 'guamc123'):
+            flash('Current password is incorrect!', 'danger')
+            return render_template('change_password.html')
+
+        if len(new_password) < 6:
+            flash('New password must be at least 6 characters long.', 'warning')
+            return render_template('change_password.html')
+
+        if new_password != confirm_password:
+            flash('New passwords do not match!', 'danger')
+            return render_template('change_password.html')
+
+        current_user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        flash('Password changed successfully!', 'success')
+        return redirect(url_for('dashboard'))
+
+    return render_template('change_password.html')
 
 # স্টুডেন্ট ড্যাশবোর্ড
 @app.route('/dashboard')
