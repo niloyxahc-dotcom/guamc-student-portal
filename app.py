@@ -12,7 +12,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v8.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v9.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -34,24 +34,43 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-# গুগল ড্রাইভ ফাইল আইডি খোঁজার নিখুঁত রেজেক্স
+# ড্রাইভার ফাইল আইডি এক্সট্র্যাক্ট
 def extract_drive_id(val):
     if not val:
         return ""
     val = str(val).strip()
-    # Pattern 1: id=XXXX
     m1 = re.search(r'id=([a-zA-Z0-9_-]{20,})', val)
     if m1:
         return m1.group(1)
-    # Pattern 2: /d/XXXX
     m2 = re.search(r'/d/([a-zA-Z0-9_-]{20,})', val)
     if m2:
         return m2.group(1)
-    # Pattern 3: open?id=XXXX
     m3 = re.search(r'open\?id=([a-zA-Z0-9_-]{20,})', val)
     if m3:
         return m3.group(1)
     return ""
+
+# মোবাইল নম্বর ক্লিন ও স্ট্যান্ডার্ড ১১ ডিজিট (01XXXXXXXXX) ফরম্যাটিং
+def format_bd_phone(raw_val):
+    if not raw_val:
+        return ""
+    val = str(raw_val).strip()
+    # যদি সাইন্টিফিক নোটেশনে থাকে (যেমন 1.82E+09)
+    if 'E+' in val or 'e+' in val:
+        try:
+            val = str(int(float(val)))
+        except Exception:
+            pass
+    digits = re.sub(r'\D', '', val)
+    if not digits:
+        return ""
+    if len(digits) == 10 and digits.startswith('1'):
+        return '0' + digits
+    if len(digits) == 11 and digits.startswith('01'):
+        return digits
+    if len(digits) == 13 and digits.startswith('8801'):
+        return digits[2:]
+    return val
 
 OFFICIAL_STUDENTS = {
     # --- BUMS ---
@@ -110,7 +129,6 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{roll_two_digit}"
 
-# ডাটাবেস ইনিশিয়ালাইজেশন
 with app.app_context():
     db.create_all()
     csv_path = os.path.join(basedir, 'students.csv')
@@ -119,8 +137,15 @@ with app.app_context():
             with open(csv_path, mode='r', encoding='utf-8-sig') as f:
                 reader = csv.DictReader(f)
                 for r in reader:
-                    clean_r = {str(k).strip().lower(): str(v).strip() for k, v in r.items() if k}
-                    em = clean_r.get('email', '').lower()
+                    # কলাম হেডার নরম্যালাইজ
+                    clean_r = {re.sub(r'[^a-zA-Z0-9]', '', str(k).lower()): str(v).strip() for k, v in r.items() if k}
+                    
+                    # ইমেইল খোঁজা
+                    em = ""
+                    for k, v in r.items():
+                        if k and 'email' in str(k).lower() and v:
+                            em = str(v).strip().lower()
+                            break
                     if not em:
                         continue
 
@@ -129,30 +154,48 @@ with app.app_context():
                         student = Student(email=em)
                         db.session.add(student)
 
-                    raw_name = clean_r.get('name_english') or clean_r.get('name') or em.split('@')[0]
+                    raw_name = clean_r.get('nameenglish', '') or clean_r.get('name', '') or em.split('@')[0]
                     raw_course = clean_r.get('course', 'BUMS')
                     official_roll, official_course, official_name = resolve_official_data(raw_name, em, raw_course)
 
                     student.name_english = official_name
-                    student.name_bangla = clean_r.get('name_bangla', '')
+                    student.name_bangla = clean_r.get('namebangla', '')
                     student.course = official_course
                     student.batch = '37th'
                     student.roll_no = official_roll
                     student.class_roll = official_roll
-                    student.registration_no = clean_r.get('registration_no', '')
-                    student.contact_number = clean_r.get('contact_number', '')
-                    student.emergency_medical_contact = clean_r.get('emergency_medical_contact') or clean_r.get('father_contact', '')
-                    student.blood_group = clean_r.get('blood_group', 'A+')
-                    student.gender = clean_r.get('gender', '')
-                    student.date_of_birth = clean_r.get('date_of_birth', '')
+                    student.registration_no = clean_r.get('registrationno', '') or clean_r.get('registrationserialno', '')
                     
-                    # সিএসভি থেকে যেকোনো কলামের ছবি লিংক শনাক্ত
+                    # কন্টাক্ট নম্বর স্ক্যান
+                    st_contact = clean_r.get('contactnumber', '') or clean_r.get('mobilenumber', '')
+                    student.contact_number = format_bd_phone(st_contact)
+
+                    # ইমার্জেন্সি / অভিভাবকের কন্টাক্ট নম্বর নিখুঁত স্ক্যান
+                    em_contact = ""
+                    for k, v in r.items():
+                        if not k or not v:
+                            continue
+                        k_low = str(k).lower()
+                        # Emergency Medical Contact, Local Guardian Contact, Father Contact
+                        if ('emergency' in k_low or 'guardian' in k_low or 'father' in k_low) and ('contact' in k_low or 'number' in k_low or 'phone' in k_low):
+                            formatted = format_bd_phone(v)
+                            if formatted and len(formatted) >= 10:
+                                em_contact = formatted
+                                break
+                    student.emergency_medical_contact = em_contact
+
+                    student.blood_group = clean_r.get('bloodgroup', 'A+')
+                    student.gender = clean_r.get('gender', '')
+                    student.date_of_birth = clean_r.get('dateofbirth', '')
+                    
+                    # ফটো কলাম স্ক্যান
                     found_img = ""
-                    for col_k, col_v in clean_r.items():
-                        if col_v and ('drive.google.com' in col_v or 'photo' in col_k or 'image' in col_k or 'picture' in col_k):
-                            found_img = col_v
+                    for col_k, col_v in r.items():
+                        if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower()):
+                            found_img = str(col_v).strip()
                             break
-                    student.photo = found_img
+                    if found_img:
+                        student.photo = found_img
 
                     student.unique_id = generate_diu_id('37', official_course, official_roll)
                     student.password_hash = generate_password_hash('guamc123')
@@ -166,47 +209,30 @@ with app.app_context():
 def user_avatar(user_id):
     student = Student.query.get(user_id)
     if student and student.photo:
-        # ১. লোকাল আপলোড ফাইল
         if student.photo.startswith('/static/'):
             return redirect(student.photo)
         
-        # ২. ড্রাইভ থেকে ডিরেক্ট ফেচ
         drive_id = extract_drive_id(student.photo)
         if drive_id:
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
+            headers = {'User-Agent': 'Mozilla/5.0'}
             
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            
-            # ট্রাই ১: গুগল ইউজারকন্টেন্ট সিডিএন
-            try:
-                cdn_url = f"https://lh3.googleusercontent.com/d/{drive_id}"
-                req = urllib.request.Request(cdn_url, headers=headers)
-                with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
-                    data = resp.read()
-                    if len(data) > 800:
-                        return Response(data, mimetype="image/jpeg")
-            except Exception:
-                pass
+            for fetch_url in [f"https://lh3.googleusercontent.com/d/{drive_id}", f"https://drive.google.com/thumbnail?id={drive_id}&sz=w1000"]:
+                try:
+                    req = urllib.request.Request(fetch_url, headers=headers)
+                    with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
+                        data = resp.read()
+                        if len(data) > 800:
+                            return Response(data, mimetype="image/jpeg")
+                except Exception:
+                    continue
 
-            # ট্রাই ২: থাম্বনেইল এপিআই
-            try:
-                thumb_url = f"https://drive.google.com/thumbnail?id={drive_id}&sz=w1000"
-                req = urllib.request.Request(thumb_url, headers=headers)
-                with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
-                    data = resp.read()
-                    if len(data) > 800:
-                        return Response(data, mimetype="image/jpeg")
-            except Exception:
-                pass
-
-    # যদি ড্রাইভ থেকে ছবি না পায় তবে চমৎকার কালারফুল ডিফল্ট আভাটার
     name = student.name_english if (student and student.name_english) else 'Student'
     return redirect(f"https://ui-avatars.com/api/?name={name}&background=124E3F&color=fff&size=256&bold=true")
 
+# লগইন
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -242,32 +268,35 @@ def login():
             
     return render_template('login.html')
 
+# স্টুডেন্ট ড্যাশবোর্ড
 @app.route('/dashboard')
 @login_required
 def dashboard():
     course = (current_user.course or 'BUMS').upper()
     if 'BAMS' in course:
         subjects = [
-            {"name": "1. Rachana Sharir (Anatomy)", "items": "8/10 Completed", "att": "87%"},
-            {"name": "2. Kriya Sharir (Physiology)", "items": "9/10 Completed", "att": "86%"},
-            {"name": "3. Padartha Vigyan", "items": "7/10 Completed", "att": "81%"},
-            {"name": "4. Ashtanga Hridaya", "items": "10/10 Completed", "att": "89%"}
+            {"name": "1. Rachana Sharir (Anatomy)", "items": "8/10", "att": "87%"},
+            {"name": "2. Kriya Sharir (Physiology)", "items": "9/10", "att": "86%"},
+            {"name": "3. Padartha Vigyan", "items": "7/10", "att": "81%"},
+            {"name": "4. Ashtanga Hridaya", "items": "10/10", "att": "89%"}
         ]
     else:
         subjects = [
-            {"name": "1. Tashrih (Anatomy)", "items": "8/10 Completed", "att": "88%"},
-            {"name": "2. Munafeul Aza (Physiology)", "items": "9/10 Completed", "att": "85%"},
-            {"name": "3. Kulliyat-e-Uloom-e-Paya", "items": "7/10 Completed", "att": "82%"},
-            {"name": "4. Advia Mufreda (Materia Medica)", "items": "10/10 Completed", "att": "90%"}
+            {"name": "1. Tashrih (Anatomy)", "items": "8/10", "att": "88%"},
+            {"name": "2. Munafeul Aza (Physiology)", "items": "9/10", "att": "85%"},
+            {"name": "3. Kulliyat-e-Uloom-e-Paya", "items": "7/10", "att": "82%"},
+            {"name": "4. Advia Mufreda (Materia Medica)", "items": "10/10", "att": "90%"}
         ]
     return render_template('dashboard.html', subjects=subjects)
 
+# ডিজিটাল আইডি কার্ড
 @app.route('/id-card')
 @login_required
 def id_card():
     emergency_contact = current_user.emergency_medical_contact or current_user.father_contact or current_user.contact_number or '017XXXXXXXX'
     return render_template('id_card.html', emergency_contact=emergency_contact)
 
+# ফটো আপলোড
 @app.route('/upload-photo', methods=['POST'])
 @login_required
 def upload_photo():
@@ -294,6 +323,7 @@ def upload_photo():
         
     return redirect(url_for('dashboard'))
 
+# পাসওয়ার্ড পরিবর্তন
 @app.route('/change-password', methods=['GET', 'POST'])
 @login_required
 def change_password():
@@ -321,6 +351,7 @@ def change_password():
 
     return render_template('change_password.html')
 
+# লগআউট
 @app.route('/logout')
 @login_required
 def logout():
