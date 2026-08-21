@@ -1,17 +1,17 @@
 import os
 import csv
 import re
-from flask import Flask, render_template, redirect, url_for, request, flash
+import urllib.request
+from flask import Flask, render_template, redirect, url_for, request, flash, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_final.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_live_v5.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -33,22 +33,17 @@ def load_user(user_id):
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
-def format_drive_image_url(url):
+def get_drive_file_id(url):
     if not url:
         return ""
     url = str(url).strip()
-    if "drive.google.com" in url or "google.com" in url:
-        file_id = ""
-        id_match = re.search(r'id=([a-zA-Z0-9_-]+)', url)
-        if id_match:
-            file_id = id_match.group(1)
-        else:
-            d_match = re.search(r'/d/([a-zA-Z0-9_-]+)', url)
-            if d_match:
-                file_id = d_match.group(1)
-        if file_id:
-            return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
-    return url
+    id_match = re.search(r'id=([a-zA-Z0-9_-]+)', url)
+    if id_match:
+        return id_match.group(1)
+    d_match = re.search(r'/d/([a-zA-Z0-9_-]+)', url)
+    if d_match:
+        return d_match.group(1)
+    return ""
 
 OFFICIAL_STUDENTS = {
     # --- BUMS ---
@@ -107,6 +102,7 @@ def generate_diu_id(batch, course, roll_two_digit):
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{roll_two_digit}"
 
+# স্টার্টআপ ডেটাবেস সিঙ্ক
 with app.app_context():
     db.create_all()
     csv_path = os.path.join(basedir, 'students.csv')
@@ -137,23 +133,43 @@ with app.app_context():
                     student.class_roll = official_roll
                     student.registration_no = clean_r.get('registration_no', '')
                     student.contact_number = clean_r.get('contact_number', '')
+                    student.emergency_medical_contact = clean_r.get('emergency_medical_contact') or clean_r.get('father_contact', '')
                     student.blood_group = clean_r.get('blood_group', 'A+')
                     student.gender = clean_r.get('gender', '')
                     student.date_of_birth = clean_r.get('date_of_birth', '')
-                    
-                    raw_photo = clean_r.get('photo', '')
-                    formatted_photo = format_drive_image_url(raw_photo)
-                    if formatted_photo:
-                        student.photo = formatted_photo
-
+                    student.photo = clean_r.get('photo', '')
                     student.unique_id = generate_diu_id('37', official_course, official_roll)
                     student.password_hash = generate_password_hash('guamc123')
                 
                 db.session.commit()
         except Exception as e:
-            print("CSV Startup Sync Notice:", e)
+            print("CSV Sync Note:", e)
 
-# লগইন
+# ফটো প্রক্সি রাউট
+@app.route('/avatar/<int:user_id>')
+def user_avatar(user_id):
+    student = Student.query.get(user_id)
+    if student and student.photo:
+        if student.photo.startswith('/static/'):
+            return redirect(student.photo)
+        
+        drive_id = get_drive_file_id(student.photo)
+        if drive_id:
+            try:
+                fetch_url = f"https://drive.google.com/uc?export=download&id={drive_id}"
+                req = urllib.request.Request(fetch_url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req, timeout=5) as response:
+                    content = response.read()
+                    content_type = response.headers.get('Content-Type', 'image/jpeg')
+                    if 'image' in content_type:
+                        return Response(content, mimetype=content_type)
+            except Exception:
+                pass
+
+    name = student.name_english if (student and student.name_english) else 'Student'
+    return redirect(f"https://ui-avatars.com/api/?name={name}&background=0D8ABC&color=fff&size=256")
+
+# লগইন রাউট
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -189,7 +205,7 @@ def login():
             
     return render_template('login.html')
 
-# স্টুডেন্ট ড্যাশবোর্ড
+# ড্যাশবোর্ড রাউট
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -210,13 +226,14 @@ def dashboard():
         ]
     return render_template('dashboard.html', subjects=subjects)
 
-# ডিজিটাল ভার্টিক্যাল আইডি কার্ড
+# ডিজিটাল আইডি কার্ড রাউট
 @app.route('/id-card')
 @login_required
 def id_card():
-    return render_template('id_card.html')
+    emergency_contact = current_user.emergency_medical_contact or current_user.father_contact or current_user.contact_number or '017XXXXXXXX'
+    return render_template('id_card.html', emergency_contact=emergency_contact)
 
-# ছবি আপলোড / আপডেট
+# ছবি আপলোড
 @app.route('/upload-photo', methods=['POST'])
 @login_required
 def upload_photo():

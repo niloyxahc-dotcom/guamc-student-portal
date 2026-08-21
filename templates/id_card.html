@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ current_user.name_english }} - Vertical Student ID Card</title>
+    <title>{{ current_user.name_english }} - Student ID Card</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
@@ -27,10 +27,10 @@
         </button>
     </div>
 
-    <!-- Vertical Smart ID Card -->
+    <!-- Vertical ID Card -->
     <div class="id-card-vertical w-full max-w-[320px] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden relative flex flex-col items-center text-center">
         
-        <!-- Lanyard Hole Graphic -->
+        <!-- Slot Graphic -->
         <div class="w-12 h-1.5 bg-slate-200 rounded-full mt-3 mb-1 shadow-inner"></div>
 
         <!-- Header -->
@@ -47,7 +47,7 @@
             </div>
         </div>
 
-        <!-- Student Photo -->
+        <!-- Photo -->
         <div class="mt-4 relative">
             <div class="w-28 h-28 rounded-2xl overflow-hidden border-2 border-emerald-600 shadow-md bg-slate-100 flex items-center justify-center">
                 <img src="{{ url_for('user_avatar', user_id=current_user.id) }}" alt="{{ current_user.name_english }}" class="w-full h-full object-cover">
@@ -60,7 +60,7 @@
         <!-- Name & Course -->
         <div class="px-4 mt-4 mb-3">
             <h2 class="text-base font-black text-slate-900 leading-tight">
-                {{ current_user.name_english }}
+                {{ current_user.name_english or current_user.name_bangla }}
             </h2>
             {% if current_user.name_bangla %}
                 <p class="text-[10px] text-slate-500 font-semibold mt-0.5">{{ current_user.name_bangla }}</p>
@@ -74,7 +74,7 @@
             </p>
         </div>
 
-        <!-- Metadata Box with Emergency Contact -->
+        <!-- Metadata Box -->
         <div class="w-[88%] bg-slate-50 border border-slate-200/80 rounded-2xl p-3 text-[11px] font-semibold text-slate-700 space-y-1.5 mb-4 text-left">
             <div class="flex justify-between border-b border-slate-200/60 pb-1">
                 <span class="text-slate-400 font-bold uppercase text-[9px]">Student ID</span>
@@ -90,7 +90,7 @@
             </div>
             <div class="flex justify-between border-b border-slate-200/60 pb-1">
                 <span class="text-slate-400 font-bold uppercase text-[9px]">Emergency Contact</span>
-                <span class="font-bold text-slate-800">{{ current_user.emergency_medical_contact or current_user.father_contact or current_user.contact_number or '017XXXXXXXX' }}</span>
+                <span class="font-bold text-slate-800">{{ emergency_contact }}</span>
             </div>
             <div class="flex justify-between">
                 <span class="text-slate-400 font-bold uppercase text-[9px]">Blood Group</span>
@@ -98,7 +98,7 @@
             </div>
         </div>
 
-        <!-- QR Code & Principal Signature -->
+        <!-- QR Code & Signature -->
         <div class="w-[88%] flex items-end justify-between pb-3 pt-1 border-t border-dashed border-slate-200">
             <div class="text-left">
                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=GUAMC-ID:{{ current_user.unique_id }}-ROLL:{{ current_user.roll_no }}" alt="QR" class="w-11 h-11 rounded border border-slate-200 p-0.5">
@@ -112,7 +112,7 @@
             </div>
         </div>
 
-        <!-- Bottom Strip -->
+        <!-- Footer -->
         <div class="w-full bg-slate-100 py-1.5 px-3 text-center border-t border-slate-200 text-[8px] font-bold text-slate-500">
             Mirpur-13, Dhaka-1221 • www.guamc.edu.bd
         </div>
