@@ -12,8 +12,8 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-portal-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-# ডাটাবেস সম্পূর্ণ নতুন ভার্সনে মাইগ্রেট হবে
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_official_final_v3.db')
+# ডাটাবেস মাইগ্রেশন
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'portal_master_official_final_v4.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -291,24 +291,27 @@ def login():
             
     return render_template('login.html')
 
-# ড্যাশবোর্ড
+# ড্যাশবোর্ড (ইউনানী ও আয়ুর্বেদিকের ভেরিফায়েড সাবজেক্ট রুটিন)
 @app.route('/dashboard')
 @login_required
 def dashboard():
     course = (current_user.course or 'BUMS').upper()
     if 'BAMS' in course:
+        # ৩৭তম ব্যাচ আয়ুর্বেদিক (১ম ফেজ/প্রফেশনাল) ভেরিফায়েড বিষয়সমূহ:
         subjects = [
-            {"name": "1. Rachana Sharir (Anatomy)"},
-            {"name": "2. Kriya Sharir (Physiology)"},
-            {"name": "3. Padartha Vigyan"},
-            {"name": "4. Ashtanga Hridaya"}
+            {"name": "1. Padartha Vijnana wa Ayurveda Itihas (Basic Principles)"},
+            {"name": "2. Astanga Hrdaya (Sutra Sthana)"},
+            {"name": "3. Dravyaguna Vijnana (Materia Medica & Pharmacology)"},
+            {"name": "4. Rachana Sharir (Anatomy)"},
+            {"name": "5. Kriya Sharir (Physiology)"}
         ]
     else:
+        # ৩৭তম ব্যাচ ইউনানী (১ম ফেজ/প্রফেশনাল) অফিসিয়াল রুটিন অনুযায়ী বিষয়সমূহ:
         subjects = [
-            {"name": "1. Tashrih (Anatomy)"},
-            {"name": "2. Munafeul Aza (Physiology)"},
-            {"name": "3. Kulliyat-e-Uloom-e-Paya"},
-            {"name": "4. Advia Mufreda (Materia Medica)"}
+            {"name": "1. Tashreeh-ul-Badan (Anatomy)"},
+            {"name": "2. Afal-ul A'za (Physiology)"},
+            {"name": "3. Hiyat-e Kimia (Biochemistry)"},
+            {"name": "4. Kulliat-e-Tibb wa Tarikh-e Tibb (Principles & History of Medicine)"}
         ]
     return render_template('dashboard.html', subjects=subjects)
 
@@ -319,7 +322,7 @@ def id_card():
     emergency_contact = current_user.emergency_medical_contact or current_user.contact_number or '017XXXXXXXX'
     return render_template('id_card.html', emergency_contact=emergency_contact)
 
-# সাবমিশন হাব (৪টি ফোল্ডার ও আপলোড)
+# সাবমিশন হাব
 @app.route('/submissions')
 @login_required
 def submission_hub():
