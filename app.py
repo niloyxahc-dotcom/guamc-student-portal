@@ -10,11 +10,24 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import uuid
-from supabase import create_client, Client
+import requests
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jtrcajaqybqzzoznsruz.supabase.co")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0cmNhamFxeWJxenpvem5zcnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDUwODQsImV4cCI6MjEwMzA4MTA4NH0.kVlonjuIyEWxPL3aygsyX-UtMBbBL1wZZ2cizHOfq5c")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def upload_to_supabase_storage(file_bytes, filename, content_type):
+    upload_url = f"{SUPABASE_URL}/storage/v1/object/student-photos/{filename}"
+    headers = {
+        "apiKey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Content-Type": content_type or "image/jpeg"
+    }
+    response = requests.post(upload_url, headers=headers, data=file_bytes)
+    if response.status_code in [200, 201]:
+        return f"{SUPABASE_URL}/storage/v1/object/public/student-photos/{filename}"
+    else:
+        print(f"Supabase REST Error: {response.status_code} - {response.text}")
+        return None
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-aims-master-bulletproof-2026'
 
@@ -451,12 +464,9 @@ photo_path = None
                 unique_filename = f"signup_{batch}_{course}_{roll_no}_{int(datetime.utcnow().timestamp())}.{ext}"
                 try:
                     file_bytes = f.read()
-                    supabase.storage.from_('student-photos').upload(
-                        path=unique_filename,
-                        file=file_bytes,
-                        file_options={"content-type": f.content_type}
-                    )
-                    photo_path = supabase.storage.from_('student-photos').get_public_url(unique_filename)
+                    photo_path = upload_to_supabase_storage(file_bytes, unique_filename, f.content_type)
+                    if not photo_path:
+                        raise Exception("Failed to upload to Supabase")
                 except Exception as e:
                     print(f"Supabase upload error: {e}")
                     f.seek(0)
