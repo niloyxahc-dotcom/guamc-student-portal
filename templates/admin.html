@@ -45,6 +45,7 @@
             <table class="w-full text-left text-xs bg-white rounded-2xl border border-amber-200 overflow-hidden">
                 <thead class="bg-amber-100/60 text-amber-900 uppercase font-black">
                     <tr>
+                        <th class="p-3 text-center">SL</th>
                         <th class="p-3">Batch &amp; Roll</th>
                         <th class="p-3">Student Name</th>
                         <th class="p-3">Email</th>
@@ -56,6 +57,7 @@
                 <tbody class="divide-y divide-amber-100 font-bold text-slate-800">
                     {% for p in pending_students %}
                     <tr class="hover:bg-amber-50/50 transition">
+                        <td class="p-3 text-center font-black text-slate-500">{{ loop.index }}</td>
                         <td class="p-3">
                             <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-800">{{ p.course }} ({{ p.batch }})</span>
                             <span class="ml-1 font-black text-slate-900">Roll: {{ p.roll_no }}</span>
@@ -111,6 +113,7 @@
             <table class="w-full text-left text-xs">
                 <thead class="bg-slate-100 text-slate-700 uppercase font-black border-b border-slate-200">
                     <tr>
+                        <th class="p-3.5 text-center">SL</th>
                         <th class="p-3.5">Roll</th>
                         <th class="p-3.5">Course &amp; ID</th>
                         <th class="p-3.5">Student Details</th>
@@ -122,6 +125,7 @@
                 <tbody class="divide-y divide-slate-200 font-semibold text-slate-800">
                     {% for s in students %}
                     <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3.5 text-center font-black text-slate-400">{{ loop.index }}</td>
                         <td class="p-3.5 font-black text-slate-900 text-sm">{{ s.roll_no }}</td>
                         <td class="p-3.5">
                             <span class="px-2.5 py-0.5 rounded text-[10px] font-black {% if s.course == 'BUMS' %}bg-emerald-100 text-emerald-800{% else %}bg-blue-100 text-blue-800{% endif %}">
