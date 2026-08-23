@@ -45,9 +45,7 @@ class DepartmentPerformance(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=False)
     attendance_rate = db.Column(db.Float, nullable=True)
-    item_card_status = db.Column(db.String(50), default='In Progress')
-    term_exam_score = db.Column(db.String(50), default='Appeared')
-    remarks = db.Column(db.String(200), default='Card & Item Continuous Evaluation')
+    item_card_status = db.Column(db.String(50), default='In Progress') # In Progress, Cleared, Needs Assessment
 
 class AttendanceRecord(db.Model):
     __tablename__ = 'attendance_records'
@@ -70,7 +68,7 @@ class AcademicFile(db.Model):
     __tablename__ = 'academic_files'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    file_type = db.Column(db.String(50), default='Item Card')
+    file_type = db.Column(db.String(50), default='Item Card') # Item Card, Item Routine, Syllabus, E-Book
     course = db.Column(db.String(20), default='ALL')
     file_url = db.Column(db.String(300), nullable=False)
     folder_id = db.Column(db.Integer, db.ForeignKey('file_folders.id'), nullable=True)

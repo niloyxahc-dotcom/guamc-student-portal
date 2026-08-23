@@ -25,30 +25,20 @@
                 <span>🏛️</span> Dept. of {{ d.name }}
             </h3>
             
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold">
                 <div>
                     <label class="text-slate-600">Department Attendance %</label>
-                    <input type="number" step="0.1" name="att_{{ d.id }}" value="{{ p.attendance_rate if (p and p.attendance_rate is not none) else '' }}" placeholder="None" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold text-emerald-800">
+                    <input type="number" step="0.1" name="att_{{ d.id }}" value="{{ p.attendance_rate if (p and p.attendance_rate is not none) else '' }}" placeholder="Leave blank for Ongoing" class="w-full p-2.5 border border-slate-200 rounded-xl mt-1 font-bold text-emerald-800">
                 </div>
 
                 <div>
                     <label class="text-slate-600">Card / Item Status</label>
-                    <select name="status_{{ d.id }}" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold">
+                    <select name="status_{{ d.id }}" class="w-full p-2.5 border border-slate-200 rounded-xl mt-1 font-bold">
                         <option value="In Progress" {% if p and p.item_card_status == 'In Progress' %}selected{% endif %}>In Progress</option>
                         <option value="Cleared" {% if p and p.item_card_status == 'Cleared' %}selected{% endif %}>Cleared</option>
                         <option value="Needs Assessment" {% if p and p.item_card_status == 'Needs Assessment' %}selected{% endif %}>Needs Assessment</option>
                     </select>
                 </div>
-
-                <div>
-                    <label class="text-slate-600">Term Exam Score / Status</label>
-                    <input type="text" name="score_{{ d.id }}" value="{{ p.term_exam_score if p else 'Appeared' }}" placeholder="e.g. 78% / Passed" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-                </div>
-            </div>
-
-            <div>
-                <label class="text-slate-600 text-xs font-bold">Remarks / Notes</label>
-                <input type="text" name="remarks_{{ d.id }}" value="{{ p.remarks if p else 'Card & Item Continuous Evaluation' }}" class="w-full p-2 border border-slate-200 rounded-xl mt-1 text-xs">
             </div>
         </div>
         {% endfor %}
@@ -56,7 +46,7 @@
         <div class="flex justify-end gap-3 pt-2">
             <a href="{{ url_for('admin_panel') }}" class="px-5 py-2.5 bg-slate-100 text-slate-700 rounded-2xl text-xs font-bold">Cancel</a>
             <button type="submit" class="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-black shadow-lg">
-                Save Department Evaluations
+                Save Evaluations
             </button>
         </div>
     </form>

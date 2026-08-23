@@ -9,8 +9,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# ==================== APPLICATION CONFIGURATION ====================
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-bulletproof-2026'
 
@@ -52,8 +50,6 @@ def load_user(user_id):
         return Student.query.get(int(user_id))
     except Exception:
         return None
-
-# ==================== CONTEXT PROCESSORS & HELPERS ====================
 
 @app.context_processor
 def inject_global_template_vars():
@@ -105,8 +101,6 @@ def generate_diu_id(batch, course, roll_two_digit):
     course_str = str(course).upper()
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
-
-# ==================== DATABASE INITIALIZATION & CSV SYNC ====================
 
 def init_default_departments():
     bams_depts = [
@@ -265,14 +259,12 @@ with app.app_context():
         init_default_departments()
         init_default_nav()
         
-        # স্ট্যাটিক ৮৫% ক্লিয়ার করে Ongoing / Under Assessment করা
+        # পূর্বের স্ট্যাটিক ৮৫% ক্লিয়ার করে Ongoing করা
         Student.query.filter_by(total_classes=None).update({Student.attendance: None})
         DepartmentPerformance.query.filter_by(attendance_rate=85.0).update({DepartmentPerformance.attendance_rate: None})
         db.session.commit()
     except Exception as ex:
         print("Startup Error:", ex)
-
-# ==================== AVATAR PROXY ROUTE ====================
 
 @app.route('/avatar/<int:user_id>')
 def user_avatar(user_id):
@@ -303,7 +295,7 @@ def user_avatar(user_id):
     except Exception:
         return redirect("https://ui-avatars.com/api/?name=Student&background=124E3F&color=fff&size=256&bold=true")
 
-# ==================== AUTHENTICATION & STRICT EMAIL MATCHING ====================
+# ==================== AUTHENTICATION ====================
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -430,16 +422,14 @@ def dashboard():
                 'id': d.id,
                 'name': d.name,
                 'attendance_rate': perf.attendance_rate if (perf and perf.attendance_rate is not None) else None,
-                'item_card_status': perf.item_card_status if perf else 'In Progress',
-                'term_exam_score': perf.term_exam_score if perf else 'Appeared',
-                'remarks': perf.remarks if perf else 'Card & Item Continuous Evaluation'
+                'item_card_status': perf.item_card_status if perf else 'In Progress'
             })
 
         return render_template('dashboard.html', departments=dept_data)
     except Exception as e:
         return f"Error loading dashboard: {str(e)}", 500
 
-# ==================== ACADEMIC HUB & FILE DOWNLOADS ====================
+# ==================== ACADEMIC HUB ====================
 
 @app.route('/academic-hub')
 @login_required
@@ -449,7 +439,7 @@ def resources():
     files = AcademicFile.query.filter((AcademicFile.course == course) | (AcademicFile.course == 'ALL')).order_by(AcademicFile.id.desc()).all()
     return render_template('resources.html', folders=folders, files=files)
 
-# ==================== FULL ADMIN ENTERPRISE CONTROL ====================
+# ==================== ADMIN CONTROL PANEL ====================
 
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
@@ -560,8 +550,6 @@ def admin_student_performance(student_id):
             for d in depts:
                 att = request.form.get(f'att_{d.id}', '')
                 status = request.form.get(f'status_{d.id}', 'In Progress')
-                score = request.form.get(f'score_{d.id}', 'Appeared')
-                remarks = request.form.get(f'remarks_{d.id}', 'Card & Item Continuous Evaluation')
 
                 perf = DepartmentPerformance.query.filter_by(student_id=student.id, department_id=d.id).first()
                 if not perf:
@@ -570,8 +558,6 @@ def admin_student_performance(student_id):
                 
                 perf.attendance_rate = float(att) if att != '' else None
                 perf.item_card_status = status
-                perf.term_exam_score = score
-                perf.remarks = remarks
 
             db.session.commit()
             flash(f"Departmental evaluation updated for {student.name_english}!", "success")

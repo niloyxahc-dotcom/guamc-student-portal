@@ -101,7 +101,7 @@
                 <h3 class="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider">
                     DEPARTMENTAL CONTINUOUS EVALUATION
                 </h3>
-                <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Card, Item, Attendance &amp; Term Performance</p>
+                <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Card &amp; Item Logbook Status</p>
             </div>
             <span class="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold rounded-lg shadow-sm">
                 Assessment Ongoing
@@ -115,24 +115,20 @@
                     <h4 class="text-sm font-black text-slate-900">
                         {{ loop.index }}. Dept. of {{ d.name }}
                     </h4>
-                    <p class="text-xs text-slate-400 font-semibold mt-0.5">{{ d.remarks }}</p>
-                    <div class="flex flex-wrap items-center gap-2 mt-2">
-                        <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">
-                            Dept. Att: 
+                    <div class="flex items-center gap-2 mt-2">
+                        <span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-[11px] font-bold">
+                            Dept. Attendance: 
                             {% if d.attendance_rate is not none %}
                                 <strong class="text-emerald-700">{{ "%.1f"|format(d.attendance_rate) }}%</strong>
                             {% else %}
                                 <strong class="text-amber-700">Ongoing</strong>
                             {% endif %}
                         </span>
-                        <span class="px-2 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-bold">
-                            Term Status: <strong>{{ d.term_exam_score }}</strong>
-                        </span>
                     </div>
                 </div>
 
                 <div>
-                    <span class="px-3 py-1.5 {% if d.item_card_status == 'Cleared' %}bg-emerald-50 border-emerald-200 text-emerald-700{% else %}bg-blue-50 border-blue-200 text-blue-600{% endif %} border text-xs font-black rounded-xl inline-flex items-center gap-1.5 shadow-sm">
+                    <span class="px-3.5 py-1.5 {% if d.item_card_status == 'Cleared' %}bg-emerald-50 border-emerald-200 text-emerald-700{% else %}bg-blue-50 border-blue-200 text-blue-600{% endif %} border text-xs font-black rounded-xl inline-flex items-center gap-1.5 shadow-sm">
                         <span class="w-2 h-2 rounded-full {% if d.item_card_status == 'Cleared' %}bg-emerald-600{% else %}bg-blue-600{% endif %}"></span>
                         {{ d.item_card_status }}
                     </span>
