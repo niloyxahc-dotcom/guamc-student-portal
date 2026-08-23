@@ -390,7 +390,6 @@ def signup():
 
     if request.method == 'POST':
         try:
-            # 1. Academic & Identity
             batch = request.form.get('batch', '37th').strip()
             course = request.form.get('course', 'BUMS').upper()
             roll_no = request.form.get('roll_no', '01').strip().zfill(2)
@@ -406,37 +405,8 @@ def signup():
             date_of_birth = request.form.get('date_of_birth', '').strip()
             nid_or_birth_cert = request.form.get('nid_or_birth_cert', '').strip()
 
-            # 2. Support & Aid
             family_income = request.form.get('family_income', '').strip()
             family_members = request.form.get('family_members', '').strip()
-            need_financial_aid = request.form.get('need_financial_aid', 'No').strip()
-            has_personal_income = request.form.get('has_personal_income', 'No').strip()
-            income_source_details = request.form.get('income_source_details', '').strip()
-
-            # 3. Academic Background
-            hsc_background = request.form.get('hsc_background', '').strip()
-            ssc_background = request.form.get('ssc_background', '').strip()
-
-            # 4. Campus Involvement & Activities
-            library_member = request.form.get('library_member', 'No').strip()
-            hall_resident = request.form.get('hall_resident', 'No').strip()
-            co_curricular_activities = request.form.get('co_curricular_activities', '').strip()
-            clubs_list = request.form.getlist('club_interests')
-            club_interests = ", ".join(clubs_list) if clubs_list else "None"
-
-            # 5. Health & Medical Information
-            height = request.form.get('height', '').strip()
-            weight = request.form.get('weight', '').strip()
-            wear_glasses = request.form.get('wear_glasses', 'No').strip()
-            blood_group = request.form.get('blood_group', '').strip()
-            chronic_illness = request.form.get('chronic_illness', 'None').strip()
-            known_allergies = request.form.get('known_allergies', '').strip()
-            regular_medication = request.form.get('regular_medication', '').strip()
-            emergency_medical_contact = request.form.get('emergency_medical_contact', '').strip()
-            identification_mark = request.form.get('identification_mark', '').strip()
-
-            # 6. Contact & Credentials
-            contact_number = request.form.get('contact_number', '').strip()
             guardian_contact = request.form.get('guardian_contact', '').strip()
             present_address = request.form.get('present_address', '').strip()
             permanent_address = request.form.get('permanent_address', '').strip()
@@ -456,80 +426,65 @@ def signup():
             if existing:
                 flash('This email is already registered! Please login or wait for Admin approval.', 'warning')
                 return redirect(url_for('login'))
-photo_path = None
-        if 'photo' in request.files and request.files['photo'].filename != '':
-            f = request.files['photo']
-            if allowed_file(f.filename):
-                ext = f.filename.rsplit('.', 1)[1].lower()
-                unique_filename = f"signup_{batch}_{course}_{roll_no}_{int(datetime.utcnow().timestamp())}.{ext}"
-                try:
-                    file_bytes = f.read()
-                    photo_path = upload_to_supabase_storage(file_bytes, unique_filename, f.content_type)
-                    if not photo_path:
-                        raise Exception("Failed to upload to Supabase")
-                except Exception as e:
-                    print(f"Supabase upload error: {e}")
-                    f.seek(0)
-                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-                    f.save(filepath)
-                    photo_path = url_for('static', filename=f'uploads/{unique_filename}')
-            else:
-                flash('Invalid photo format! Only JPG and PNG (Max: 500 KB) allowed.', 'warning')
-                return render_template('signup.html')
 
-        new_student = Student(
-            batch=batch,
-            course=course,
-            roll_no=roll_no,
-            class_roll=roll_no,
-            session=session_yr,
-            unique_id=generate_diu_id(batch, course, roll_no),
-            photo=photo_path,
-            name_bangla=name_bangla,
-            name_english=name_english,
+            photo_path = None
+            if 'photo' in request.files and request.files['photo'].filename != '':
+                f = request.files['photo']
+                if allowed_file(f.filename):
+                    ext = f.filename.rsplit('.', 1)[1].lower()
+                    unique_filename = f"signup_{batch}_{course}_{roll_no}_{int(datetime.utcnow().timestamp())}.{ext}"
+                    try:
+                        file_bytes = f.read()
+                        photo_path = upload_to_supabase_storage(file_bytes, unique_filename, f.content_type)
+                        if not photo_path:
+                            raise Exception("Failed to upload to Supabase")
+                    except Exception as e:
+                        print(f"Supabase upload fallback: {e}")
+                        f.seek(0)
+                        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+                        f.save(filepath)
+                        photo_path = url_for('static', filename=f'uploads/{unique_filename}')
+                else:
+                    flash('Invalid photo format! Only JPG and PNG (Max: 500 KB) allowed.', 'warning')
+                    return render_template('signup.html')
+
+            new_student = Student(
+                batch=batch,
+                course=course,
+                roll_no=roll_no,
+                session=session_yr,
+                name_bangla=name_bangla,
+                name_english=name_english,
                 gender=gender,
                 marital_status=marital_status,
                 father_name=father_name,
-                father_occupation=father_occupati
+                father_occupation=father_occupation,
+                mother_name=mother_name,
+                mother_occupation=mother_occupation,
+                date_of_birth=date_of_birth,
+                nid_or_birth_cert=nid_or_birth_cert,
+                family_income=family_income,
                 family_members=family_members,
-                need_financial_aid=need_financial_aid,
-                has_personal_income=has_personal_income,
-                income_source_details=income_source_details,
-                hsc_background=hsc_background,
-                ssc_background=ssc_background,
-                library_member=library_member,
-                hall_resident=hall_resident,
-                co_curricular_activities=co_curricular_activities,
-                club_interests=club_interests,
-                height=height,
-                weight=weight,
-                wear_glasses=wear_glasses,
-                blood_group=blood_group,
-                chronic_illness=chronic_illness,
-                known_allergies=known_allergies,
-                regular_medication=regular_medication,
-                emergency_medical_contact=format_bd_phone(emergency_medical_contact),
-                identification_mark=identification_mark,
-                contact_number=format_bd_phone(contact_number),
-                guardian_contact=format_bd_phone(guardian_contact),
+                guardian_contact=guardian_contact,
                 present_address=present_address,
                 permanent_address=permanent_address,
                 email=email,
-                attendance=None,
-                is_approved=False,
-                password_hash=generate_password_hash(password)
+                photo=photo_path,
+                is_approved=False
             )
+            new_student.set_password(password)
             db.session.add(new_student)
             db.session.commit()
 
-            flash('✅ Registration submitted to GUAMC-AIMS! Your account is pending Administrator verification. You can log in once approved.', 'success')
+            flash('Registration successful! Please wait for Admin approval.', 'success')
             return redirect(url_for('login'))
+
         except Exception as e:
             db.session.rollback()
-            flash(f"Error during registration: {str(e)}", 'danger')
+            flash(f'An error occurred: {str(e)}', 'danger')
+            return render_template('signup.html')
 
     return render_template('signup.html')
-
 # ==================== STUDENT DASHBOARD ====================
 
 @app.route('/dashboard')
@@ -1084,12 +1039,28 @@ def upload_photo():
     file = request.files['photo']
     if file and allowed_file(file.filename):
         ext = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"user_{current_user.id}_{current_user.unique_id}.{ext}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        current_user.photo = url_for('static', filename=f'uploads/{filename}')
+        unique_id_val = getattr(current_user, 'unique_id', None) or current_user.id
+        filename = f"user_{current_user.id}_{unique_id_val}_{int(datetime.utcnow().timestamp())}.{ext}"
+        
+        photo_path = None
+        try:
+            file_bytes = file.read()
+            photo_path = upload_to_supabase_storage(file_bytes, filename, file.content_type)
+            if not photo_path:
+                raise Exception("Supabase upload returned empty URL")
+        except Exception as e:
+            print(f"Supabase upload fallback: {e}")
+            file.seek(0)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            photo_path = url_for('static', filename=f'uploads/{filename}')
+
+        current_user.photo = photo_path
         db.session.commit()
         flash('Profile photo updated successfully!', 'success')
+    else:
+        flash('Invalid image format! Only PNG/JPG allowed.', 'danger')
+        
     return redirect(url_for('dashboard'))
 
 @app.route('/change-password', methods=['GET', 'POST'])
