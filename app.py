@@ -1104,7 +1104,7 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
-    import csv
+import csv
 import os
 
 @app.route('/admin/run-dossier-sync')
@@ -1124,8 +1124,8 @@ def run_dossier_sync():
         created_count = 0
 
         for row in reader:
-            email = (row.get('Email Address') or row.get('email') or '').strip().lower()
-            roll_no = (row.get('Class Roll') or row.get('roll_no') or '').strip()
+            email = (row.get('Email Address') or '').strip().lower()
+            roll_no = (row.get('Class roll:') or row.get('Class Roll') or '').strip()
             
             student = None
             if email:
@@ -1140,45 +1140,60 @@ def run_dossier_sync():
             else:
                 updated_count += 1
 
-            student.name_english = row.get('Full Name (English)') or row.get('name_english') or student.name_english
-            student.name_bangla = row.get('নাম (বাংলায়)') or row.get('name_bangla') or student.name_bangla
-            student.course = row.get('Course') or row.get('course') or student.course
-            student.batch = row.get('Batch') or row.get('batch') or student.batch or '37th'
+            student.name_english = row.get('Name (In English)') or student.name_english
+            student.name_bangla = row.get('নাম (বাংলায়)') or student.name_bangla
+            student.course = row.get('Course:') or student.course
+            student.batch = row.get('Batch') or student.batch or '37th'
             student.roll_no = roll_no or student.roll_no
-            student.unique_id = row.get('Student ID') or row.get('unique_id') or student.unique_id
-            student.blood_group = row.get('Blood Group') or row.get('blood_group') or student.blood_group
-            student.contact_number = row.get('Phone Number') or row.get('contact_number') or student.contact_number
-            student.emergency_medical_contact = row.get('Emergency Contact') or row.get('emergency_medical_contact') or student.emergency_medical_contact
+            student.blood_group = (row.get('Blood group?') or '').strip('? ') or student.blood_group
+            student.contact_number = row.get('Your contact number:') or student.contact_number
 
-            student.gender = row.get('Gender') or student.gender
-            student.marital_status = row.get('Marital Status') or student.marital_status
-            student.date_of_birth = row.get('Date of Birth') or student.date_of_birth
-            student.nid_or_birth_cert = row.get('NID / Birth Certificate') or student.nid_or_birth_cert
-            student.father_name = row.get('Father Name') or student.father_name
-            student.father_occupation = row.get('Father Occupation') or student.father_occupation
-            student.mother_name = row.get('Mother Name') or student.mother_name
-            student.mother_occupation = row.get('Mother Occupation') or student.mother_occupation
-            student.guardian_contact = row.get('Guardian Phone') or student.guardian_contact
-            student.height = row.get('Height') or student.height
-            student.weight = row.get('Weight') or student.weight
+            em_contact = [v for k, v in row.items() if k and 'Emergency Medical Contact Number' in k]
+            student.emergency_medical_contact = em_contact[0] if em_contact and em_contact[0] else student.emergency_medical_contact
 
-            student.family_income = row.get('Monthly Family Income') or student.family_income
-            student.family_members = row.get('Total Family Members') or student.family_members
-            student.need_financial_aid = row.get('Need Financial Aid?') or student.need_financial_aid
-            student.has_personal_income = row.get('Personal Income?') or student.has_personal_income
-            student.income_source_details = row.get('Income Source Details') or student.income_source_details
+            student.gender = row.get('Gender?') or student.gender
+            student.marital_status = row.get('Marital status?') or student.marital_status
+            student.date_of_birth = row.get('Date of birth') or student.date_of_birth
+            student.nid_or_birth_cert = row.get('NID/Birth Reg. No') or student.nid_or_birth_cert
+            
+            student.father_name = row.get("Father's Name") or student.father_name
+            student.father_occupation = row.get("Father's occupation:") or student.father_occupation
+            student.mother_name = row.get("Mother's Name") or student.mother_name
+            student.mother_occupation = row.get("Mother's occupation:") or student.mother_occupation
+            student.guardian_contact = row.get("Father's contact number") or row.get("Mother's contact number:") or row.get("Local guardian's contact number?") or student.guardian_contact
+            
+            student.height = row.get('Height (in feet & inches)') or student.height
+            student.weight = row.get('Weight in kg?') or student.weight
 
-            student.ssc_background = row.get('SSC Details') or student.ssc_background
-            student.hsc_background = row.get('HSC Details') or student.hsc_background
+            student.family_income = row.get("Family's monthly income (in Taka)") or student.family_income
+            student.family_members = row.get('Member of family (in Number)?') or student.family_members
+            student.need_financial_aid = row.get('Do you need any financial aid for educational support?') or student.need_financial_aid
+            student.has_personal_income = row.get('Do you have any source of income (e.g., tuition)?') or student.has_personal_income
+            student.income_source_details = row.get('If yes, please specify:') or student.income_source_details
 
-            student.chronic_illness = row.get('Chronic Illness') or student.chronic_illness
-            student.known_allergies = row.get('Known Allergies') or student.known_allergies
-            student.regular_medication = row.get('Regular Medication') or student.regular_medication
-            student.library_member = row.get('Library Member?') or student.library_member
-            student.hall_resident = row.get('Hall Resident?') or student.hall_resident
-            student.club_interests = row.get('Clubs / Co-curricular') or student.club_interests
+            student.ssc_background = row.get('SSC background') or student.ssc_background
+            student.hsc_background = row.get('HSC background') or student.hsc_background
+
+            student.chronic_illness = row.get("Any chronic illness or major health conditions? (Write 'None' if NA) ") or student.chronic_illness
+            
+            allergies = [v for k, v in row.items() if k and 'Known Allergies' in k]
+            student.known_allergies = allergies[0] if allergies and allergies[0] else student.known_allergies
+
+            medication = [v for k, v in row.items() if k and 'Regular Medication' in k]
+            student.regular_medication = medication[0] if medication and medication[0] else student.regular_medication
+
+            student.library_member = row.get('Are you a member of College Library?') or student.library_member
+            student.hall_resident = row.get('Resident of Hall?') or student.hall_resident
+            
+            clubs = []
+            if row.get('Any co-curricular activities? '):
+                clubs.append(row.get('Any co-curricular activities? ').strip())
+            if row.get('Do you want to join any of the following club?'):
+                clubs.append(row.get('Do you want to join any of the following club?').strip())
+            student.club_interests = ", ".join(filter(None, clubs)) or student.club_interests
+
             student.is_approved = True
 
         db.session.commit()
     
-    return f"<h1>✅ Success! Updated: {updated_count}, Created: {created_count} students in PostgreSQL Cloud Database!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
+    return f"<h1>✅ Perfect Sync Complete! Updated: {updated_count}, Created: {created_count} students in PostgreSQL!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
