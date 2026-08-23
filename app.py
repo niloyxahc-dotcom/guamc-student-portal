@@ -316,19 +316,40 @@ def login():
                 flash('Please enter your registered email address!', 'warning')
                 return render_template('login.html')
 
+            ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
+
+            # Auto-create admin if not exists in DB
+            if email in ADMIN_EMAILS:
+                admin_user = Student.query.filter(db.func.lower(Student.email) == email).first()
+                if not admin_user:
+                    admin_user = Student(
+                        email=email,
+                        name_english="System Administrator",
+                        name_bangla="সিস্টেম অ্যাডমিন",
+                        course="BUMS",
+                        batch="Admin",
+                        roll_no="00",
+                        class_roll="00",
+                        unique_id="ADMIN01",
+                        is_approved=True,
+                        password_hash=generate_password_hash('6456994')
+                    )
+                    db.session.add(admin_user)
+                    db.session.commit()
+
+                if password == '6456994' or check_password_hash(admin_user.password_hash, password):
+                    login_user(admin_user)
+                    return redirect(url_for('admin_panel'))
+                else:
+                    flash('Incorrect password for Administrator!', 'danger')
+                    return render_template('login.html')
+
+            # Normal student authentication
             student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
             if not student:
                 flash('Invalid email address! Please check your registered email spelling or Sign Up first.', 'danger')
                 return render_template('login.html')
-
-            if email in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-                if password == '6456994' or check_password_hash(student.password_hash, password):
-                    login_user(student)
-                    return redirect(url_for('admin_panel'))
-                else:
-                    flash('Incorrect password for Administrator!', 'danger')
-                    return render_template('login.html')
 
             if not student.is_approved:
                 flash('⚠️ Access Restricted! Your account is pending Administrator verification. Please wait until Admin approves your registration.', 'warning')
@@ -344,7 +365,6 @@ def login():
             flash('An error occurred during authentication.', 'danger')
             
     return render_template('login.html')
-
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if current_user.is_authenticated:
