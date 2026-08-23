@@ -23,12 +23,12 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url or ('sqlite:///' + os.path.join(b
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 500 KB Max Upload Size Limit for Storage Economy
-app.config['MAX_CONTENT_LENGTH'] = 1 * 512 * 1024 
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1026 * 1024 
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'pdf', 'docx','jpeg'}
 
 from models import (
     db, 
