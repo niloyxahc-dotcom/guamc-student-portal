@@ -1104,3 +1104,81 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    import csv
+import os
+
+@app.route('/admin/run-dossier-sync')
+@login_required
+def run_dossier_sync():
+    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
+    if not current_user.email or current_user.email.lower().strip() not in ADMIN_EMAILS:
+        return "Access denied!", 403
+
+    csv_file = 'master_students.csv'
+    if not os.path.exists(csv_file):
+        return f"Error: {csv_file} not found in root folder!", 404
+
+    with open(csv_file, mode='r', encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        updated_count = 0
+        created_count = 0
+
+        for row in reader:
+            email = (row.get('Email Address') or row.get('email') or '').strip().lower()
+            roll_no = (row.get('Class Roll') or row.get('roll_no') or '').strip()
+            
+            student = None
+            if email:
+                student = Student.query.filter(Student.email.ilike(email)).first()
+            if not student and roll_no:
+                student = Student.query.filter_by(roll_no=roll_no).first()
+
+            if not student:
+                student = Student(email=email, is_approved=True)
+                db.session.add(student)
+                created_count += 1
+            else:
+                updated_count += 1
+
+            student.name_english = row.get('Full Name (English)') or row.get('name_english') or student.name_english
+            student.name_bangla = row.get('নাম (বাংলায়)') or row.get('name_bangla') or student.name_bangla
+            student.course = row.get('Course') or row.get('course') or student.course
+            student.batch = row.get('Batch') or row.get('batch') or student.batch or '37th'
+            student.roll_no = roll_no or student.roll_no
+            student.unique_id = row.get('Student ID') or row.get('unique_id') or student.unique_id
+            student.blood_group = row.get('Blood Group') or row.get('blood_group') or student.blood_group
+            student.contact_number = row.get('Phone Number') or row.get('contact_number') or student.contact_number
+            student.emergency_medical_contact = row.get('Emergency Contact') or row.get('emergency_medical_contact') or student.emergency_medical_contact
+
+            student.gender = row.get('Gender') or student.gender
+            student.marital_status = row.get('Marital Status') or student.marital_status
+            student.date_of_birth = row.get('Date of Birth') or student.date_of_birth
+            student.nid_or_birth_cert = row.get('NID / Birth Certificate') or student.nid_or_birth_cert
+            student.father_name = row.get('Father Name') or student.father_name
+            student.father_occupation = row.get('Father Occupation') or student.father_occupation
+            student.mother_name = row.get('Mother Name') or student.mother_name
+            student.mother_occupation = row.get('Mother Occupation') or student.mother_occupation
+            student.guardian_contact = row.get('Guardian Phone') or student.guardian_contact
+            student.height = row.get('Height') or student.height
+            student.weight = row.get('Weight') or student.weight
+
+            student.family_income = row.get('Monthly Family Income') or student.family_income
+            student.family_members = row.get('Total Family Members') or student.family_members
+            student.need_financial_aid = row.get('Need Financial Aid?') or student.need_financial_aid
+            student.has_personal_income = row.get('Personal Income?') or student.has_personal_income
+            student.income_source_details = row.get('Income Source Details') or student.income_source_details
+
+            student.ssc_background = row.get('SSC Details') or student.ssc_background
+            student.hsc_background = row.get('HSC Details') or student.hsc_background
+
+            student.chronic_illness = row.get('Chronic Illness') or student.chronic_illness
+            student.known_allergies = row.get('Known Allergies') or student.known_allergies
+            student.regular_medication = row.get('Regular Medication') or student.regular_medication
+            student.library_member = row.get('Library Member?') or student.library_member
+            student.hall_resident = row.get('Hall Resident?') or student.hall_resident
+            student.club_interests = row.get('Clubs / Co-curricular') or student.club_interests
+            student.is_approved = True
+
+        db.session.commit()
+    
+    return f"<h1>✅ Success! Updated: {updated_count}, Created: {created_count} students in PostgreSQL Cloud Database!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
