@@ -9,7 +9,12 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+import uuid
+from supabase import create_client, Client
 
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jtrcajaqybqzzoznsruz.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0cmNhamFxeWJxenpvem5zcnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDUwODQsImV4cCI6MjEwMzA4MTA4NH0.kVlonjuIyEWxPL3aygsyX-UtMBbBL1wZZ2cizHOfq5c")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-aims-master-bulletproof-2026'
 
@@ -438,39 +443,44 @@ def signup():
             if existing:
                 flash('This email is already registered! Please login or wait for Admin approval.', 'warning')
                 return redirect(url_for('login'))
-
-            photo_path = None
-            if 'photo' in request.files and request.files['photo'].filename != '':
-                f = request.files['photo']
-                if allowed_file(f.filename):
-                    ext = f.filename.rsplit('.', 1)[1].lower()
-                    filename = f"signup_{batch}_{course}_{roll_no}_{int(datetime.utcnow().timestamp())}.{ext}"
-                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+photo_path = None
+        if 'photo' in request.files and request.files['photo'].filename != '':
+            f = request.files['photo']
+            if allowed_file(f.filename):
+                ext = f.filename.rsplit('.', 1)[1].lower()
+                unique_filename = f"signup_{batch}_{course}_{roll_no}_{int(datetime.utcnow().timestamp())}.{ext}"
+                try:
+                    file_bytes = f.read()
+                    supabase.storage.from_('student-photos').upload(
+                        path=unique_filename,
+                        file=file_bytes,
+                        file_options={"content-type": f.content_type}
+                    )
+                    photo_path = supabase.storage.from_('student-photos').get_public_url(unique_filename)
+                except Exception as e:
+                    print(f"Supabase upload error: {e}")
+                    f.seek(0)
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                     f.save(filepath)
-                    photo_path = url_for('static', filename=f'uploads/{filename}')
-                else:
-                    flash('Invalid photo format! Only JPG and PNG (Max: 500 KB) allowed.', 'warning')
-                    return render_template('signup.html')
+                    photo_path = url_for('static', filename=f'uploads/{unique_filename}')
+            else:
+                flash('Invalid photo format! Only JPG and PNG (Max: 500 KB) allowed.', 'warning')
+                return render_template('signup.html')
 
-            new_student = Student(
-                batch=batch,
-                course=course,
-                roll_no=roll_no,
-                class_roll=roll_no,
-                session=session_yr,
-                unique_id=generate_diu_id(batch, course, roll_no),
-                photo=photo_path,
-                name_bangla=name_bangla,
-                name_english=name_english,
+        new_student = Student(
+            batch=batch,
+            course=course,
+            roll_no=roll_no,
+            class_roll=roll_no,
+            session=session_yr,
+            unique_id=generate_diu_id(batch, course, roll_no),
+            photo=photo_path,
+            name_bangla=name_bangla,
+            name_english=name_english,
                 gender=gender,
                 marital_status=marital_status,
                 father_name=father_name,
-                father_occupation=father_occupation,
-                mother_name=mother_name,
-                mother_occupation=mother_occupation,
-                date_of_birth=date_of_birth,
-                nid_or_birth_cert=nid_or_birth_cert,
-                family_income=family_income,
+                father_occupation=father_occupati
                 family_members=family_members,
                 need_financial_aid=need_financial_aid,
                 has_personal_income=has_personal_income,
