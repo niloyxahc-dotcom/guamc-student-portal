@@ -4,7 +4,7 @@
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-6 space-y-6">
 
-    <!-- Premium Mobile-First Hero Card -->
+    <!-- Hero Card -->
     <div class="bg-gradient-to-b from-[#093829] via-[#0b4834] to-[#06261c] rounded-[2.5rem] p-8 text-white text-center shadow-2xl shadow-emerald-950/30 relative overflow-hidden border border-emerald-700/30">
         
         <div class="relative inline-block mx-auto mb-5">
@@ -50,20 +50,28 @@
         <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)] flex items-center justify-between">
             <div>
                 <p class="text-[11px] font-black tracking-wider uppercase text-slate-400 mb-1">Overall Attendance</p>
-                <h2 class="text-3xl sm:text-4xl font-black text-[#043324] tracking-tight">
-                    {{ "%.1f"|format(current_user.attendance if current_user.attendance is not none else 85.0) }}%
-                </h2>
-                <div class="mt-2 flex items-center gap-2">
-                    {% set att_val = (current_user.attendance if current_user.attendance is not none else 85.0) %}
-                    {% if att_val >= 75.0 %}
-                        <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-lg">Collegiate (≥75%)</span>
-                    {% elif att_val >= 60.0 %}
-                        <span class="px-3 py-1 bg-amber-100 text-amber-800 text-[11px] font-black rounded-lg">Non-Collegiate</span>
-                    {% else %}
-                        <span class="px-3 py-1 bg-rose-100 text-rose-800 text-[11px] font-black rounded-lg">Dis-Collegiate</span>
-                    {% endif %}
-                    <span class="text-[10px] font-bold text-slate-400">Min 75% required</span>
-                </div>
+                {% if current_user.attendance is not none %}
+                    <h2 class="text-3xl sm:text-4xl font-black text-[#043324] tracking-tight">
+                        {{ "%.1f"|format(current_user.attendance) }}%
+                    </h2>
+                    <div class="mt-2 flex items-center gap-2">
+                        {% if current_user.attendance >= 75.0 %}
+                            <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-lg">Collegiate (≥75%)</span>
+                        {% elif current_user.attendance >= 60.0 %}
+                            <span class="px-3 py-1 bg-amber-100 text-amber-800 text-[11px] font-black rounded-lg">Non-Collegiate</span>
+                        {% else %}
+                            <span class="px-3 py-1 bg-rose-100 text-rose-800 text-[11px] font-black rounded-lg">Dis-Collegiate</span>
+                        {% endif %}
+                        <span class="text-[10px] font-bold text-slate-400">Min 75% required</span>
+                    </div>
+                {% else %}
+                    <h2 class="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">Under Assessment</h2>
+                    <div class="mt-2">
+                        <span class="px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-black rounded-lg">
+                            Ongoing Process
+                        </span>
+                    </div>
+                {% endif %}
             </div>
             <div class="w-16 h-16 rounded-2xl bg-[#effcf6] border border-emerald-100 flex items-center justify-center text-3xl shadow-sm">
                 📊
@@ -86,7 +94,7 @@
         </div>
     </div>
 
-    <!-- DEPARTMENTAL EVALUATION & LOGBOOK -->
+    <!-- Departmental Continuous Evaluation -->
     <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)] space-y-4">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
             <div>
@@ -110,7 +118,12 @@
                     <p class="text-xs text-slate-400 font-semibold mt-0.5">{{ d.remarks }}</p>
                     <div class="flex flex-wrap items-center gap-2 mt-2">
                         <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">
-                            Dept. Att: <strong class="text-emerald-700">{{ "%.1f"|format(d.attendance_rate) }}%</strong>
+                            Dept. Att: 
+                            {% if d.attendance_rate is not none %}
+                                <strong class="text-emerald-700">{{ "%.1f"|format(d.attendance_rate) }}%</strong>
+                            {% else %}
+                                <strong class="text-amber-700">Ongoing</strong>
+                            {% endif %}
                         </span>
                         <span class="px-2 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-bold">
                             Term Status: <strong>{{ d.term_exam_score }}</strong>
@@ -133,7 +146,7 @@
                 <span>⚠️</span> Departmental Sent-up Notice:
             </h5>
             <p class="text-[#784805] leading-relaxed font-semibold">
-                Clearance in each department requires mandatory attendance (≥75%) and passing all card/item examinations. Final DU Prof Sent-up will be evaluated centrally at the end of the academic session.
+                Clearance in each department requires mandatory attendance (≥75%) and passing all card/item examinations. Final DU Prof Sent-up will be compiled centrally from all departmental evaluations.
             </p>
         </div>
     </div>

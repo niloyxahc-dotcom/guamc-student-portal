@@ -3,11 +3,13 @@ import csv
 import re
 import urllib.request
 import ssl
+from datetime import datetime, date
 from flask import Flask, render_template, redirect, url_for, request, flash, Response, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import date
+
+# ==================== APPLICATION CONFIGURATION ====================
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-master-bulletproof-2026'
@@ -26,7 +28,18 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'pdf', 'docx', 'xlsx'}
 
-from models import db, Student, Post, Notice, NavigationLink, Department, DepartmentPerformance, FileFolder, AcademicFile, AttendanceRecord
+from models import (
+    db, 
+    Student, 
+    Department, 
+    DepartmentPerformance, 
+    AttendanceRecord, 
+    FileFolder, 
+    AcademicFile, 
+    NavigationLink, 
+    Post, 
+    Notice
+)
 db.init_app(app)
 
 login_manager = LoginManager()
@@ -35,11 +48,15 @@ login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
-    try: return Student.query.get(int(user_id))
-    except Exception: return None
+    try:
+        return Student.query.get(int(user_id))
+    except Exception:
+        return None
+
+# ==================== CONTEXT PROCESSORS & HELPERS ====================
 
 @app.context_processor
-def inject_nav_links():
+def inject_global_template_vars():
     try:
         nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all()
         return dict(custom_nav_links=nav_links)
@@ -50,33 +67,46 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def extract_drive_id(val):
-    if not val: return ""
+    if not val:
+        return ""
     val = str(val).strip()
     m1 = re.search(r'id=([a-zA-Z0-9_-]{20,})', val)
-    if m1: return m1.group(1)
+    if m1:
+        return m1.group(1)
     m2 = re.search(r'/d/([a-zA-Z0-9_-]{20,})', val)
-    if m2: return m2.group(1)
+    if m2:
+        return m2.group(1)
     m3 = re.search(r'open\?id=([a-zA-Z0-9_-]{20,})', val)
-    if m3: return m3.group(1)
+    if m3:
+        return m3.group(1)
     return ""
 
 def format_bd_phone(raw_val):
-    if not raw_val: return ""
+    if not raw_val:
+        return ""
     val = str(raw_val).strip()
     if 'E+' in val or 'e+' in val:
-        try: val = str(int(float(val)))
-        except Exception: pass
+        try:
+            val = str(int(float(val)))
+        except Exception:
+            pass
     digits = re.sub(r'\D', '', val)
-    if not digits: return ""
-    if len(digits) == 10 and digits.startswith('1'): return '0' + digits
-    if len(digits) == 11 and digits.startswith('01'): return digits
-    if len(digits) == 13 and digits.startswith('8801'): return digits[2:]
+    if not digits:
+        return ""
+    if len(digits) == 10 and digits.startswith('1'):
+        return '0' + digits
+    if len(digits) == 11 and digits.startswith('01'):
+        return digits
+    if len(digits) == 13 and digits.startswith('8801'):
+        return digits[2:]
     return val
 
 def generate_diu_id(batch, course, roll_two_digit):
     course_str = str(course).upper()
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
     return f"37{c_code}{str(roll_two_digit).zfill(2)}"
+
+# ==================== DATABASE INITIALIZATION & CSV SYNC ====================
 
 def init_default_departments():
     bams_depts = [
@@ -102,10 +132,12 @@ def init_default_departments():
     else:
         for i, name in enumerate(bams_depts, 1):
             d = Department.query.filter_by(course='BAMS', order=i).first()
-            if d: d.name = name
+            if d:
+                d.name = name
         for i, name in enumerate(bums_depts, 1):
             d = Department.query.filter_by(course='BUMS', order=i).first()
-            if d: d.name = name
+            if d:
+                d.name = name
         db.session.commit()
 
 def init_default_nav():
@@ -123,7 +155,8 @@ def init_default_nav():
 
 def sync_students_csv():
     csv_path = os.path.join(basedir, 'students.csv')
-    if not os.path.exists(csv_path): return
+    if not os.path.exists(csv_path):
+        return
     try:
         with open(csv_path, mode='r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
@@ -134,7 +167,8 @@ def sync_students_csv():
                         if k and 'email' in str(k).lower() and v:
                             em = str(v).strip().lower()
                             break
-                    if not em: continue
+                    if not em:
+                        continue
 
                     student = Student.query.filter(db.func.lower(Student.email) == em).first()
                     is_new = False
@@ -150,17 +184,21 @@ def sync_students_csv():
                     raw_course = "BUMS"
 
                     for k, v in r.items():
-                        if not k or not v: continue
+                        if not k or not v:
+                            continue
                         k_l = str(k).lower().strip()
                         v_s = str(v).strip()
                         
                         if 'roll' in k_l or 'class roll' in k_l or 'রোল' in k_l:
                             digits = re.sub(r'\D', '', v_s)
-                            if digits: raw_class_roll = digits.zfill(2)
+                            if digits:
+                                raw_class_roll = digits.zfill(2)
                         elif 'course' in k_l or 'কোর্স' in k_l:
                             c_val = v_s.upper()
-                            if 'BAMS' in c_val or 'AYURVEDIC' in c_val: raw_course = 'BAMS'
-                            else: raw_course = 'BUMS'
+                            if 'BAMS' in c_val or 'AYURVEDIC' in c_val:
+                                raw_course = 'BAMS'
+                            else:
+                                raw_course = 'BUMS'
                         elif ("father" in k_l or "পিতা" in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l):
                             raw_father_name = v_s
                         elif 'bangla' in k_l or 'বাংলা' in k_l:
@@ -168,11 +206,14 @@ def sync_students_csv():
                         elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name and not ('father' in k_l or 'mother' in k_l or 'guardian' in k_l):
                             raw_eng_name = v_s
 
-                    if not raw_class_roll: raw_class_roll = "01"
+                    if not raw_class_roll:
+                        raw_class_roll = "01"
 
                     student.name_english = raw_eng_name if raw_eng_name else em.split('@')[0].title()
-                    if raw_ban_name: student.name_bangla = raw_ban_name
-                    if raw_father_name: student.father_name = raw_father_name
+                    if raw_ban_name:
+                        student.name_bangla = raw_ban_name
+                    if raw_father_name:
+                        student.father_name = raw_father_name
                     student.course = raw_course
                     student.batch = '37th'
                     student.roll_no = str(raw_class_roll).zfill(2)
@@ -183,15 +224,18 @@ def sync_students_csv():
                     st_contact = ""
                     em_contact = ""
                     for k, v in r.items():
-                        if not k or not v: continue
+                        if not k or not v:
+                            continue
                         k_l = str(k).lower()
                         if ('emergency' in k_l or 'guardian' in k_l or 'father' in k_l) and ('contact' in k_l or 'phone' in k_l or 'number' in k_l):
                             em_contact = format_bd_phone(v)
                         elif ('contact' in k_l or 'mobile' in k_l or 'phone' in k_l) and not st_contact:
                             st_contact = format_bd_phone(v)
 
-                    if st_contact: student.contact_number = st_contact
-                    if em_contact: student.emergency_medical_contact = em_contact
+                    if st_contact:
+                        student.contact_number = st_contact
+                    if em_contact:
+                        student.emergency_medical_contact = em_contact
 
                     for k, v in r.items():
                         if k and 'blood' in str(k).lower() and v:
@@ -207,9 +251,6 @@ def sync_students_csv():
                     elif not student.password_hash:
                         student.password_hash = generate_password_hash('guamc123')
                     
-                    if is_new and student.attendance is None:
-                        student.attendance = 85.0
-                    
                     db.session.commit()
                 except Exception:
                     db.session.rollback()
@@ -223,15 +264,24 @@ with app.app_context():
         sync_students_csv()
         init_default_departments()
         init_default_nav()
+        
+        # স্ট্যাটিক ৮৫% ক্লিয়ার করে Ongoing / Under Assessment করা
+        Student.query.filter_by(total_classes=None).update({Student.attendance: None})
+        DepartmentPerformance.query.filter_by(attendance_rate=85.0).update({DepartmentPerformance.attendance_rate: None})
+        db.session.commit()
     except Exception as ex:
         print("Startup Error:", ex)
+
+# ==================== AVATAR PROXY ROUTE ====================
 
 @app.route('/avatar/<int:user_id>')
 def user_avatar(user_id):
     try:
         student = Student.query.get(user_id)
         if student and student.photo:
-            if student.photo.startswith('/static/'): return redirect(student.photo)
+            if student.photo.startswith('/static/'):
+                return redirect(student.photo)
+            
             drive_id = extract_drive_id(student.photo)
             if drive_id:
                 ctx = ssl.create_default_context()
@@ -243,8 +293,10 @@ def user_avatar(user_id):
                         req = urllib.request.Request(fetch_url, headers=headers)
                         with urllib.request.urlopen(req, context=ctx, timeout=3) as resp:
                             data = resp.read()
-                            if len(data) > 800: return Response(data, mimetype="image/jpeg")
-                    except Exception: continue
+                            if len(data) > 800:
+                                return Response(data, mimetype="image/jpeg")
+                    except Exception:
+                        continue
 
         name = student.name_english if (student and student.name_english) else 'Student'
         return redirect(f"https://ui-avatars.com/api/?name={name}&background=124E3F&color=fff&size=256&bold=true")
@@ -285,7 +337,7 @@ def login():
                     return render_template('login.html')
 
             if not student.is_approved:
-                flash('⚠️ Access Restricted! Your account is pending Administrator verification. Please wait until Admin approves your registration.', 'warning')
+                flash('⚠️ Access Restricted! Your account is pending Administrator approval. Please wait until Admin approves your registration.', 'warning')
                 return render_template('login.html')
 
             if check_password_hash(student.password_hash, password) or password == 'guamc123':
@@ -301,7 +353,8 @@ def login():
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
-    if current_user.is_authenticated: return redirect(url_for('dashboard'))
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard'))
 
     if request.method == 'POST':
         try:
@@ -343,7 +396,7 @@ def signup():
                 contact_number=format_bd_phone(phone),
                 emergency_medical_contact=format_bd_phone(emergency),
                 blood_group=blood,
-                attendance=85.0,
+                attendance=None,
                 is_approved=False,
                 password_hash=generate_password_hash(password)
             )
@@ -376,7 +429,7 @@ def dashboard():
             dept_data.append({
                 'id': d.id,
                 'name': d.name,
-                'attendance_rate': perf.attendance_rate if perf else (current_user.attendance or 85.0),
+                'attendance_rate': perf.attendance_rate if (perf and perf.attendance_rate is not None) else None,
                 'item_card_status': perf.item_card_status if perf else 'In Progress',
                 'term_exam_score': perf.term_exam_score if perf else 'Appeared',
                 'remarks': perf.remarks if perf else 'Card & Item Continuous Evaluation'
@@ -413,7 +466,7 @@ def admin_panel():
             student = Student.query.get(student_id)
             if student:
                 try:
-                    student.attendance = float(new_att)
+                    student.attendance = float(new_att) if new_att != '' else None
                     db.session.commit()
                     flash(f"Updated attendance for {student.name_english} ({new_att}%)!", "success")
                 except Exception:
@@ -474,12 +527,16 @@ def admin_live_attendance():
             rec = AttendanceRecord(student_id=st.id, date=session_date, subject=subject_name, status=status)
             db.session.add(rec)
             
-            if st.total_classes is None: st.total_classes = 20
-            if st.attended_classes is None: st.attended_classes = int((st.attendance or 85.0) * 20 / 100)
+            if st.total_classes is None:
+                st.total_classes = 0
+            if st.attended_classes is None:
+                st.attended_classes = 0
             
             st.total_classes += 1
-            if status == 'P': st.attended_classes += 1
-            st.attendance = round((st.attended_classes / st.total_classes) * 100, 1)
+            if status == 'P':
+                st.attended_classes += 1
+            
+            st.attendance = round((st.attended_classes / st.total_classes) * 100, 1) if st.total_classes > 0 else None
             updated_count += 1
             
         db.session.commit()
@@ -501,7 +558,7 @@ def admin_student_performance(student_id):
     if request.method == 'POST':
         try:
             for d in depts:
-                att = request.form.get(f'att_{d.id}', '85.0')
+                att = request.form.get(f'att_{d.id}', '')
                 status = request.form.get(f'status_{d.id}', 'In Progress')
                 score = request.form.get(f'score_{d.id}', 'Appeared')
                 remarks = request.form.get(f'remarks_{d.id}', 'Card & Item Continuous Evaluation')
@@ -511,7 +568,7 @@ def admin_student_performance(student_id):
                     perf = DepartmentPerformance(student_id=student.id, department_id=d.id)
                     db.session.add(perf)
                 
-                perf.attendance_rate = float(att) if att else 85.0
+                perf.attendance_rate = float(att) if att != '' else None
                 perf.item_card_status = status
                 perf.term_exam_score = score
                 perf.remarks = remarks
@@ -532,7 +589,8 @@ def admin_student_performance(student_id):
 @app.route('/admin/student/approve/<int:id>', methods=['POST'])
 @login_required
 def admin_approve_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     student = Student.query.get_or_404(id)
     student.is_approved = True
     db.session.commit()
@@ -542,7 +600,8 @@ def admin_approve_student(id):
 @app.route('/admin/student/reject/<int:id>', methods=['POST'])
 @login_required
 def admin_reject_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     student = Student.query.get_or_404(id)
     db.session.delete(student)
     db.session.commit()
@@ -552,7 +611,8 @@ def admin_reject_student(id):
 @app.route('/admin/student/impersonate/<int:id>')
 @login_required
 def admin_impersonate_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     student_to_view = Student.query.get_or_404(id)
     session['admin_impersonator_email'] = current_user.email
     login_user(student_to_view)
@@ -563,7 +623,8 @@ def admin_impersonate_student(id):
 @login_required
 def admin_exit_impersonate():
     admin_email = session.get('admin_impersonator_email')
-    if not admin_email: return redirect(url_for('dashboard'))
+    if not admin_email:
+        return redirect(url_for('dashboard'))
     admin_user = Student.query.filter(db.func.lower(Student.email) == admin_email.lower().strip()).first()
     if admin_user:
         session.pop('admin_impersonator_email', None)
@@ -575,7 +636,8 @@ def admin_exit_impersonate():
 @app.route('/admin/student/add', methods=['POST'])
 @login_required
 def admin_add_student():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     try:
         email = request.form.get('email', '').strip().lower()
         if not email:
@@ -593,7 +655,8 @@ def admin_add_student():
         blood = request.form.get('blood_group', '').strip()
         phone = request.form.get('contact_number', '').strip()
         emergency = request.form.get('emergency_medical_contact', '').strip()
-        att = float(request.form.get('attendance', 85.0))
+        raw_att = request.form.get('attendance', '')
+        att = float(raw_att) if raw_att != '' else None
 
         new_st = Student(
             email=email,
@@ -621,7 +684,8 @@ def admin_add_student():
 @app.route('/admin/student/edit/<int:id>', methods=['POST'])
 @login_required
 def admin_edit_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     student = Student.query.get_or_404(id)
     student.name_english = request.form.get('name_english', student.name_english).strip()
     student.name_bangla = request.form.get('name_bangla', student.name_bangla).strip()
@@ -636,9 +700,11 @@ def admin_edit_student(id):
     student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
     
     new_custom_pass = request.form.get('custom_password', '').strip()
-    if new_custom_pass: student.password_hash = generate_password_hash(new_custom_pass)
-    new_att = request.form.get('attendance')
-    if new_att: student.attendance = float(new_att)
+    if new_custom_pass:
+        student.password_hash = generate_password_hash(new_custom_pass)
+    
+    raw_att = request.form.get('attendance', '')
+    student.attendance = float(raw_att) if raw_att != '' else None
         
     db.session.commit()
     flash(f"Updated profile & credentials for {student.name_english}!", "success")
@@ -647,7 +713,8 @@ def admin_edit_student(id):
 @app.route('/admin/student/reset-password/<int:id>', methods=['POST'])
 @login_required
 def admin_reset_password(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     student = Student.query.get_or_404(id)
     student.password_hash = generate_password_hash('guamc123')
     db.session.commit()
@@ -657,7 +724,8 @@ def admin_reset_password(id):
 @app.route('/admin/student/move/<int:id>', methods=['POST'])
 @login_required
 def admin_move_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     student = Student.query.get_or_404(id)
     target_course = request.form.get('target_course', '').upper()
     if target_course in ['BUMS', 'BAMS']:
@@ -671,7 +739,8 @@ def admin_move_student(id):
 @app.route('/admin/student/copy/<int:id>', methods=['POST'])
 @login_required
 def admin_copy_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     src = Student.query.get_or_404(id)
     clone_roll = f"{int(src.roll_no)+50 if src.roll_no.isdigit() else '99'}".zfill(2)
     clone_email = f"copy_{src.id}_{src.email}"
@@ -701,7 +770,8 @@ def admin_copy_student(id):
 @app.route('/admin/student/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     student = Student.query.get_or_404(id)
     name = student.name_english
     Post.query.filter_by(student_id=student.id).delete()
@@ -715,7 +785,8 @@ def admin_delete_student(id):
 @app.route('/admin/department/save', methods=['POST'])
 @login_required
 def admin_save_department():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     dept_id = request.form.get('dept_id')
     name = request.form.get('name', '').strip()
     course = request.form.get('course', 'BAMS').strip().upper()
@@ -738,7 +809,8 @@ def admin_save_department():
 @app.route('/admin/department/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_department(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     dept = Department.query.get_or_404(id)
     db.session.delete(dept)
     db.session.commit()
@@ -748,7 +820,8 @@ def admin_delete_department(id):
 @app.route('/admin/folder/add', methods=['POST'])
 @login_required
 def admin_add_folder():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     name = request.form.get('folder_name', '').strip()
     course = request.form.get('course', 'ALL').strip().upper()
     if name:
@@ -760,7 +833,8 @@ def admin_add_folder():
 @app.route('/admin/file/upload', methods=['POST'])
 @login_required
 def admin_upload_file():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     title = request.form.get('title', '').strip()
     file_type = request.form.get('file_type', 'Item Card')
     course = request.form.get('course', 'ALL').upper()
@@ -786,7 +860,8 @@ def admin_upload_file():
 @app.route('/admin/file/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_file(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     f = AcademicFile.query.get_or_404(id)
     db.session.delete(f)
     db.session.commit()
@@ -796,7 +871,8 @@ def admin_delete_file(id):
 @app.route('/admin/navigation/save', methods=['POST'])
 @login_required
 def admin_save_nav_link():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     link_id = request.form.get('link_id')
     title = request.form.get('title', '').strip()
     url_val = request.form.get('endpoint_or_url', '').strip()
@@ -823,14 +899,15 @@ def admin_save_nav_link():
 @app.route('/admin/navigation/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_nav_link(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']: return redirect(url_for('dashboard'))
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
     link = NavigationLink.query.get_or_404(id)
     db.session.delete(link)
     db.session.commit()
     flash("Nav item removed.", "info")
     return redirect(url_for('admin_panel'))
 
-# ==================== GENERAL ROUTES ====================
+# ==================== GENERAL & USER PROFILE ROUTES ====================
 
 @app.route('/id-card')
 @login_required
@@ -847,8 +924,10 @@ def submission_hub():
 @app.route('/discussions')
 @login_required
 def discussions():
-    try: posts = Post.query.order_by(Post.created_at.desc()).all()
-    except Exception: posts = []
+    try:
+        posts = Post.query.order_by(Post.created_at.desc()).all()
+    except Exception:
+        posts = []
     return render_template('discussions.html', posts=posts)
 
 @app.route('/submit-post', methods=['GET', 'POST'])
@@ -862,14 +941,15 @@ def submit_post():
             new_post = Post(title=title, content=content, category=category, student_id=current_user.id)
             db.session.add(new_post)
             db.session.commit()
-            flash('Post published!', 'success')
+            flash('Post published to Community Discussions!', 'success')
             return redirect(url_for('discussions'))
     return render_template('submit_post.html')
 
 @app.route('/upload-photo', methods=['POST'])
 @login_required
 def upload_photo():
-    if 'photo' not in request.files: return redirect(url_for('dashboard'))
+    if 'photo' not in request.files:
+        return redirect(url_for('dashboard'))
     file = request.files['photo']
     if file and allowed_file(file.filename):
         ext = file.filename.rsplit('.', 1)[1].lower()
@@ -878,7 +958,7 @@ def upload_photo():
         file.save(filepath)
         current_user.photo = url_for('static', filename=f'uploads/{filename}')
         db.session.commit()
-        flash('Photo updated!', 'success')
+        flash('Profile photo updated successfully!', 'success')
     return redirect(url_for('dashboard'))
 
 @app.route('/change-password', methods=['GET', 'POST'])
@@ -893,10 +973,10 @@ def change_password():
             flash('Current password is incorrect!', 'danger')
             return render_template('change_password.html')
         if len(new_password) < 6:
-            flash('Password must be at least 6 characters.', 'warning')
+            flash('Password must be at least 6 characters long.', 'warning')
             return render_template('change_password.html')
         if new_password != confirm_password:
-            flash('Passwords do not match!', 'danger')
+            flash('New passwords do not match!', 'danger')
             return render_template('change_password.html')
 
         current_user.password_hash = generate_password_hash(new_password)

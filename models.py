@@ -23,9 +23,9 @@ class Student(UserMixin, db.Model):
     blood_group = db.Column(db.String(10))
     photo = db.Column(db.String(255))
     
-    total_classes = db.Column(db.Integer, default=20)
-    attended_classes = db.Column(db.Integer, default=17)
-    attendance = db.Column(db.Float, default=85.0)
+    total_classes = db.Column(db.Integer, nullable=True)
+    attended_classes = db.Column(db.Integer, nullable=True)
+    attendance = db.Column(db.Float, nullable=True)
     
     is_approved = db.Column(db.Boolean, default=False)
     performances = db.relationship('DepartmentPerformance', backref='student', cascade="all, delete-orphan")
@@ -44,9 +44,9 @@ class DepartmentPerformance(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=False)
-    attendance_rate = db.Column(db.Float, default=85.0)
-    item_card_status = db.Column(db.String(50), default='In Progress') # In Progress, Cleared, Needs Assessment
-    term_exam_score = db.Column(db.String(50), default='Appeared')     # e.g., 75%, Passed
+    attendance_rate = db.Column(db.Float, nullable=True)
+    item_card_status = db.Column(db.String(50), default='In Progress')
+    term_exam_score = db.Column(db.String(50), default='Appeared')
     remarks = db.Column(db.String(200), default='Card & Item Continuous Evaluation')
 
 class AttendanceRecord(db.Model):
@@ -70,7 +70,7 @@ class AcademicFile(db.Model):
     __tablename__ = 'academic_files'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    file_type = db.Column(db.String(50), default='Item Card') # Item Card, Item Routine, Syllabus, E-Book
+    file_type = db.Column(db.String(50), default='Item Card')
     course = db.Column(db.String(20), default='ALL')
     file_url = db.Column(db.String(300), nullable=False)
     folder_id = db.Column(db.Integer, db.ForeignKey('file_folders.id'), nullable=True)

@@ -146,7 +146,7 @@
                                 </div>
                                 <div class="flex items-center gap-1">
                                     <input type="number" step="0.1" min="0" max="100" name="attendance" id="att_{{ s.id }}"
-                                           value="{{ s.attendance if s.attendance is not none else 85.0 }}" 
+                                           value="{{ s.attendance if s.attendance is not none else '' }}" placeholder="None"
                                            class="w-16 p-1.5 border-2 border-emerald-600 rounded-lg text-xs font-black text-emerald-950 bg-emerald-50 text-center shadow-inner" style="color: #064e3b !important; font-weight: 900 !important;">
                                     <span class="font-black text-emerald-800 text-xs">%</span>
                                 </div>
@@ -164,7 +164,7 @@
                                 <a href="{{ url_for('admin_impersonate_student', id=s.id) }}" class="p-1.5 bg-slate-100 hover:bg-emerald-50 text-emerald-800 rounded-lg border border-slate-200" title="View as Student">
                                     👁️
                                 </a>
-                                <button onclick="openEditModal('{{ s.id }}', '{{ s.name_english|escape }}', '{{ s.name_bangla or ''|escape }}', '{{ s.father_name or ''|escape }}', '{{ s.email }}', '{{ s.course }}', '{{ s.roll_no }}', '{{ s.blood_group or '' }}', '{{ s.contact_number or '' }}', '{{ s.emergency_medical_contact or '' }}', '{{ s.attendance }}')" class="p-1.5 bg-slate-100 hover:bg-blue-50 text-blue-700 rounded-lg border border-slate-200" title="Edit Profile">
+                                <button onclick="openEditModal('{{ s.id }}', '{{ s.name_english|escape }}', '{{ s.name_bangla or ''|escape }}', '{{ s.father_name or ''|escape }}', '{{ s.email }}', '{{ s.course }}', '{{ s.roll_no }}', '{{ s.blood_group or '' }}', '{{ s.contact_number or '' }}', '{{ s.emergency_medical_contact or '' }}', '{{ s.attendance or '' }}')" class="p-1.5 bg-slate-100 hover:bg-blue-50 text-blue-700 rounded-lg border border-slate-200" title="Edit Profile">
                                     ✏️
                                 </button>
                                 <form method="POST" action="{{ url_for('admin_reset_password', id=s.id) }}" onsubmit="return confirm('Reset password for {{ s.name_english }} to guamc123?');">
@@ -230,7 +230,7 @@
                 </div>
                 <div>
                     <label class="text-slate-600">Attendance Rate %</label>
-                    <input type="number" step="0.1" name="attendance" value="85.0" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                    <input type="number" step="0.1" name="attendance" placeholder="Optional" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-2">
@@ -307,7 +307,7 @@
             <div class="grid grid-cols-2 gap-2">
                 <div>
                     <label class="text-slate-600">Attendance %</label>
-                    <input type="number" step="0.1" name="attendance" id="edit_attendance" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-black text-emerald-800">
+                    <input type="number" step="0.1" name="attendance" id="edit_attendance" placeholder="None" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-black text-emerald-800">
                 </div>
                 <div>
                     <label class="text-slate-600">Set Custom Password</label>
@@ -486,7 +486,7 @@ function openEditModal(id, nameEng, nameBan, father, email, course, roll, blood,
     document.getElementById('edit_blood_group').value = blood;
     document.getElementById('edit_contact_number').value = phone;
     document.getElementById('edit_emergency_contact').value = emergency;
-    document.getElementById('edit_attendance').value = att || '85.0';
+    document.getElementById('edit_attendance').value = att || '';
     document.getElementById('modal-edit-student').classList.remove('hidden');
 }
 </script>

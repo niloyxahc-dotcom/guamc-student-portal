@@ -59,7 +59,12 @@
                         <div>
                             <h3 class="text-sm font-black text-slate-900 leading-tight">{{ s.name_english }}</h3>
                             <p class="text-[11px] text-slate-400 font-bold mt-0.5">
-                                Current Attendance: <strong class="text-emerald-700">{{ "%.1f"|format(s.attendance or 85.0) }}%</strong>
+                                Current Attendance: 
+                                {% if s.attendance is not none %}
+                                    <strong class="text-emerald-700">{{ "%.1f"|format(s.attendance) }}%</strong>
+                                {% else %}
+                                    <strong class="text-amber-700">Ongoing</strong>
+                                {% endif %}
                             </p>
                         </div>
                     </div>

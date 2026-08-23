@@ -28,7 +28,7 @@
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold">
                 <div>
                     <label class="text-slate-600">Department Attendance %</label>
-                    <input type="number" step="0.1" name="att_{{ d.id }}" value="{{ p.attendance_rate if p else 85.0 }}" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold text-emerald-800">
+                    <input type="number" step="0.1" name="att_{{ d.id }}" value="{{ p.attendance_rate if (p and p.attendance_rate is not none) else '' }}" placeholder="None" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold text-emerald-800">
                 </div>
 
                 <div>
