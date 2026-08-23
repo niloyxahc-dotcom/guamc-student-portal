@@ -1189,9 +1189,150 @@ def run_dossier_sync():
     
     return f"<h1>✅ Perfect Sync Complete! Updated: {updated_count}, Created: {created_count} students in PostgreSQL!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
 
-  @app.after_request
+@app.after_request
 def add_cache_control(response):
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
-    return response  
+    return response
+
+
+    import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from flask import request
+
+# ১. সবার কাছে ওয়েলকাম ইমেইল পাঠানোর রুট
+@app.route('/admin/send-all-welcome-emails')
+@login_required
+def send_all_welcome_emails():
+    SMTP_SERVER = "smtp.gmail.com"
+    SMTP_PORT = 587
+    SENDER_EMAIL = "guamc.aims@gmail.com"
+    SENDER_PASSWORD = "kfrzcxchnzijxveo"
+    PORTAL_URL = "https://guamc-portal.onrender.com"
+
+    students = Student.query.all()
+    results = []
+    
+    for s in students:
+        email = getattr(s, 'personal_email', None) or getattr(s, 'email', None)
+        name = getattr(s, 'name_english', None) or getattr(s, 'name_bangla', None) or getattr(s, 'name', 'Student')
+        roll = getattr(s, 'roll', 'N/A')
+        
+        if not email or '@' not in email:
+            continue
+            
+        subject = "Welcome to GUAMC Student Portal - Your Login Access"
+        html_body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.6; background-color: #f1f5f9; padding: 20px;">
+            <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                <div style="text-align: center; margin-bottom: 25px;">
+                    <h2 style="color: #0f766e; margin: 0;">GUAMC Student Portal</h2>
+                    <p style="color: #64748b; font-size: 14px;">Government Unani & Ayurvedic Medical College & Hospital</p>
+                </div>
+                <p>Dear <strong>{name}</strong>,</p>
+                <p>Your student profile has been integrated into the official GUAMC Student Portal. You can now log in to view your academic records, attendance, and discussions.</p>
+                <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #cbd5e1;">
+                    <h4 style="margin-top: 0; color: #0f172a;">Portal Credentials:</h4>
+                    <p><strong>URL:</strong> <a href="{PORTAL_URL}">{PORTAL_URL}</a></p>
+                    <p><strong>Login Email:</strong> <code>{email}</code></p>
+                    <p><strong>Class Roll:</strong> {roll}</p>
+                    <p><strong>Default Password:</strong> <code>guamc123</code></p>
+                </div>
+                <p style="color: #e11d48; font-size: 13px;"><em>* Please change your password after logging in.</em></p>
+                <p>Best regards,<br><strong>GUAMC Administration</strong></p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = f"GUAMC Portal Admin <{SENDER_EMAIL}>"
+        msg["To"] = email
+        msg.attach(MIMEText(html_body, "html"))
+
+        try:
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.starttls()
+                server.login(SENDER_EMAIL, SENDER_PASSWORD)
+                server.sendmail(SENDER_EMAIL, email, msg.as_string())
+            results.append(f"✅ Sent: {name} ({email})")
+        except Exception as e:
+            results.append(f"❌ Failed: {name} ({email}) - {e}")
+
+    return "<h2>Welcome Email Broadcast Complete!</h2><br>" + "<br>".join(results)
+
+
+# ২. যেকোনো কাস্টম নোটিশ পাঠানোর রুট
+@app.route('/admin/send-notice', methods=['GET', 'POST'])
+@login_required
+def send_custom_notice():
+    if request.method == 'POST':
+        notice_subject = request.form.get('subject')
+        notice_body = request.form.get('body')
+        
+        SMTP_SERVER = "smtp.gmail.com"
+        SMTP_PORT = 587
+        SENDER_EMAIL = "guamc.aims@gmail.com"
+        SENDER_PASSWORD = "kfrzcxchnzijxveo"
+
+        students = Student.query.all()
+        sent_count = 0
+        
+        for s in students:
+            email = getattr(s, 'personal_email', None) or getattr(s, 'email', None)
+            name = getattr(s, 'name_english', None) or getattr(s, 'name_bangla', None) or getattr(s, 'name', 'Student')
+            
+            if not email or '@' not in email:
+                continue
+                
+            html_content = f"""
+            <html>
+            <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.6; background-color: #f1f5f9; padding: 20px;">
+                <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0;">
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <h2 style="color: #0f766e; margin: 0;">GUAMC Notice Board</h2>
+                        <p style="color: #64748b; font-size: 14px;">Official Announcement</p>
+                    </div>
+                    <p>Dear <strong>{name}</strong>,</p>
+                    <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #cbd5e1;">
+                        <p style="white-space: pre-wrap; margin: 0;">{notice_body}</p>
+                    </div>
+                    <p>Best regards,<br><strong>GUAMC Administration</strong></p>
+                </div>
+            </body>
+            </html>
+            """
+            
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = notice_subject
+            msg["From"] = f"GUAMC Administration <{SENDER_EMAIL}>"
+            msg["To"] = email
+            msg.attach(MIMEText(html_content, "html"))
+
+            try:
+                with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                    server.starttls()
+                    server.login(SENDER_EMAIL, SENDER_PASSWORD)
+                    server.sendmail(SENDER_EMAIL, email, msg.as_string())
+                sent_count += 1
+            except Exception as e:
+                print(f"Failed: {e}")
+
+        return f"<h3>Successfully sent notice to {sent_count} students!</h3><br><a href='/admin/send-notice'>Send Another Notice</a>"
+
+    return """
+    <div style="max-width: 500px; margin: 50px auto; font-family: Arial; padding: 25px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;">
+        <h2 style="color: #0f766e; margin-top: 0;">Send Broadcast Notice to All Students</h2>
+        <form method="POST">
+            <label style="font-weight: bold;">Subject:</label><br>
+            <input type="text" name="subject" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required><br>
+            <label style="font-weight: bold;">Notice Message:</label><br>
+            <textarea name="body" rows="6" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required></textarea><br>
+            <button type="submit" style="background: #0f766e; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send Notice to All</button>
+        </form>
+    </div>
+    """
