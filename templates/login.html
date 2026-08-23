@@ -8,8 +8,8 @@
         <!-- Official GUAMCH Logo & Header -->
         <div class="text-center space-y-2">
             <div class="w-20 h-20 mx-auto flex items-center justify-center">
-                <img src="https://i.ibb.co/vzB79B5/guamch-logo.png" 
-                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='logo.png') }}';" 
+                <img src="{{ url_for('static', filename='logo.png') }}" 
+                     onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/mdniloyhasan/guamc-portal/main/static/logo.png';" 
                      alt="GUAMCH Logo" 
                      class="w-full h-full object-contain drop-shadow-sm">
             </div>

@@ -17,8 +17,8 @@
                 
                 <a href="{{ url_for('dashboard') }}" class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-full bg-white flex items-center justify-center p-1 shadow-md">
-                        <img src="https://i.ibb.co/vzB79B5/guamch-logo.png" 
-                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='logo.png') }}';" 
+                        <img src="{{ url_for('static', filename='logo.png') }}" 
+                             onerror="this.onerror=null; this.src='https://raw.githubusercontent.com/mdniloyhasan/guamc-portal/main/static/logo.png';" 
                              alt="GUAMCH Logo" 
                              class="w-full h-full object-contain">
                     </div>
