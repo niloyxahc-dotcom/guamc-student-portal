@@ -1,80 +1,465 @@
 {% extends "base.html" %}
-{% block title %}Admin Attendance Manager - GUAMC Portal{% endblock %}
+{% block title %}Admin Enterprise Dashboard - GUAMC Portal{% endblock %}
 
 {% block content %}
-<div class="max-w-6xl mx-auto px-4 py-6">
-    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+<div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- Top Action Bar -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div>
-            <h1 class="text-xl font-black text-slate-800 flex items-center gap-2">
-                <span>📊</span> Student Attendance Manager & Calculator
+            <h1 class="text-2xl font-black text-slate-900 flex items-center gap-2">
+                <span>⚡</span> Database &amp; Portal Manager
             </h1>
-            <p class="text-xs text-slate-500 font-semibold mt-1">Total Students: {{ students|length }} (Admin Confidential)</p>
+            <p class="text-xs text-slate-500 font-semibold mt-1">
+                Active Enrolled: <strong class="text-emerald-800 font-black">{{ students|length }} Students</strong> (Admin Master Control)
+            </p>
         </div>
-        <a href="{{ url_for('dashboard') }}" class="px-4 py-2 bg-emerald-800 text-white rounded-xl text-xs font-bold hover:bg-emerald-900 transition">
-            ← Back to Portal
-        </a>
+        
+        <div class="flex flex-wrap items-center gap-2">
+            <a href="{{ url_for('admin_live_attendance') }}" class="px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                <span>📋</span> Live Attendance
+            </a>
+            <button onclick="document.getElementById('modal-add-student').classList.remove('hidden')" class="px-4 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                <span>➕</span> Add Student
+            </button>
+            <button onclick="document.getElementById('modal-file-manager').classList.remove('hidden')" class="px-4 py-2.5 bg-blue-800 hover:bg-blue-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                <span>📁</span> Upload Materials
+            </button>
+            <button onclick="document.getElementById('modal-dept-manager').classList.remove('hidden')" class="px-4 py-2.5 bg-purple-800 hover:bg-purple-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                <span>🏛️</span> Departments
+            </button>
+            <button onclick="document.getElementById('modal-nav-manager').classList.remove('hidden')" class="px-4 py-2.5 bg-indigo-800 hover:bg-indigo-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                <span>🧭</span> Nav Menu
+            </button>
+        </div>
     </div>
 
-    <!-- Attendance Table with Built-in Calculator -->
-    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <!-- PENDING REGISTRATION REQUESTS BOX -->
+    {% if pending_students %}
+    <div class="bg-amber-50 rounded-3xl border-2 border-amber-200 p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-black text-amber-900 flex items-center gap-2">
+                <span>⏳</span> Pending Student Verification Requests ({{ pending_students|length }})
+            </h2>
+            <span class="px-3 py-1 bg-amber-200 text-amber-900 text-[11px] font-black rounded-xl">Action Required</span>
+        </div>
+        
         <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 text-slate-600 uppercase font-black border-b border-slate-200">
+            <table class="w-full text-left text-xs bg-white rounded-2xl border border-amber-200 overflow-hidden">
+                <thead class="bg-amber-100/60 text-amber-900 uppercase font-black">
                     <tr>
-                        <th class="p-3">Roll</th>
-                        <th class="p-3">Course</th>
+                        <th class="p-3">Course &amp; Roll</th>
                         <th class="p-3">Student Name</th>
-                        <th class="p-3 text-center">Smart Calculator (Total / Present)</th>
-                        <th class="p-3 text-center">Final %</th>
-                        <th class="p-3 text-right">Action</th>
+                        <th class="p-3">Email</th>
+                        <th class="p-3">Contact</th>
+                        <th class="p-3 text-right">Verification Action</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-slate-100 font-semibold text-slate-700">
-                    {% for s in students %}
-                    <tr class="hover:bg-slate-50/80 transition">
-                        <td class="p-3 font-black text-slate-900 text-sm">{{ s.roll_no }}</td>
+                <tbody class="divide-y divide-amber-100 font-bold text-slate-800">
+                    {% for p in pending_students %}
+                    <tr class="hover:bg-amber-50/50 transition">
                         <td class="p-3">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-black {% if s.course == 'BUMS' %}bg-emerald-100 text-emerald-800{% else %}bg-blue-100 text-blue-800{% endif %}">
-                                {{ s.course }}
-                            </span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-800">{{ p.course }}</span>
+                            <span class="ml-1 font-black text-slate-900">Roll: {{ p.roll_no }}</span>
                         </td>
-                        <td class="p-3 font-bold text-slate-900">
-                            {{ s.name_english or s.email.split('@')[0].title() }}
-                            <span class="block text-[10px] text-slate-400 font-normal">{{ s.email }}</span>
-                        </td>
-                        
-                        <!-- Form and Calculator inside row -->
-                        <td class="p-3" colspan="3">
-                            <form method="POST" action="{{ url_for('admin_panel') }}" class="flex items-center justify-end gap-3 w-full">
-                                <input type="hidden" name="student_id" value="{{ s.id }}">
-                                
-                                <!-- Calculator Inputs -->
-                                <div class="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
-                                    <span class="text-[10px] font-bold text-slate-500 px-1">Calc:</span>
-                                    <input type="number" min="1" placeholder="Total Classes" id="total_{{ s.id }}" oninput="calculateAtt('{{ s.id }}')" 
-                                           class="w-20 p-1 border border-slate-300 rounded-lg text-xs font-bold text-center bg-white focus:outline-emerald-600">
-                                    <span class="text-slate-400">/</span>
-                                    <input type="number" min="0" placeholder="Present" id="present_{{ s.id }}" oninput="calculateAtt('{{ s.id }}')" 
-                                           class="w-20 p-1 border border-slate-300 rounded-lg text-xs font-bold text-center bg-white focus:outline-emerald-600">
-                                </div>
-
-                                <!-- Final Percentage Input -->
-                                <div class="flex items-center gap-1">
-                                    <input type="number" step="0.1" min="0" max="100" name="attendance" id="att_{{ s.id }}"
-                                           value="{{ s.attendance if s.attendance is not none else 85.0 }}" 
-                                           class="w-20 p-1.5 border border-slate-300 rounded-lg text-xs font-black text-emerald-800 focus:outline-emerald-600 text-center bg-slate-50">
-                                    <span class="font-black text-slate-400">%</span>
-                                </div>
-
-                                <button type="submit" class="px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-lg text-xs font-bold transition shadow-sm">
-                                    Save
-                                </button>
-                            </form>
+                        <td class="p-3 font-black text-slate-900">{{ p.name_english }}</td>
+                        <td class="p-3 font-normal text-slate-600">{{ p.email }}</td>
+                        <td class="p-3 text-slate-600">{{ p.contact_number }}</td>
+                        <td class="p-3 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                <form method="POST" action="{{ url_for('admin_approve_student', id=p.id) }}">
+                                    <button type="submit" class="px-3 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-black shadow transition">
+                                        ✓ Approve
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin_reject_student', id=p.id) }}" onsubmit="return confirm('Reject & delete this registration request?');">
+                                    <button type="submit" class="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black shadow transition">
+                                        ✕ Reject
+                                    </button>
+                                </form>
+                            </div>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters & Search Bar -->
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-3">
+        <div class="flex items-center gap-2 w-full sm:w-auto">
+            <a href="{{ url_for('admin_panel', course='ALL', q=search_q) }}" class="px-3 py-1.5 rounded-xl text-xs font-black {% if course_filter == 'ALL' %}bg-emerald-800 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">ALL</a>
+            <a href="{{ url_for('admin_panel', course='BUMS', q=search_q) }}" class="px-3 py-1.5 rounded-xl text-xs font-black {% if course_filter == 'BUMS' %}bg-emerald-800 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">BUMS</a>
+            <a href="{{ url_for('admin_panel', course='BAMS', q=search_q) }}" class="px-3 py-1.5 rounded-xl text-xs font-black {% if course_filter == 'BAMS' %}bg-emerald-800 text-white{% else %}bg-slate-100 text-slate-600{% endif %}">BAMS</a>
+        </div>
+
+        <form method="GET" action="{{ url_for('admin_panel') }}" class="flex items-center gap-2 w-full sm:w-72">
+            <input type="hidden" name="course" value="{{ course_filter }}">
+            <input type="text" name="q" value="{{ search_q }}" placeholder="Search name, roll, email..." class="w-full px-3 py-2 text-xs font-bold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-600">
+            <button type="submit" class="px-3 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold">Search</button>
+        </form>
+    </div>
+
+    <!-- Main Student Management Table -->
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-100 text-slate-700 uppercase font-black border-b border-slate-200">
+                    <tr>
+                        <th class="p-3.5">Roll</th>
+                        <th class="p-3.5">Course &amp; ID</th>
+                        <th class="p-3.5">Student Details</th>
+                        <th class="p-3.5 text-center">Smart Calculator</th>
+                        <th class="p-3.5 text-center">Attendance %</th>
+                        <th class="p-3.5 text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 font-semibold text-slate-800">
+                    {% for s in students %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3.5 font-black text-slate-900 text-sm">{{ s.roll_no }}</td>
+                        <td class="p-3.5">
+                            <span class="px-2.5 py-0.5 rounded text-[10px] font-black {% if s.course == 'BUMS' %}bg-emerald-100 text-emerald-800{% else %}bg-blue-100 text-blue-800{% endif %}">
+                                {{ s.course }}
+                            </span>
+                            <div class="text-[11px] font-mono text-slate-500 mt-1 font-bold">{{ s.unique_id }}</div>
+                        </td>
+                        <td class="p-3.5">
+                            <span class="font-bold text-slate-900 text-sm block">{{ s.name_english or s.email.split('@')[0].title() }}</span>
+                            <span class="text-[11px] text-slate-500 font-normal block">{{ s.email }}</span>
+                            <div class="text-[10px] text-slate-400 mt-0.5">
+                                Blood: <strong class="text-rose-600">{{ s.blood_group or 'N/A' }}</strong> | Phone: {{ s.contact_number or 'N/A' }}
+                            </div>
+                        </td>
+                        
+                        <td class="p-3.5" colspan="2">
+                            <form method="POST" action="{{ url_for('admin_panel') }}" class="flex items-center justify-center gap-2">
+                                <input type="hidden" name="student_id" value="{{ s.id }}">
+                                <div class="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-xl border border-slate-300">
+                                    <input type="number" min="1" placeholder="Tot" id="total_{{ s.id }}" oninput="calculateAtt('{{ s.id }}')" 
+                                           class="w-12 p-1 border border-slate-300 rounded text-[11px] font-bold text-slate-900 bg-white text-center focus:outline-none">
+                                    <span class="text-slate-400">/</span>
+                                    <input type="number" min="0" placeholder="Pre" id="present_{{ s.id }}" oninput="calculateAtt('{{ s.id }}')" 
+                                           class="w-12 p-1 border border-slate-300 rounded text-[11px] font-bold text-slate-900 bg-white text-center focus:outline-none">
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <input type="number" step="0.1" min="0" max="100" name="attendance" id="att_{{ s.id }}"
+                                           value="{{ s.attendance if s.attendance is not none else 85.0 }}" 
+                                           class="w-16 p-1.5 border-2 border-emerald-600 rounded-lg text-xs font-black text-emerald-950 bg-emerald-50 text-center shadow-inner" style="color: #064e3b !important; font-weight: 900 !important;">
+                                    <span class="font-black text-emerald-800 text-xs">%</span>
+                                </div>
+                                <button type="submit" class="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold shadow transition">
+                                    Save
+                                </button>
+                            </form>
+                        </td>
+
+                        <td class="p-3.5 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <a href="{{ url_for('admin_student_performance', student_id=s.id) }}" class="p-1.5 bg-slate-100 hover:bg-purple-50 text-purple-700 rounded-lg border border-slate-200" title="Evaluate Departmental Results">
+                                    📊
+                                </a>
+                                <a href="{{ url_for('admin_impersonate_student', id=s.id) }}" class="p-1.5 bg-slate-100 hover:bg-emerald-50 text-emerald-800 rounded-lg border border-slate-200" title="View as Student">
+                                    👁️
+                                </a>
+                                <button onclick="openEditModal('{{ s.id }}', '{{ s.name_english|escape }}', '{{ s.name_bangla or ''|escape }}', '{{ s.father_name or ''|escape }}', '{{ s.email }}', '{{ s.course }}', '{{ s.roll_no }}', '{{ s.blood_group or '' }}', '{{ s.contact_number or '' }}', '{{ s.emergency_medical_contact or '' }}', '{{ s.attendance }}')" class="p-1.5 bg-slate-100 hover:bg-blue-50 text-blue-700 rounded-lg border border-slate-200" title="Edit Profile">
+                                    ✏️
+                                </button>
+                                <form method="POST" action="{{ url_for('admin_reset_password', id=s.id) }}" onsubmit="return confirm('Reset password for {{ s.name_english }} to guamc123?');">
+                                    <button type="submit" class="p-1.5 bg-slate-100 hover:bg-amber-50 text-amber-700 rounded-lg border border-slate-200" title="Reset Password">
+                                        🔑
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin_move_student', id=s.id) }}" onsubmit="return confirm('Move course for {{ s.name_english }}?');">
+                                    <input type="hidden" name="target_course" value="{{ 'BAMS' if s.course == 'BUMS' else 'BUMS' }}">
+                                    <button type="submit" class="p-1.5 bg-slate-100 hover:bg-amber-50 text-amber-700 rounded-lg border border-slate-200" title="Move Course">
+                                        🔀
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ url_for('admin_delete_student', id=s.id) }}" onsubmit="return confirm('Permanently delete {{ s.name_english }}?');">
+                                    <button type="submit" class="p-1.5 bg-slate-100 hover:bg-rose-50 text-rose-700 rounded-lg border border-slate-200" title="Delete Student">
+                                        🗑️
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL: ADD STUDENT -->
+<div id="modal-add-student" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-black text-slate-800">➕ Add New Student to Database</h3>
+            <button onclick="document.getElementById('modal-add-student').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin_add_student') }}" class="space-y-3 text-xs font-bold">
+            <div>
+                <label class="text-slate-600">Full Name (English)*</label>
+                <input type="text" name="name_english" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+            </div>
+            <div>
+                <label class="text-slate-600">Email Address*</label>
+                <input type="email" name="email" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-slate-600">Course*</label>
+                    <select name="course" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold">
+                        <option value="BUMS">BUMS (Unani)</option>
+                        <option value="BAMS">BAMS (Ayurvedic)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-slate-600">Class Roll No*</label>
+                    <input type="text" name="roll_no" required placeholder="01" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-slate-600">Blood Group</label>
+                    <input type="text" name="blood_group" placeholder="A+" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Attendance Rate %</label>
+                    <input type="number" step="0.1" name="attendance" value="85.0" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-slate-600">Student Contact</label>
+                    <input type="text" name="contact_number" placeholder="017XXXXXXXX" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Emergency Contact</label>
+                    <input type="text" name="emergency_medical_contact" placeholder="018XXXXXXXX" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+            <div class="pt-4 flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('modal-add-student').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded-xl text-slate-700">Cancel</button>
+                <button type="submit" class="px-5 py-2 bg-emerald-800 text-white rounded-xl font-black shadow-md">Add Student</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: EDIT STUDENT -->
+<div id="modal-edit-student" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-black text-slate-800">✏️ Edit Full Student Record</h3>
+            <button onclick="document.getElementById('modal-edit-student').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
+        </div>
+        <form id="form-edit-student" method="POST" class="space-y-3 text-xs font-bold">
+            <div>
+                <label class="text-slate-600">Full Name (English)</label>
+                <input type="text" name="name_english" id="edit_name_english" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+            </div>
+            <div>
+                <label class="text-slate-600">নাম (বাংলায়)</label>
+                <input type="text" name="name_bangla" id="edit_name_bangla" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+            </div>
+            <div>
+                <label class="text-slate-600">Email Address</label>
+                <input type="email" name="email" id="edit_email" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-slate-600">Course</label>
+                    <select name="course" id="edit_course" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold">
+                        <option value="BUMS">BUMS</option>
+                        <option value="BAMS">BAMS</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-slate-600">Class Roll</label>
+                    <input type="text" name="roll_no" id="edit_roll_no" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-slate-600">Father's Name</label>
+                    <input type="text" name="father_name" id="edit_father_name" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Blood Group</label>
+                    <input type="text" name="blood_group" id="edit_blood_group" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-slate-600">Phone</label>
+                    <input type="text" name="contact_number" id="edit_contact_number" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Emergency Phone</label>
+                    <input type="text" name="emergency_medical_contact" id="edit_emergency_contact" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-slate-600">Attendance %</label>
+                    <input type="number" step="0.1" name="attendance" id="edit_attendance" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-black text-emerald-800">
+                </div>
+                <div>
+                    <label class="text-slate-600">Set Custom Password</label>
+                    <input type="text" name="custom_password" placeholder="Leave blank to keep" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-mono">
+                </div>
+            </div>
+            <div class="pt-4 flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('modal-edit-student').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded-xl text-slate-700">Cancel</button>
+                <button type="submit" class="px-5 py-2 bg-blue-700 text-white rounded-xl font-black shadow-md">Update Record</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL: UPLOAD MATERIALS & FOLDERS -->
+<div id="modal-file-manager" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-black text-slate-800">📁 Upload Materials &amp; Manage Folders</h3>
+            <button onclick="document.getElementById('modal-file-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('admin_add_folder') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4 flex gap-2 text-xs font-bold">
+            <input type="text" name="folder_name" placeholder="New Folder Name (e.g. 1st Prof Item Cards)" required class="flex-1 p-2 border border-slate-200 rounded-xl">
+            <select name="course" class="p-2 border border-slate-200 rounded-xl">
+                <option value="ALL">ALL</option>
+                <option value="BUMS">BUMS</option>
+                <option value="BAMS">BAMS</option>
+            </select>
+            <button type="submit" class="px-4 py-2 bg-slate-800 text-white rounded-xl font-bold">+ Folder</button>
+        </form>
+
+        <form method="POST" action="{{ url_for('admin_upload_file') }}" enctype="multipart/form-data" class="bg-blue-50 p-4 rounded-2xl border border-blue-200 mb-4 space-y-3 text-xs font-bold">
+            <h4 class="text-blue-900 font-black">Upload Material / PDF / Link</h4>
+            <div class="grid grid-cols-2 gap-2">
+                <input type="text" name="title" placeholder="Material Title (e.g. Anatomy Item Card 2026)" required class="p-2 border border-slate-200 rounded-xl">
+                <select name="file_type" class="p-2 border border-slate-200 rounded-xl font-bold">
+                    <option value="Item Card">Item Card</option>
+                    <option value="Item Routine">Item Routine</option>
+                    <option value="Syllabus">Syllabus</option>
+                    <option value="E-Book">E-Book</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <select name="course" class="p-2 border border-slate-200 rounded-xl font-bold">
+                    <option value="ALL">For ALL</option>
+                    <option value="BUMS">BUMS Only</option>
+                    <option value="BAMS">BAMS Only</option>
+                </select>
+                <select name="folder_id" class="p-2 border border-slate-200 rounded-xl font-bold">
+                    <option value="">Select Folder (Optional)</option>
+                    {% for fo in folders %}
+                    <option value="{{ fo.id }}">{{ fo.name }} ({{ fo.course }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="space-y-1">
+                <label class="text-slate-600">Select File (PDF / DOC / Image)</label>
+                <input type="file" name="file" class="w-full p-1 bg-white border border-slate-200 rounded-xl">
+            </div>
+            <input type="text" name="file_url" placeholder="Or External Google Drive / Cloud Link" class="w-full p-2 border border-slate-200 rounded-xl">
+            <button type="submit" class="w-full py-2 bg-blue-700 text-white rounded-xl font-black">Upload Material</button>
+        </form>
+
+        <h4 class="text-xs uppercase text-slate-500 font-black mb-2">Uploaded Materials</h4>
+        <div class="space-y-2 max-h-48 overflow-y-auto">
+            {% for f in files %}
+            <div class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold">
+                <div>
+                    <p class="text-slate-900 font-black">{{ f.title }} <span class="text-slate-400 font-normal">({{ f.file_type }})</span></p>
+                    <p class="text-[10px] text-slate-500">Course: {{ f.course }}</p>
+                </div>
+                <form method="POST" action="{{ url_for('admin_delete_file', id=f.id) }}" onsubmit="return confirm('Delete file?');">
+                    <button type="submit" class="text-rose-600 font-black p-1">Delete</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: DEPARTMENTS -->
+<div id="modal-dept-manager" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-black text-slate-800">🏛️ Manage Departments</h3>
+            <button onclick="document.getElementById('modal-dept-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin_save_department') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4 space-y-2 text-xs font-bold">
+            <input type="text" name="name" placeholder="Department Name (e.g. Sharir Kriya (Physiology))" required class="w-full p-2 border border-slate-200 rounded-xl">
+            <div class="grid grid-cols-2 gap-2">
+                <select name="course" class="p-2 border border-slate-200 rounded-xl font-bold">
+                    <option value="BAMS">BAMS</option>
+                    <option value="BUMS">BUMS</option>
+                </select>
+                <input type="number" name="order" placeholder="Order" value="{{ (departments|length)+1 }}" class="p-2 border border-slate-200 rounded-xl">
+            </div>
+            <button type="submit" class="w-full py-2 bg-purple-800 text-white rounded-xl font-black">+ Add Department</button>
+        </form>
+        <div class="space-y-2">
+            {% for d in departments %}
+            <div class="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold">
+                <div>
+                    <span class="px-2 py-0.5 rounded text-[10px] {% if d.course == 'BUMS' %}bg-emerald-100 text-emerald-800{% else %}bg-blue-100 text-blue-800{% endif %}">{{ d.course }}</span>
+                    <span class="ml-1 text-slate-900">{{ d.name }}</span>
+                </div>
+                <form method="POST" action="{{ url_for('admin_delete_department', id=d.id) }}" onsubmit="return confirm('Delete department?');">
+                    <button type="submit" class="text-rose-600 font-bold p-1">✕</button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: NAVIGATION -->
+<div id="modal-nav-manager" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-black text-slate-800">🧭 Dynamic Navigation Bar Manager</h3>
+            <button onclick="document.getElementById('modal-nav-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
+        </div>
+        <form method="POST" action="{{ url_for('admin_save_nav_link') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 space-y-3 text-xs font-bold">
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                <input type="text" name="icon" placeholder="Icon (📚)" required class="p-2 border border-slate-200 rounded-xl text-center">
+                <input type="text" name="title" placeholder="Title (Results)" required class="p-2 border border-slate-200 rounded-xl sm:col-span-2">
+                <input type="number" name="order" placeholder="Order" value="{{ (nav_links|length)+1 }}" class="p-2 border border-slate-200 rounded-xl">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <input type="text" name="endpoint_or_url" placeholder="Route (dashboard) or URL" required class="p-2 border border-slate-200 rounded-xl sm:col-span-2">
+                <label class="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-xl cursor-pointer">
+                    <input type="checkbox" name="is_external" class="rounded text-emerald-600">
+                    <span class="text-[11px] text-slate-600">External URL?</span>
+                </label>
+            </div>
+            <button type="submit" class="w-full py-2 bg-indigo-700 text-white rounded-xl font-black">+ Add Nav Item</button>
+        </form>
+        <div class="space-y-2">
+            {% for item in nav_links %}
+            <div class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold">
+                <div class="flex items-center gap-3">
+                    <span class="text-lg">{{ item.icon }}</span>
+                    <div>
+                        <p class="text-slate-900 font-black">{{ item.title }}</p>
+                        <p class="text-[10px] text-slate-400 font-mono">{{ item.endpoint_or_url }}</p>
+                    </div>
+                </div>
+                <form method="POST" action="{{ url_for('admin_delete_nav_link', id=item.id) }}" onsubmit="return confirm('Remove nav link?');">
+                    <button type="submit" class="text-rose-600 font-black p-1">Delete</button>
+                </form>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </div>
@@ -84,12 +469,25 @@ function calculateAtt(id) {
     let total = parseFloat(document.getElementById('total_' + id).value);
     let present = parseFloat(document.getElementById('present_' + id).value);
     let attInput = document.getElementById('att_' + id);
-
     if (!isNaN(total) && !isNaN(present) && total > 0 && present >= 0) {
         if (present > total) present = total;
         let percentage = (present / total) * 100;
         attInput.value = percentage.toFixed(1);
     }
+}
+function openEditModal(id, nameEng, nameBan, father, email, course, roll, blood, phone, emergency, att) {
+    document.getElementById('form-edit-student').action = '/admin/student/edit/' + id;
+    document.getElementById('edit_name_english').value = nameEng;
+    document.getElementById('edit_name_bangla').value = nameBan;
+    document.getElementById('edit_father_name').value = father;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_course').value = course;
+    document.getElementById('edit_roll_no').value = roll;
+    document.getElementById('edit_blood_group').value = blood;
+    document.getElementById('edit_contact_number').value = phone;
+    document.getElementById('edit_emergency_contact').value = emergency;
+    document.getElementById('edit_attendance').value = att || '85.0';
+    document.getElementById('modal-edit-student').classList.remove('hidden');
 }
 </script>
 {% endblock %}

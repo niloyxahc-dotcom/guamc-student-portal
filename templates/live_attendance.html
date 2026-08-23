@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Live Attendance Roll Call - GUAMC Portal{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-6 space-y-6">
+
+    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h1 class="text-2xl font-black text-slate-900 flex items-center gap-2">
+                <span>📋</span> Live Class Attendance Session
+            </h1>
+            <p class="text-xs text-slate-500 font-semibold mt-1">
+                Course: <strong class="text-emerald-800 font-black">{{ selected_course }}</strong> • Total Students: {{ students|length }}
+            </p>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <a href="{{ url_for('admin_live_attendance', course='BUMS') }}" class="px-4 py-2 rounded-xl text-xs font-black transition {% if selected_course == 'BUMS' %}bg-emerald-800 text-white shadow-md{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                BUMS (Unani)
+            </a>
+            <a href="{{ url_for('admin_live_attendance', course='BAMS') }}" class="px-4 py-2 rounded-xl text-xs font-black transition {% if selected_course == 'BAMS' %}bg-emerald-800 text-white shadow-md{% else %}bg-slate-100 text-slate-700 hover:bg-slate-200{% endif %}">
+                BAMS (Ayurvedic)
+            </a>
+        </div>
+    </div>
+
+    <form method="POST" class="space-y-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-bold">
+            <div>
+                <label class="text-slate-600">Date of Class</label>
+                <input type="date" name="session_date" value="{{ today_date }}" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl mt-1">
+            </div>
+            <div>
+                <label class="text-slate-600">Department / Item Topic</label>
+                <input type="text" name="subject_name" placeholder="e.g. Sharir Rachana Card-1 Lecture" required class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl mt-1">
+            </div>
+        </div>
+
+        <div class="flex justify-between items-center px-2">
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="markAll('P')" class="px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-xl text-xs font-black hover:bg-emerald-200 transition">
+                    ✓ Mark All Present
+                </button>
+                <button type="button" onclick="markAll('A')" class="px-3 py-1.5 bg-rose-100 text-rose-800 rounded-xl text-xs font-black hover:bg-rose-200 transition">
+                    ✕ Mark All Absent
+                </button>
+            </div>
+            <p class="text-[11px] text-slate-400 font-bold">Click P or A to toggle</p>
+        </div>
+
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="divide-y divide-slate-100">
+                {% for s in students %}
+                <div class="p-4 flex items-center justify-between hover:bg-slate-50/80 transition">
+                    <div class="flex items-center gap-3">
+                        <span class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-800 font-black flex items-center justify-center text-sm border border-slate-200">
+                            {{ s.roll_no }}
+                        </span>
+                        <div>
+                            <h3 class="text-sm font-black text-slate-900 leading-tight">{{ s.name_english }}</h3>
+                            <p class="text-[11px] text-slate-400 font-bold mt-0.5">
+                                Current Attendance: <strong class="text-emerald-700">{{ "%.1f"|format(s.attendance or 85.0) }}%</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="status_{{ s.id }}" value="P" checked class="peer hidden status-radio-p">
+                            <span class="px-4 py-2 rounded-xl text-xs font-black border border-slate-200 bg-slate-100 text-slate-500 peer-checked:bg-emerald-600 peer-checked:text-white peer-checked:border-emerald-700 shadow-sm transition block">
+                                Present (P)
+                            </span>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="status_{{ s.id }}" value="A" class="peer hidden status-radio-a">
+                            <span class="px-4 py-2 rounded-xl text-xs font-black border border-slate-200 bg-slate-100 text-slate-500 peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-700 shadow-sm transition block">
+                                Absent (A)
+                            </span>
+                        </label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="sticky bottom-4 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xl flex items-center justify-between">
+            <a href="{{ url_for('admin_panel') }}" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold">
+                Cancel
+            </a>
+            <button type="submit" class="px-6 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-black shadow-lg hover:shadow-xl transition">
+                ⚡ Save &amp; Instantly Update Attendance
+            </button>
+        </div>
+    </form>
+
+</div>
+
+<script>
+function markAll(status) {
+    if (status === 'P') {
+        document.querySelectorAll('.status-radio-p').forEach(r => r.checked = true);
+    } else {
+        document.querySelectorAll('.status-radio-a').forEach(r => r.checked = true);
+    }
+}
+</script>
+{% endblock %}

@@ -7,7 +7,6 @@
     <!-- Premium Mobile-First Hero Card -->
     <div class="bg-gradient-to-b from-[#093829] via-[#0b4834] to-[#06261c] rounded-[2.5rem] p-8 text-white text-center shadow-2xl shadow-emerald-950/30 relative overflow-hidden border border-emerald-700/30">
         
-        <!-- Profile Avatar & Camera Badge -->
         <div class="relative inline-block mx-auto mb-5">
             <div class="w-32 h-32 rounded-full border-4 border-white/90 shadow-2xl overflow-hidden bg-white mx-auto flex items-center justify-center">
                 <img src="{{ url_for('user_avatar', user_id=current_user.id) }}" 
@@ -15,7 +14,6 @@
                      class="w-full h-full object-cover">
             </div>
             
-            <!-- Upload Icon Badge -->
             <form action="{{ url_for('upload_photo') }}" method="POST" enctype="multipart/form-data" class="absolute bottom-1 right-1">
                 <label for="dash-photo-input" class="w-9 h-9 bg-white text-emerald-900 rounded-full flex items-center justify-center shadow-lg border-2 border-emerald-100 cursor-pointer hover:scale-110 active:scale-95 transition transform">
                     <svg class="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -27,12 +25,10 @@
             </form>
         </div>
 
-        <!-- Student Name -->
         <h1 class="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight text-white mb-4 leading-tight">
             {{ current_user.name_english }}
         </h1>
 
-        <!-- Badges -->
         <div class="flex flex-wrap items-center justify-center gap-2.5 mb-3">
             <span class="px-4 py-1.5 bg-[#0e5c43]/80 backdrop-blur-md text-emerald-100 text-xs font-black rounded-xl border border-emerald-500/30 shadow-sm">
                 {{ current_user.course }} ({{ current_user.batch or '37th' }})
@@ -42,7 +38,6 @@
             </span>
         </div>
 
-        <!-- Unique ID Badge -->
         <div class="inline-block">
             <span class="px-5 py-1.5 bg-[#08402e]/90 text-emerald-200 text-xs font-mono font-bold tracking-widest rounded-xl border border-emerald-600/40">
                 ID: {{ current_user.unique_id }}
@@ -50,41 +45,31 @@
         </div>
     </div>
 
-    <!-- Authentic Live Metrics Grid -->
+    <!-- Live Metrics Grid -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        
-        <!-- Attendance Rate Card (Live Database Connected) -->
         <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)] flex items-center justify-between">
             <div>
-                <p class="text-[11px] font-black tracking-wider uppercase text-slate-400 mb-1">Attendance Rate</p>
+                <p class="text-[11px] font-black tracking-wider uppercase text-slate-400 mb-1">Overall Attendance</p>
                 <h2 class="text-3xl sm:text-4xl font-black text-[#043324] tracking-tight">
                     {{ "%.1f"|format(current_user.attendance if current_user.attendance is not none else 85.0) }}%
                 </h2>
                 <div class="mt-2 flex items-center gap-2">
                     {% set att_val = (current_user.attendance if current_user.attendance is not none else 85.0) %}
                     {% if att_val >= 75.0 %}
-                        <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-lg">
-                            Collegiate (≥75%)
-                        </span>
+                        <span class="px-3 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-black rounded-lg">Collegiate (≥75%)</span>
                     {% elif att_val >= 60.0 %}
-                        <span class="px-3 py-1 bg-amber-100 text-amber-800 text-[11px] font-black rounded-lg">
-                            Non-Collegiate (60-74%)
-                        </span>
+                        <span class="px-3 py-1 bg-amber-100 text-amber-800 text-[11px] font-black rounded-lg">Non-Collegiate</span>
                     {% else %}
-                        <span class="px-3 py-1 bg-rose-100 text-rose-800 text-[11px] font-black rounded-lg">
-                            Dis-Collegiate (&lt;60%)
-                        </span>
+                        <span class="px-3 py-1 bg-rose-100 text-rose-800 text-[11px] font-black rounded-lg">Dis-Collegiate</span>
                     {% endif %}
                     <span class="text-[10px] font-bold text-slate-400">Min 75% required</span>
                 </div>
             </div>
-            
             <div class="w-16 h-16 rounded-2xl bg-[#effcf6] border border-emerald-100 flex items-center justify-center text-3xl shadow-sm">
                 📊
             </div>
         </div>
 
-        <!-- Academic Clearance Card (Provisional & Realistic) -->
         <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)] flex items-center justify-between">
             <div>
                 <p class="text-[11px] font-black tracking-wider uppercase text-slate-400 mb-1">Academic Clearance</p>
@@ -95,125 +80,62 @@
                     </span>
                 </div>
             </div>
-            
             <div class="w-16 h-16 rounded-2xl bg-[#f8fafc] border border-slate-200 flex items-center justify-center text-3xl shadow-sm">
                 📑
             </div>
         </div>
-
     </div>
 
-    <!-- SUBJECT ITEMS & LOGBOOK SECTION -->
+    <!-- DEPARTMENTAL EVALUATION & LOGBOOK -->
     <div class="bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_10px_25px_-5px_rgba(0,0,0,0.05)] space-y-4">
-        
-        <!-- Section Header -->
-        <div class="flex items-center justify-between pb-2">
-            <h3 class="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider">
-                SUBJECT ITEMS &amp; LOGBOOK
-            </h3>
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div>
+                <h3 class="text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wider">
+                    DEPARTMENTAL CONTINUOUS EVALUATION
+                </h3>
+                <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Card, Item, Attendance &amp; Term Performance</p>
+            </div>
             <span class="px-3 py-1 bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold rounded-lg shadow-sm">
                 Assessment Ongoing
             </span>
         </div>
 
-        <!-- Subject List (Course Specific) -->
         <div class="space-y-3">
-            {% if 'BAMS' in (current_user.course or '').upper() %}
-                <!-- BAMS Subjects -->
-                <div class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-center justify-between hover:border-emerald-200 transition">
-                    <div>
-                        <h4 class="text-sm font-black text-slate-900">1. Rachana Sharir (Anatomy)</h4>
-                        <p class="text-xs text-slate-400 font-semibold mt-0.5">Card &amp; Item Continuous Evaluation</p>
+            {% for d in departments %}
+            <div class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm hover:border-emerald-200 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h4 class="text-sm font-black text-slate-900">
+                        {{ loop.index }}. Dept. of {{ d.name }}
+                    </h4>
+                    <p class="text-xs text-slate-400 font-semibold mt-0.5">{{ d.remarks }}</p>
+                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                        <span class="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">
+                            Dept. Att: <strong class="text-emerald-700">{{ "%.1f"|format(d.attendance_rate) }}%</strong>
+                        </span>
+                        <span class="px-2 py-0.5 bg-blue-50 text-blue-800 rounded text-[10px] font-bold">
+                            Term Status: <strong>{{ d.term_exam_score }}</strong>
+                        </span>
                     </div>
-                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> In Progress
-                    </span>
                 </div>
 
-                <div class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-center justify-between hover:border-emerald-200 transition">
-                    <div>
-                        <h4 class="text-sm font-black text-slate-900">2. Kriya Sharir (Physiology)</h4>
-                        <p class="text-xs text-slate-400 font-semibold mt-0.5">Card &amp; Item Continuous Evaluation</p>
-                    </div>
-                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> In Progress
+                <div>
+                    <span class="px-3 py-1.5 {% if d.item_card_status == 'Cleared' %}bg-emerald-50 border-emerald-200 text-emerald-700{% else %}bg-blue-50 border-blue-200 text-blue-600{% endif %} border text-xs font-black rounded-xl inline-flex items-center gap-1.5 shadow-sm">
+                        <span class="w-2 h-2 rounded-full {% if d.item_card_status == 'Cleared' %}bg-emerald-600{% else %}bg-blue-600{% endif %}"></span>
+                        {{ d.item_card_status }}
                     </span>
                 </div>
-
-                <div class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-center justify-between hover:border-emerald-200 transition">
-                    <div>
-                        <h4 class="text-sm font-black text-slate-900">3. Padartha Vigyan</h4>
-                        <p class="text-xs text-slate-400 font-semibold mt-0.5">Card &amp; Item Continuous Evaluation</p>
-                    </div>
-                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> In Progress
-                    </span>
-                </div>
-
-                <div class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-center justify-between hover:border-emerald-200 transition">
-                    <div>
-                        <h4 class="text-sm font-black text-slate-900">4. Ashtanga Hridaya</h4>
-                        <p class="text-xs text-slate-400 font-semibold mt-0.5">Card &amp; Item Continuous Evaluation</p>
-                    </div>
-                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> In Progress
-                    </span>
-                </div>
-
-            {% else %}
-                <!-- BUMS Subjects -->
-                <div class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-center justify-between hover:border-emerald-200 transition">
-                    <div>
-                        <h4 class="text-sm font-black text-slate-900">1. Tashreeh-ul-Badan (Anatomy)</h4>
-                        <p class="text-xs text-slate-400 font-semibold mt-0.5">Card &amp; Item Continuous Evaluation</p>
-                    </div>
-                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> In Progress
-                    </span>
-                </div>
-
-                <div class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-center justify-between hover:border-emerald-200 transition">
-                    <div>
-                        <h4 class="text-sm font-black text-slate-900">2. Afal-ul A'za (Physiology)</h4>
-                        <p class="text-xs text-slate-400 font-semibold mt-0.5">Card &amp; Item Continuous Evaluation</p>
-                    </div>
-                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> In Progress
-                    </span>
-                </div>
-
-                <div class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-center justify-between hover:border-emerald-200 transition">
-                    <div>
-                        <h4 class="text-sm font-black text-slate-900">3. Hiyat-e Kimia (Biochemistry)</h4>
-                        <p class="text-xs text-slate-400 font-semibold mt-0.5">Card &amp; Item Continuous Evaluation</p>
-                    </div>
-                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> In Progress
-                    </span>
-                </div>
-
-                <div class="p-4 rounded-2xl border border-slate-100 bg-white shadow-sm flex items-center justify-between hover:border-emerald-200 transition">
-                    <div>
-                        <h4 class="text-sm font-black text-slate-900">4. Kulliat-e-Tibb wa Tarikh-e Tibb</h4>
-                        <p class="text-xs text-slate-400 font-semibold mt-0.5">Card &amp; Item Continuous Evaluation</p>
-                    </div>
-                    <span class="px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 text-xs font-black rounded-xl flex items-center gap-1.5 shadow-sm">
-                        <span class="w-2 h-2 rounded-full bg-blue-600"></span> In Progress
-                    </span>
-                </div>
-            {% endif %}
+            </div>
+            {% endfor %}
         </div>
 
-        <!-- Attendance & Clearance Notice Box -->
         <div class="p-4 rounded-2xl bg-[#fefbf2] border border-[#faecd1] text-xs space-y-2 mt-4">
             <h5 class="font-black text-[#925a07] flex items-center gap-1.5 text-xs">
-                <span>⚠️</span> Attendance &amp; Clearance Notice:
+                <span>⚠️</span> Departmental Sent-up Notice:
             </h5>
             <p class="text-[#784805] leading-relaxed font-semibold">
-                All item completion and attendance statuses are <strong class="font-black text-[#854d0e]">provisional</strong>. Class absence will reduce the current percentage. Final sent-up clearance for the DU Prof Exam form fill-up will be evaluated at the end of the academic session based on written term results and complete card/item clearances.
+                Clearance in each department requires mandatory attendance (≥75%) and passing all card/item examinations. Final DU Prof Sent-up will be evaluated centrally at the end of the academic session.
             </p>
         </div>
-
     </div>
 
 </div>
