@@ -1324,7 +1324,7 @@ def send_custom_notice():
 
         return f"<h3>Successfully sent notice to {sent_count} students!</h3><br><a href='/admin/send-notice'>Send Another Notice</a>"
 
-    return """
+return """
     <div style="max-width: 500px; margin: 50px auto; font-family: Arial; padding: 25px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;">
         <h2 style="color: #0f766e; margin-top: 0;">Send Broadcast Notice to All Students</h2>
         <form method="POST">
@@ -1335,4 +1335,4 @@ def send_custom_notice():
             <button type="submit" style="background: #0f766e; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send Notice to All</button>
         </form>
     </div>
-    """
+    """  
