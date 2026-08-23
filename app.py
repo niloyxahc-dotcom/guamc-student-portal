@@ -1188,3 +1188,10 @@ def run_dossier_sync():
         db.session.commit()
     
     return f"<h1>✅ Perfect Sync Complete! Updated: {updated_count}, Created: {created_count} students in PostgreSQL!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
+
+  @app.after_request
+def add_cache_control(response):
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response  
