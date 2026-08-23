@@ -1,21 +1,24 @@
 {% extends "base.html" %}
-{% block title %}Student Portal Login - GUAMC{% endblock %}
+{% block title %}Login - GUAMC-AIMS{% endblock %}
 
 {% block content %}
 <div class="min-h-[80vh] flex items-center justify-center px-4 py-8">
     <div class="bg-white rounded-3xl p-7 sm:p-9 max-w-md w-full border border-slate-100 shadow-[0_20px_50px_rgba(9,56,41,0.08)] space-y-6">
         
-        <!-- Logo & Header -->
+        <!-- Official GUAMCH Logo & Header -->
         <div class="text-center space-y-2">
-            <div class="w-16 h-16 rounded-full bg-white border border-slate-100 shadow-md p-1 mx-auto flex items-center justify-center">
-                <img src="https://ui-avatars.com/api/?name=GUAMC&background=093829&color=fff&bold=true" alt="College Logo" class="w-full h-full rounded-full">
+            <div class="w-20 h-20 mx-auto flex items-center justify-center">
+                <img src="https://i.ibb.co/vzB79B5/guamch-logo.png" 
+                     onerror="this.onerror=null; this.src='{{ url_for('static', filename='logo.png') }}';" 
+                     alt="GUAMCH Logo" 
+                     class="w-full h-full object-contain drop-shadow-sm">
             </div>
             <h1 class="text-xl sm:text-2xl font-black text-[#093829] tracking-tight leading-tight">
                 Government Unani and Ayurvedic Medical College
             </h1>
             <p class="text-xs text-slate-400 font-semibold">Mirpur-13, Dhaka-1221</p>
             <div class="inline-block px-3.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200/60 rounded-full text-[11px] font-black">
-                Official Student Portal
+                GUAMC-AIMS Student Portal
             </div>
         </div>
 
@@ -39,7 +42,7 @@
             </button>
         </form>
 
-        <!-- Universal Student Sign Up Section -->
+        <!-- New Student Sign Up Section -->
         <div class="pt-4 border-t border-slate-100 text-center space-y-2">
             <p class="text-xs text-slate-500 font-bold">New Student?</p>
             <a href="{{ url_for('signup') }}" class="w-full py-2.5 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-200 rounded-xl text-xs font-black transition inline-flex items-center justify-center gap-1.5 shadow-sm">

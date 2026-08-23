@@ -9,31 +9,75 @@ class Student(UserMixin, db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     unique_id = db.Column(db.String(50), unique=True, index=True)
-    name_english = db.Column(db.String(150))
-    name_bangla = db.Column(db.String(150))
-    father_name = db.Column(db.String(150))
-    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(255))
-    course = db.Column(db.String(50), default='BUMS')
+    
+    # Academic & Identity
     batch = db.Column(db.String(20), default='37th')
+    course = db.Column(db.String(50), default='BUMS')
     roll_no = db.Column(db.String(20))
     class_roll = db.Column(db.String(20))
-    contact_number = db.Column(db.String(30))
-    emergency_medical_contact = db.Column(db.String(30))
-    blood_group = db.Column(db.String(10))
+    session = db.Column(db.String(30))
     photo = db.Column(db.String(255))
+    name_bangla = db.Column(db.String(150))
+    name_english = db.Column(db.String(150))
+    gender = db.Column(db.String(30))
+    marital_status = db.Column(db.String(50))
+    father_name = db.Column(db.String(150))
+    father_occupation = db.Column(db.String(100))
+    mother_name = db.Column(db.String(150))
+    mother_occupation = db.Column(db.String(100))
+    date_of_birth = db.Column(db.String(30))
+    nid_or_birth_cert = db.Column(db.String(50))
     
+    # Support & Aid
+    family_income = db.Column(db.String(50))
+    family_members = db.Column(db.String(20))
+    need_financial_aid = db.Column(db.String(10))
+    has_personal_income = db.Column(db.String(10))
+    income_source_details = db.Column(db.Text)
+    
+    # Educational Background
+    hsc_background = db.Column(db.Text)
+    ssc_background = db.Column(db.Text)
+    
+    # Campus Involvement & Activities
+    library_member = db.Column(db.String(10))
+    hall_resident = db.Column(db.String(50))
+    co_curricular_activities = db.Column(db.Text)
+    club_interests = db.Column(db.Text)
+    
+    # Health & Medical Information
+    height = db.Column(db.String(50))
+    weight = db.Column(db.String(30))
+    wear_glasses = db.Column(db.String(10))
+    blood_group = db.Column(db.String(10))
+    chronic_illness = db.Column(db.Text)
+    known_allergies = db.Column(db.Text)
+    regular_medication = db.Column(db.Text)
+    emergency_medical_contact = db.Column(db.String(30))
+    identification_mark = db.Column(db.String(150))
+    
+    # Contact & Credentials
+    contact_number = db.Column(db.String(30))
+    guardian_contact = db.Column(db.String(30))
+    present_address = db.Column(db.Text)
+    permanent_address = db.Column(db.Text)
+    email = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    password_hash = db.Column(db.String(255))
+    
+    # Attendance & Clearance
     total_classes = db.Column(db.Integer, nullable=True)
     attended_classes = db.Column(db.Integer, nullable=True)
     attendance = db.Column(db.Float, nullable=True)
     
     is_approved = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
     performances = db.relationship('DepartmentPerformance', backref='student', cascade="all, delete-orphan")
 
 class Department(db.Model):
     __tablename__ = 'departments'
     id = db.Column(db.Integer, primary_key=True)
-    course = db.Column(db.String(20), nullable=False) # BAMS or BUMS
+    course = db.Column(db.String(20), nullable=False)
     name = db.Column(db.String(150), nullable=False)
     code = db.Column(db.String(50), nullable=True)
     order = db.Column(db.Integer, default=0)
@@ -45,7 +89,7 @@ class DepartmentPerformance(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=False)
     attendance_rate = db.Column(db.Float, nullable=True)
-    item_card_status = db.Column(db.String(50), default='In Progress') # In Progress, Cleared, Needs Assessment
+    item_card_status = db.Column(db.String(50), default='In Progress')
 
 class AttendanceRecord(db.Model):
     __tablename__ = 'attendance_records'
@@ -68,7 +112,7 @@ class AcademicFile(db.Model):
     __tablename__ = 'academic_files'
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
-    file_type = db.Column(db.String(50), default='Item Card') # Item Card, Item Routine, Syllabus, E-Book
+    file_type = db.Column(db.String(50), default='Item Card')
     course = db.Column(db.String(20), default='ALL')
     file_url = db.Column(db.String(300), nullable=False)
     folder_id = db.Column(db.Integer, db.ForeignKey('file_folders.id'), nullable=True)

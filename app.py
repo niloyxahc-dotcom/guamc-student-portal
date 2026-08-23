@@ -4,13 +4,14 @@ import re
 import urllib.request
 import ssl
 from datetime import datetime, date
-from flask import Flask, render_template, redirect, url_for, request, flash, Response, session
+from flask import Flask, render_template, redirect, url_for, request, flash, Response, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'guamc-master-bulletproof-2026'
+app.config['SECRET_KEY'] = 'guamc-aims-master-bulletproof-2026'
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
@@ -21,10 +22,13 @@ if db_url and db_url.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url or ('sqlite:///' + os.path.join(basedir, 'portal_master_v14_permanent.db'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# 500 KB Max Upload Size Limit for Storage Economy
+app.config['MAX_CONTENT_LENGTH'] = 1 * 512 * 1024 
+
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'pdf', 'docx', 'xlsx'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg'}
 
 from models import (
     db, 
@@ -100,7 +104,8 @@ def format_bd_phone(raw_val):
 def generate_diu_id(batch, course, roll_two_digit):
     course_str = str(course).upper()
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
-    return f"37{c_code}{str(roll_two_digit).zfill(2)}"
+    b_digits = re.sub(r'\D', '', str(batch)) or "37"
+    return f"{b_digits}{c_code}{str(roll_two_digit).zfill(2)}"
 
 def init_default_departments():
     bams_depts = [
@@ -165,10 +170,8 @@ def sync_students_csv():
                         continue
 
                     student = Student.query.filter(db.func.lower(Student.email) == em).first()
-                    is_new = False
                     if not student:
                         student = Student(email=em)
-                        is_new = True
                         db.session.add(student)
 
                     raw_eng_name = ""
@@ -259,7 +262,6 @@ with app.app_context():
         init_default_departments()
         init_default_nav()
         
-        # পূর্বের স্ট্যাটিক ৮৫% ক্লিয়ার করে Ongoing করা
         Student.query.filter_by(total_classes=None).update({Student.attendance: None})
         DepartmentPerformance.query.filter_by(attendance_rate=85.0).update({DepartmentPerformance.attendance_rate: None})
         db.session.commit()
@@ -291,9 +293,9 @@ def user_avatar(user_id):
                         continue
 
         name = student.name_english if (student and student.name_english) else 'Student'
-        return redirect(f"https://ui-avatars.com/api/?name={name}&background=124E3F&color=fff&size=256&bold=true")
+        return redirect(f"https://ui-avatars.com/api/?name={name}&background=093829&color=fff&size=256&bold=true")
     except Exception:
-        return redirect("https://ui-avatars.com/api/?name=Student&background=124E3F&color=fff&size=256&bold=true")
+        return redirect("https://ui-avatars.com/api/?name=Student&background=093829&color=fff&size=256&bold=true")
 
 # ==================== AUTHENTICATION ====================
 
@@ -329,7 +331,7 @@ def login():
                     return render_template('login.html')
 
             if not student.is_approved:
-                flash('⚠️ Access Restricted! Your account is pending Administrator approval. Please wait until Admin approves your registration.', 'warning')
+                flash('⚠️ Access Restricted! Your account is pending Administrator verification. Please wait until Admin approves your registration.', 'warning')
                 return render_template('login.html')
 
             if check_password_hash(student.password_hash, password) or password == 'guamc123':
@@ -350,20 +352,62 @@ def signup():
 
     if request.method == 'POST':
         try:
-            name_eng = request.form.get('name_english', '').strip()
-            name_ban = request.form.get('name_bangla', '').strip()
-            father = request.form.get('father_name', '').strip()
-            email = request.form.get('email', '').strip().lower()
+            # 1. Academic & Identity
+            batch = request.form.get('batch', '37th').strip()
             course = request.form.get('course', 'BUMS').upper()
             roll_no = request.form.get('roll_no', '01').strip().zfill(2)
-            phone = request.form.get('contact_number', '').strip()
-            emergency = request.form.get('emergency_medical_contact', '').strip()
-            blood = request.form.get('blood_group', '').strip()
+            session_yr = request.form.get('session', '').strip()
+            name_bangla = request.form.get('name_bangla', '').strip()
+            name_english = request.form.get('name_english', '').strip()
+            gender = request.form.get('gender', '').strip()
+            marital_status = request.form.get('marital_status', '').strip()
+            father_name = request.form.get('father_name', '').strip()
+            father_occupation = request.form.get('father_occupation', '').strip()
+            mother_name = request.form.get('mother_name', '').strip()
+            mother_occupation = request.form.get('mother_occupation', '').strip()
+            date_of_birth = request.form.get('date_of_birth', '').strip()
+            nid_or_birth_cert = request.form.get('nid_or_birth_cert', '').strip()
+
+            # 2. Support & Aid
+            family_income = request.form.get('family_income', '').strip()
+            family_members = request.form.get('family_members', '').strip()
+            need_financial_aid = request.form.get('need_financial_aid', 'No').strip()
+            has_personal_income = request.form.get('has_personal_income', 'No').strip()
+            income_source_details = request.form.get('income_source_details', '').strip()
+
+            # 3. Academic Background
+            hsc_background = request.form.get('hsc_background', '').strip()
+            ssc_background = request.form.get('ssc_background', '').strip()
+
+            # 4. Campus Involvement & Activities
+            library_member = request.form.get('library_member', 'No').strip()
+            hall_resident = request.form.get('hall_resident', 'No').strip()
+            co_curricular_activities = request.form.get('co_curricular_activities', '').strip()
+            clubs_list = request.form.getlist('club_interests')
+            club_interests = ", ".join(clubs_list) if clubs_list else "None"
+
+            # 5. Health & Medical Information
+            height = request.form.get('height', '').strip()
+            weight = request.form.get('weight', '').strip()
+            wear_glasses = request.form.get('wear_glasses', 'No').strip()
+            blood_group = request.form.get('blood_group', '').strip()
+            chronic_illness = request.form.get('chronic_illness', 'None').strip()
+            known_allergies = request.form.get('known_allergies', '').strip()
+            regular_medication = request.form.get('regular_medication', '').strip()
+            emergency_medical_contact = request.form.get('emergency_medical_contact', '').strip()
+            identification_mark = request.form.get('identification_mark', '').strip()
+
+            # 6. Contact & Credentials
+            contact_number = request.form.get('contact_number', '').strip()
+            guardian_contact = request.form.get('guardian_contact', '').strip()
+            present_address = request.form.get('present_address', '').strip()
+            permanent_address = request.form.get('permanent_address', '').strip()
+            email = request.form.get('email', '').strip().lower()
             password = request.form.get('password', '').strip()
             confirm_password = request.form.get('confirm_password', '').strip()
 
-            if not email or not name_eng or not roll_no or not password:
-                flash('Please fill in all mandatory fields!', 'warning')
+            if not email or not name_english or not roll_no or not password:
+                flash('Please fill in all mandatory fields (*)!', 'warning')
                 return render_template('signup.html')
 
             if password != confirm_password:
@@ -375,19 +419,62 @@ def signup():
                 flash('This email is already registered! Please login or wait for Admin approval.', 'warning')
                 return redirect(url_for('login'))
 
+            photo_path = None
+            if 'photo' in request.files and request.files['photo'].filename != '':
+                f = request.files['photo']
+                if allowed_file(f.filename):
+                    ext = f.filename.rsplit('.', 1)[1].lower()
+                    filename = f"signup_{batch}_{course}_{roll_no}_{int(datetime.utcnow().timestamp())}.{ext}"
+                    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    f.save(filepath)
+                    photo_path = url_for('static', filename=f'uploads/{filename}')
+                else:
+                    flash('Invalid photo format! Only JPG and PNG (Max: 500 KB) allowed.', 'warning')
+                    return render_template('signup.html')
+
             new_student = Student(
-                email=email,
-                name_english=name_eng,
-                name_bangla=name_ban,
-                father_name=father,
+                batch=batch,
                 course=course,
-                batch='37th',
                 roll_no=roll_no,
                 class_roll=roll_no,
-                unique_id=generate_diu_id('37', course, roll_no),
-                contact_number=format_bd_phone(phone),
-                emergency_medical_contact=format_bd_phone(emergency),
-                blood_group=blood,
+                session=session_yr,
+                unique_id=generate_diu_id(batch, course, roll_no),
+                photo=photo_path,
+                name_bangla=name_bangla,
+                name_english=name_english,
+                gender=gender,
+                marital_status=marital_status,
+                father_name=father_name,
+                father_occupation=father_occupation,
+                mother_name=mother_name,
+                mother_occupation=mother_occupation,
+                date_of_birth=date_of_birth,
+                nid_or_birth_cert=nid_or_birth_cert,
+                family_income=family_income,
+                family_members=family_members,
+                need_financial_aid=need_financial_aid,
+                has_personal_income=has_personal_income,
+                income_source_details=income_source_details,
+                hsc_background=hsc_background,
+                ssc_background=ssc_background,
+                library_member=library_member,
+                hall_resident=hall_resident,
+                co_curricular_activities=co_curricular_activities,
+                club_interests=club_interests,
+                height=height,
+                weight=weight,
+                wear_glasses=wear_glasses,
+                blood_group=blood_group,
+                chronic_illness=chronic_illness,
+                known_allergies=known_allergies,
+                regular_medication=regular_medication,
+                emergency_medical_contact=format_bd_phone(emergency_medical_contact),
+                identification_mark=identification_mark,
+                contact_number=format_bd_phone(contact_number),
+                guardian_contact=format_bd_phone(guardian_contact),
+                present_address=present_address,
+                permanent_address=permanent_address,
+                email=email,
                 attendance=None,
                 is_approved=False,
                 password_hash=generate_password_hash(password)
@@ -395,7 +482,7 @@ def signup():
             db.session.add(new_student)
             db.session.commit()
 
-            flash('Registration submitted successfully! Your account is pending Administrator approval. You can log in once approved by the Admin.', 'success')
+            flash('✅ Registration submitted to GUAMC-AIMS! Your account is pending Administrator verification. You can log in once approved.', 'success')
             return redirect(url_for('login'))
         except Exception as e:
             db.session.rollback()
@@ -495,6 +582,57 @@ def admin_panel():
                            nav_links=nav_links,
                            search_q=search_q, 
                            course_filter=course_filter)
+
+@app.route('/admin/student/<int:id>/details-json')
+@login_required
+def admin_get_student_json(id):
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return jsonify({'error': 'Unauthorized'}), 403
+    s = Student.query.get_or_404(id)
+    return jsonify({
+        'id': s.id,
+        'unique_id': s.unique_id,
+        'batch': s.batch,
+        'course': s.course,
+        'roll_no': s.roll_no,
+        'session': s.session or 'N/A',
+        'name_english': s.name_english,
+        'name_bangla': s.name_bangla or 'N/A',
+        'gender': s.gender or 'N/A',
+        'marital_status': s.marital_status or 'N/A',
+        'father_name': s.father_name or 'N/A',
+        'father_occupation': s.father_occupation or 'N/A',
+        'mother_name': s.mother_name or 'N/A',
+        'mother_occupation': s.mother_occupation or 'N/A',
+        'date_of_birth': s.date_of_birth or 'N/A',
+        'nid_or_birth_cert': s.nid_or_birth_cert or 'N/A',
+        'blood_group': s.blood_group or 'N/A',
+        'height': s.height or 'N/A',
+        'weight': s.weight or 'N/A',
+        'wear_glasses': s.wear_glasses or 'N/A',
+        'chronic_illness': s.chronic_illness or 'None',
+        'known_allergies': s.known_allergies or 'None',
+        'regular_medication': s.regular_medication or 'None',
+        'emergency_medical_contact': s.emergency_medical_contact or 'N/A',
+        'identification_mark': s.identification_mark or 'N/A',
+        'family_income': s.family_income or 'N/A',
+        'family_members': s.family_members or 'N/A',
+        'need_financial_aid': s.need_financial_aid or 'No',
+        'has_personal_income': s.has_personal_income or 'No',
+        'income_source_details': s.income_source_details or 'None',
+        'hsc_background': s.hsc_background or 'N/A',
+        'ssc_background': s.ssc_background or 'N/A',
+        'library_member': s.library_member or 'No',
+        'hall_resident': s.hall_resident or 'No',
+        'co_curricular_activities': s.co_curricular_activities or 'None',
+        'club_interests': s.club_interests or 'None',
+        'contact_number': s.contact_number or 'N/A',
+        'guardian_contact': s.guardian_contact or 'N/A',
+        'present_address': s.present_address or 'N/A',
+        'permanent_address': s.permanent_address or 'N/A',
+        'email': s.email,
+        'photo': s.photo or url_for('user_avatar', user_id=s.id)
+    })
 
 @app.route('/admin/live-attendance', methods=['GET', 'POST'])
 @login_required
@@ -619,54 +757,6 @@ def admin_exit_impersonate():
         return redirect(url_for('admin_panel'))
     return redirect(url_for('login'))
 
-@app.route('/admin/student/add', methods=['POST'])
-@login_required
-def admin_add_student():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    try:
-        email = request.form.get('email', '').strip().lower()
-        if not email:
-            flash('Email is required!', 'danger')
-            return redirect(url_for('admin_panel'))
-        
-        if Student.query.filter_by(email=email).first():
-            flash('A student with this email already exists!', 'warning')
-            return redirect(url_for('admin_panel'))
-
-        name_eng = request.form.get('name_english', '').strip()
-        course = request.form.get('course', 'BUMS').upper()
-        roll = request.form.get('roll_no', '01').strip().zfill(2)
-        batch = request.form.get('batch', '37th').strip()
-        blood = request.form.get('blood_group', '').strip()
-        phone = request.form.get('contact_number', '').strip()
-        emergency = request.form.get('emergency_medical_contact', '').strip()
-        raw_att = request.form.get('attendance', '')
-        att = float(raw_att) if raw_att != '' else None
-
-        new_st = Student(
-            email=email,
-            name_english=name_eng if name_eng else email.split('@')[0].title(),
-            course=course,
-            batch=batch,
-            roll_no=roll,
-            class_roll=roll,
-            unique_id=generate_diu_id('37', course, roll),
-            blood_group=blood,
-            contact_number=phone,
-            emergency_medical_contact=emergency,
-            attendance=att,
-            is_approved=True,
-            password_hash=generate_password_hash('guamc123')
-        )
-        db.session.add(new_st)
-        db.session.commit()
-        flash(f"Student {new_st.name_english} added successfully!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error adding student: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
 @app.route('/admin/student/edit/<int:id>', methods=['POST'])
 @login_required
 def admin_edit_student(id):
@@ -676,14 +766,22 @@ def admin_edit_student(id):
     student.name_english = request.form.get('name_english', student.name_english).strip()
     student.name_bangla = request.form.get('name_bangla', student.name_bangla).strip()
     student.father_name = request.form.get('father_name', student.father_name).strip()
+    student.father_occupation = request.form.get('father_occupation', student.father_occupation).strip()
+    student.mother_name = request.form.get('mother_name', student.mother_name).strip()
+    student.mother_occupation = request.form.get('mother_occupation', student.mother_occupation).strip()
     student.email = request.form.get('email', student.email).strip().lower()
     student.course = request.form.get('course', student.course).strip().upper()
+    student.batch = request.form.get('batch', student.batch).strip()
     student.roll_no = request.form.get('roll_no', student.roll_no).strip().zfill(2)
     student.class_roll = student.roll_no
-    student.unique_id = generate_diu_id('37', student.course, student.roll_no)
+    student.session = request.form.get('session', student.session).strip()
+    student.unique_id = generate_diu_id(student.batch, student.course, student.roll_no)
     student.blood_group = request.form.get('blood_group', student.blood_group).strip()
     student.contact_number = request.form.get('contact_number', student.contact_number).strip()
     student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
+    student.guardian_contact = request.form.get('guardian_contact', student.guardian_contact).strip()
+    student.present_address = request.form.get('present_address', student.present_address).strip()
+    student.permanent_address = request.form.get('permanent_address', student.permanent_address).strip()
     
     new_custom_pass = request.form.get('custom_password', '').strip()
     if new_custom_pass:
@@ -717,7 +815,7 @@ def admin_move_student(id):
     if target_course in ['BUMS', 'BAMS']:
         old_course = student.course
         student.course = target_course
-        student.unique_id = generate_diu_id('37', target_course, student.roll_no)
+        student.unique_id = generate_diu_id(student.batch, target_course, student.roll_no)
         db.session.commit()
         flash(f"Moved {student.name_english} from {old_course} to {target_course}!", "success")
     return redirect(url_for('admin_panel'))
@@ -735,14 +833,21 @@ def admin_copy_student(id):
         name_english=f"{src.name_english} (Copy)",
         name_bangla=src.name_bangla,
         father_name=src.father_name,
+        father_occupation=src.father_occupation,
+        mother_name=src.mother_name,
+        mother_occupation=src.mother_occupation,
         course=src.course,
         batch=src.batch,
         roll_no=clone_roll,
         class_roll=clone_roll,
-        unique_id=generate_diu_id('37', src.course, clone_roll),
+        session=src.session,
+        unique_id=generate_diu_id(src.batch, src.course, clone_roll),
         blood_group=src.blood_group,
         contact_number=src.contact_number,
         emergency_medical_contact=src.emergency_medical_contact,
+        guardian_contact=src.guardian_contact,
+        present_address=src.present_address,
+        permanent_address=src.permanent_address,
         attendance=src.attendance,
         is_approved=True,
         photo=src.photo,
@@ -829,7 +934,7 @@ def admin_upload_file():
     file_url = ""
     if 'file' in request.files and request.files['file'].filename != '':
         f = request.files['file']
-        filename = f"file_{int(os.urandom(3).hex(), 16)}_{f.filename}"
+        filename = f"file_{int(os.urandom(3).hex(), 16)}_{secure_filename(f.filename)}"
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         f.save(filepath)
         file_url = url_for('static', filename=f'uploads/{filename}')

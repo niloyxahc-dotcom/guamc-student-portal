@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Admin Enterprise Dashboard - GUAMC Portal{% endblock %}
+{% block title %}Admin Enterprise Dashboard - GUAMC-AIMS{% endblock %}
 
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
@@ -8,10 +8,10 @@
     <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
         <div>
             <h1 class="text-2xl font-black text-slate-900 flex items-center gap-2">
-                <span>⚡</span> Database &amp; Portal Manager
+                <span>⚡</span> GUAMC-AIMS Master Control
             </h1>
             <p class="text-xs text-slate-500 font-semibold mt-1">
-                Active Enrolled: <strong class="text-emerald-800 font-black">{{ students|length }} Students</strong> (Admin Master Control)
+                Active Enrolled: <strong class="text-emerald-800 font-black">{{ students|length }} Students</strong>
             </p>
         </div>
         
@@ -19,9 +19,6 @@
             <a href="{{ url_for('admin_live_attendance') }}" class="px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
                 <span>📋</span> Live Attendance
             </a>
-            <button onclick="document.getElementById('modal-add-student').classList.remove('hidden')" class="px-4 py-2.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
-                <span>➕</span> Add Student
-            </button>
             <button onclick="document.getElementById('modal-file-manager').classList.remove('hidden')" class="px-4 py-2.5 bg-blue-800 hover:bg-blue-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
                 <span>📁</span> Upload Materials
             </button>
@@ -48,23 +45,29 @@
             <table class="w-full text-left text-xs bg-white rounded-2xl border border-amber-200 overflow-hidden">
                 <thead class="bg-amber-100/60 text-amber-900 uppercase font-black">
                     <tr>
-                        <th class="p-3">Course &amp; Roll</th>
+                        <th class="p-3">Batch &amp; Roll</th>
                         <th class="p-3">Student Name</th>
                         <th class="p-3">Email</th>
-                        <th class="p-3">Contact</th>
-                        <th class="p-3 text-right">Verification Action</th>
+                        <th class="p-3">Phone</th>
+                        <th class="p-3 text-center">Full Record</th>
+                        <th class="p-3 text-right">Action</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-amber-100 font-bold text-slate-800">
                     {% for p in pending_students %}
                     <tr class="hover:bg-amber-50/50 transition">
                         <td class="p-3">
-                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-800">{{ p.course }}</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-black bg-slate-100 text-slate-800">{{ p.course }} ({{ p.batch }})</span>
                             <span class="ml-1 font-black text-slate-900">Roll: {{ p.roll_no }}</span>
                         </td>
                         <td class="p-3 font-black text-slate-900">{{ p.name_english }}</td>
                         <td class="p-3 font-normal text-slate-600">{{ p.email }}</td>
                         <td class="p-3 text-slate-600">{{ p.contact_number }}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="viewStudentDetails('{{ p.id }}')" class="px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-800 hover:bg-indigo-100 rounded-xl text-xs font-black transition shadow-sm">
+                                🔍 View Dossier
+                            </button>
+                        </td>
                         <td class="p-3 text-right">
                             <div class="flex items-center justify-end gap-2">
                                 <form method="POST" action="{{ url_for('admin_approve_student', id=p.id) }}">
@@ -102,7 +105,7 @@
         </form>
     </div>
 
-    <!-- Main Student Management Table -->
+    <!-- Main Student Table -->
     <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-left text-xs">
@@ -122,7 +125,7 @@
                         <td class="p-3.5 font-black text-slate-900 text-sm">{{ s.roll_no }}</td>
                         <td class="p-3.5">
                             <span class="px-2.5 py-0.5 rounded text-[10px] font-black {% if s.course == 'BUMS' %}bg-emerald-100 text-emerald-800{% else %}bg-blue-100 text-blue-800{% endif %}">
-                                {{ s.course }}
+                                {{ s.course }} ({{ s.batch }})
                             </span>
                             <div class="text-[11px] font-mono text-slate-500 mt-1 font-bold">{{ s.unique_id }}</div>
                         </td>
@@ -158,13 +161,16 @@
 
                         <td class="p-3.5 text-right">
                             <div class="flex items-center justify-end gap-1.5">
+                                <button onclick="viewStudentDetails('{{ s.id }}')" class="p-1.5 bg-slate-100 hover:bg-indigo-50 text-indigo-700 rounded-lg border border-slate-200" title="Full Dossier">
+                                    🔍
+                                </button>
                                 <a href="{{ url_for('admin_student_performance', student_id=s.id) }}" class="p-1.5 bg-slate-100 hover:bg-purple-50 text-purple-700 rounded-lg border border-slate-200" title="Evaluate Departmental Results">
                                     📊
                                 </a>
                                 <a href="{{ url_for('admin_impersonate_student', id=s.id) }}" class="p-1.5 bg-slate-100 hover:bg-emerald-50 text-emerald-800 rounded-lg border border-slate-200" title="View as Student">
                                     👁️
                                 </a>
-                                <button onclick="openEditModal('{{ s.id }}', '{{ s.name_english|escape }}', '{{ s.name_bangla or ''|escape }}', '{{ s.father_name or ''|escape }}', '{{ s.email }}', '{{ s.course }}', '{{ s.roll_no }}', '{{ s.blood_group or '' }}', '{{ s.contact_number or '' }}', '{{ s.emergency_medical_contact or '' }}', '{{ s.attendance or '' }}')" class="p-1.5 bg-slate-100 hover:bg-blue-50 text-blue-700 rounded-lg border border-slate-200" title="Edit Profile">
+                                <button onclick="openEditModal('{{ s.id }}', '{{ s.name_english|escape }}', '{{ s.name_bangla or ''|escape }}', '{{ s.father_name or ''|escape }}', '{{ s.email }}', '{{ s.course }}', '{{ s.roll_no }}', '{{ s.blood_group or '' }}', '{{ s.contact_number or '' }}', '{{ s.emergency_medical_contact or '' }}', '{{ s.attendance or '' }}', '{{ s.batch or '37th' }}')" class="p-1.5 bg-slate-100 hover:bg-blue-50 text-blue-700 rounded-lg border border-slate-200" title="Edit Profile">
                                     ✏️
                                 </button>
                                 <form method="POST" action="{{ url_for('admin_reset_password', id=s.id) }}" onsubmit="return confirm('Reset password for {{ s.name_english }} to guamc123?');">
@@ -194,60 +200,18 @@
 
 </div>
 
-<!-- MODAL: ADD STUDENT -->
-<div id="modal-add-student" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
-        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
-            <h3 class="text-base font-black text-slate-800">➕ Add New Student to Database</h3>
-            <button onclick="document.getElementById('modal-add-student').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
+<!-- MODAL: FULL DOSSIER DETAILS -->
+<div id="modal-dossier" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+            <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
+                <span>📋</span> Comprehensive Student Profile
+            </h3>
+            <button onclick="document.getElementById('modal-dossier').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
         </div>
-        <form method="POST" action="{{ url_for('admin_add_student') }}" class="space-y-3 text-xs font-bold">
-            <div>
-                <label class="text-slate-600">Full Name (English)*</label>
-                <input type="text" name="name_english" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-            </div>
-            <div>
-                <label class="text-slate-600">Email Address*</label>
-                <input type="email" name="email" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-slate-600">Course*</label>
-                    <select name="course" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold">
-                        <option value="BUMS">BUMS (Unani)</option>
-                        <option value="BAMS">BAMS (Ayurvedic)</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-slate-600">Class Roll No*</label>
-                    <input type="text" name="roll_no" required placeholder="01" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-slate-600">Blood Group</label>
-                    <input type="text" name="blood_group" placeholder="A+" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-                </div>
-                <div>
-                    <label class="text-slate-600">Attendance Rate %</label>
-                    <input type="number" step="0.1" name="attendance" placeholder="Optional" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-                <div>
-                    <label class="text-slate-600">Student Contact</label>
-                    <input type="text" name="contact_number" placeholder="017XXXXXXXX" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-                </div>
-                <div>
-                    <label class="text-slate-600">Emergency Contact</label>
-                    <input type="text" name="emergency_medical_contact" placeholder="018XXXXXXXX" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-                </div>
-            </div>
-            <div class="pt-4 flex justify-end gap-2">
-                <button type="button" onclick="document.getElementById('modal-add-student').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded-xl text-slate-700">Cancel</button>
-                <button type="submit" class="px-5 py-2 bg-emerald-800 text-white rounded-xl font-black shadow-md">Add Student</button>
-            </div>
-        </form>
+        <div id="dossier-content" class="text-xs space-y-4">
+            <!-- Loaded dynamically via JS -->
+        </div>
     </div>
 </div>
 
@@ -271,13 +235,17 @@
                 <label class="text-slate-600">Email Address</label>
                 <input type="email" name="email" id="edit_email" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
             </div>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="grid grid-cols-3 gap-2">
                 <div>
                     <label class="text-slate-600">Course</label>
                     <select name="course" id="edit_course" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold">
                         <option value="BUMS">BUMS</option>
                         <option value="BAMS">BAMS</option>
                     </select>
+                </div>
+                <div>
+                    <label class="text-slate-600">Batch</label>
+                    <input type="text" name="batch" id="edit_batch" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
                 </div>
                 <div>
                     <label class="text-slate-600">Class Roll</label>
@@ -331,7 +299,7 @@
         </div>
 
         <form method="POST" action="{{ url_for('admin_add_folder') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4 flex gap-2 text-xs font-bold">
-            <input type="text" name="folder_name" placeholder="New Folder Name (e.g. 1st Prof Item Cards)" required class="flex-1 p-2 border border-slate-200 rounded-xl">
+            <input type="text" name="folder_name" placeholder="New Folder Name" required class="flex-1 p-2 border border-slate-200 rounded-xl">
             <select name="course" class="p-2 border border-slate-200 rounded-xl">
                 <option value="ALL">ALL</option>
                 <option value="BUMS">BUMS</option>
@@ -343,7 +311,7 @@
         <form method="POST" action="{{ url_for('admin_upload_file') }}" enctype="multipart/form-data" class="bg-blue-50 p-4 rounded-2xl border border-blue-200 mb-4 space-y-3 text-xs font-bold">
             <h4 class="text-blue-900 font-black">Upload Material / PDF / Link</h4>
             <div class="grid grid-cols-2 gap-2">
-                <input type="text" name="title" placeholder="Material Title (e.g. Anatomy Item Card 2026)" required class="p-2 border border-slate-200 rounded-xl">
+                <input type="text" name="title" placeholder="Material Title" required class="p-2 border border-slate-200 rounded-xl">
                 <select name="file_type" class="p-2 border border-slate-200 rounded-xl font-bold">
                     <option value="Item Card">Item Card</option>
                     <option value="Item Routine">Item Routine</option>
@@ -368,7 +336,7 @@
                 <label class="text-slate-600">Select File (PDF / DOC / Image)</label>
                 <input type="file" name="file" class="w-full p-1 bg-white border border-slate-200 rounded-xl">
             </div>
-            <input type="text" name="file_url" placeholder="Or External Google Drive / Cloud Link" class="w-full p-2 border border-slate-200 rounded-xl">
+            <input type="text" name="file_url" placeholder="Or External Google Drive Link" class="w-full p-2 border border-slate-200 rounded-xl">
             <button type="submit" class="w-full py-2 bg-blue-700 text-white rounded-xl font-black">Upload Material</button>
         </form>
 
@@ -397,7 +365,7 @@
             <button onclick="document.getElementById('modal-dept-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
         </div>
         <form method="POST" action="{{ url_for('admin_save_department') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4 space-y-2 text-xs font-bold">
-            <input type="text" name="name" placeholder="Department Name (e.g. Sharir Kriya (Physiology))" required class="w-full p-2 border border-slate-200 rounded-xl">
+            <input type="text" name="name" placeholder="Department Name" required class="w-full p-2 border border-slate-200 rounded-xl">
             <div class="grid grid-cols-2 gap-2">
                 <select name="course" class="p-2 border border-slate-200 rounded-xl font-bold">
                     <option value="BAMS">BAMS</option>
@@ -427,17 +395,17 @@
 <div id="modal-nav-manager" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
-            <h3 class="text-base font-black text-slate-800">🧭 Dynamic Navigation Bar Manager</h3>
+            <h3 class="text-base font-black text-slate-800">🧭 Navigation Manager</h3>
             <button onclick="document.getElementById('modal-nav-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
         </div>
         <form method="POST" action="{{ url_for('admin_save_nav_link') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 space-y-3 text-xs font-bold">
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
                 <input type="text" name="icon" placeholder="Icon (📚)" required class="p-2 border border-slate-200 rounded-xl text-center">
-                <input type="text" name="title" placeholder="Title (Results)" required class="p-2 border border-slate-200 rounded-xl sm:col-span-2">
+                <input type="text" name="title" placeholder="Title" required class="p-2 border border-slate-200 rounded-xl sm:col-span-2">
                 <input type="number" name="order" placeholder="Order" value="{{ (nav_links|length)+1 }}" class="p-2 border border-slate-200 rounded-xl">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                <input type="text" name="endpoint_or_url" placeholder="Route (dashboard) or URL" required class="p-2 border border-slate-200 rounded-xl sm:col-span-2">
+                <input type="text" name="endpoint_or_url" placeholder="Route or URL" required class="p-2 border border-slate-200 rounded-xl sm:col-span-2">
                 <label class="flex items-center gap-2 p-2 bg-white border border-slate-200 rounded-xl cursor-pointer">
                     <input type="checkbox" name="is_external" class="rounded text-emerald-600">
                     <span class="text-[11px] text-slate-600">External URL?</span>
@@ -475,19 +443,63 @@ function calculateAtt(id) {
         attInput.value = percentage.toFixed(1);
     }
 }
-function openEditModal(id, nameEng, nameBan, father, email, course, roll, blood, phone, emergency, att) {
+function openEditModal(id, nameEng, nameBan, father, email, course, roll, blood, phone, emergency, att, batch) {
     document.getElementById('form-edit-student').action = '/admin/student/edit/' + id;
     document.getElementById('edit_name_english').value = nameEng;
     document.getElementById('edit_name_bangla').value = nameBan;
     document.getElementById('edit_father_name').value = father;
     document.getElementById('edit_email').value = email;
     document.getElementById('edit_course').value = course;
+    document.getElementById('edit_batch').value = batch;
     document.getElementById('edit_roll_no').value = roll;
     document.getElementById('edit_blood_group').value = blood;
     document.getElementById('edit_contact_number').value = phone;
     document.getElementById('edit_emergency_contact').value = emergency;
     document.getElementById('edit_attendance').value = att || '';
     document.getElementById('modal-edit-student').classList.remove('hidden');
+}
+function viewStudentDetails(id) {
+    fetch('/admin/student/' + id + '/details-json')
+        .then(res => res.json())
+        .then(data => {
+            let html = `
+                <div class="flex items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <img src="${data.photo}" class="w-16 h-16 rounded-full object-cover border-2 border-emerald-700">
+                    <div>
+                        <h4 class="text-base font-black text-slate-900">${data.name_english} (${data.name_bangla})</h4>
+                        <p class="text-xs text-slate-500 font-bold">${data.course} • Batch: ${data.batch} • Roll: ${data.roll_no} • ID: ${data.unique_id}</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 bg-white p-3 rounded-2xl border border-slate-100 font-semibold">
+                    <div><span class="text-slate-400">Gender / Marital:</span> ${data.gender} / ${data.marital_status}</div>
+                    <div><span class="text-slate-400">DOB / NID:</span> ${data.date_of_birth} / ${data.nid_or_birth_cert}</div>
+                    <div><span class="text-slate-400">Father:</span> ${data.father_name} (${data.father_occupation})</div>
+                    <div><span class="text-slate-400">Mother:</span> ${data.mother_name} (${data.mother_occupation})</div>
+                    <div><span class="text-slate-400">Student Phone:</span> ${data.contact_number}</div>
+                    <div><span class="text-slate-400">Guardian Phone:</span> ${data.guardian_contact}</div>
+                    <div><span class="text-slate-400">Emergency Contact:</span> ${data.emergency_medical_contact}</div>
+                    <div><span class="text-slate-400">Blood / Height / Wt:</span> ${data.blood_group} | ${data.height} | ${data.weight}kg</div>
+                </div>
+                <div class="bg-amber-50 p-3 rounded-2xl border border-amber-200 space-y-1">
+                    <h5 class="font-black text-amber-900">Support & Aid (Confidential)</h5>
+                    <p><strong>Monthly Income:</strong> ${data.family_income} BDT (Members: ${data.family_members})</p>
+                    <p><strong>Need Aid:</strong> ${data.need_financial_aid} | <strong>Personal Income:</strong> ${data.has_personal_income} (${data.income_source_details})</p>
+                </div>
+                <div class="bg-blue-50 p-3 rounded-2xl border border-blue-200 space-y-1">
+                    <h5 class="font-black text-blue-900">Educational Background</h5>
+                    <p><strong>HSC:</strong> ${data.hsc_background}</p>
+                    <p><strong>SSC:</strong> ${data.ssc_background}</p>
+                </div>
+                <div class="bg-purple-50 p-3 rounded-2xl border border-purple-200 space-y-1">
+                    <h5 class="font-black text-purple-900">Health & Activities</h5>
+                    <p><strong>Chronic / Allergy / Med:</strong> ${data.chronic_illness} | ${data.known_allergies} | ${data.regular_medication}</p>
+                    <p><strong>Library / Hall:</strong> ${data.library_member} / ${data.hall_resident}</p>
+                    <p><strong>Clubs & Activities:</strong> ${data.club_interests} (${data.co_curricular_activities})</p>
+                </div>
+            `;
+            document.getElementById('dossier-content').innerHTML = html;
+            document.getElementById('modal-dossier').classList.remove('hidden');
+        });
 }
 </script>
 {% endblock %}
