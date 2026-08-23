@@ -1265,7 +1265,6 @@ def send_all_welcome_emails():
 
     return "<h2>Welcome Email Broadcast Complete!</h2><br>" + "<br>".join(results)
 
-
 # ২. যেকোনো কাস্টম নোটিশ পাঠানোর রুট
 @app.route('/admin/send-notice', methods=['GET', 'POST'])
 def send_custom_notice():
@@ -1323,16 +1322,4 @@ def send_custom_notice():
 
         return f"<h3>Successfully sent notice to {sent_count} students!</h3><br><a href='/admin/send-notice'>Send Another Notice</a>"
 
-    form_html = """
-    <div style="max-width: 500px; margin: 50px auto; font-family: Arial; padding: 25px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;">
-        <h2 style="color: #0f766e; margin-top: 0;">Send Broadcast Notice to All Students</h2>
-        <form method="POST">
-            <label style="font-weight: bold;">Subject:</label><br>
-            <input type="text" name="subject" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required><br>
-            <label style="font-weight: bold;">Notice Message:</label><br>
-            <textarea name="body" rows="6" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required></textarea><br>
-            <button type="submit" style="background: #0f766e; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send Notice to All</button>
-        </form>
-    </div>
-    """
-        return form_html
+    return """<div style="max-width: 500px; margin: 50px auto; font-family: Arial; padding: 25px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;"><h2 style="color: #0f766e; margin-top: 0;">Send Broadcast Notice to All Students</h2><form method="POST"><label style="font-weight: bold;">Subject:</label><br><input type="text" name="subject" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required><br><label style="font-weight: bold;">Notice Message:</label><br><textarea name="body" rows="6" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required></textarea><br><button type="submit" style="background: #0f766e; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send Notice to All</button></form></div>"""
