@@ -7,7 +7,7 @@
         
         <div class="text-center">
             <h1 class="text-2xl font-black text-slate-900 tracking-tight">Create Student Account</h1>
-            <p class="text-xs text-slate-500 font-semibold mt-1">37th Batch • Govt. Unani &amp; Ayurvedic Medical College</p>
+            <p class="text-xs text-slate-500 font-semibold mt-1">Govt. Unani &amp; Ayurvedic Medical College</p>
             <div class="mt-3 inline-block px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-900 text-[11px] font-black rounded-xl">
                 🛡️ Account requires Administrator approval before login
             </div>
@@ -35,16 +35,20 @@
                 <input type="email" name="email" required placeholder="student@gmail.com" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl mt-1">
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-3 gap-2">
                 <div>
                     <label class="text-slate-700">Course*</label>
                     <select name="course" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl mt-1 font-bold">
-                        <option value="BUMS">BUMS (Unani)</option>
-                        <option value="BAMS">BAMS (Ayurvedic)</option>
+                        <option value="BUMS">BUMS</option>
+                        <option value="BAMS">BAMS</option>
                     </select>
                 </div>
                 <div>
-                    <label class="text-slate-700">Class Roll No*</label>
+                    <label class="text-slate-700">Batch*</label>
+                    <input type="text" name="batch" required placeholder="e.g. 37th" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-700">Class Roll*</label>
                     <input type="text" name="roll_no" required placeholder="16" class="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl mt-1">
                 </div>
             </div>
