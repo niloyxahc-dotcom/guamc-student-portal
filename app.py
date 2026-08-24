@@ -1327,14 +1327,21 @@ def send_custom_notice():
 
 import csv
 import os
+from sqlalchemy import inspect
 
 @app.route('/admin/secret-sync-now')
 def secret_sync_now():
     csv_file = 'master_students.csv'
     if not os.path.exists(csv_file):
-        files_present = os.listdir('.')
-        return f"<h3>File Error:</h3> <p>{csv_file} not found!</p><p>Files present: {files_present}</p>"
+        return f"<h3>File Error:</h3> <p>{csv_file} not found!</p>"
         
+    # Student মডেলের সব কলামের আসল নাম বের করা
+    mapper = inspect(Student)
+    valid_cols = [c.key for c in mapper.attrs]
+    
+    # রোলের কলাম কোনটি তা নির্ধারণ
+    roll_attr = next((c for c in ['roll_no', 'roll', 'student_id', 'id'] if c in valid_cols), None)
+    
     added_count = 0
     updated_count = 0
 
@@ -1342,53 +1349,48 @@ def secret_sync_now():
         with open(csv_file, mode='r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                roll_val = None
+                # CSV থেকে রোলের মান নেওয়া
+                raw_roll = None
                 for k, v in row.items():
-                    if k and 'roll' in k.lower():
-                        roll_val = v
+                    if k and any(x in k.lower() for x in ['roll', 'id', 'student_id']):
+                        raw_roll = v
                         break
                 
-                if not roll_val:
+                if not raw_roll:
                     continue
 
-                roll_str = str(roll_val).strip()
+                roll_str = str(raw_roll).strip()
                 if roll_str.isdigit():
                     roll_str = roll_str.zfill(2)
 
-                student = Student.query.filter_by(roll=roll_str).first()
+                # স্টুডেন্ট খোঁজা
+                student = None
+                if roll_attr:
+                    student = Student.query.filter(getattr(Student, roll_attr) == roll_str).first()
+                
                 if not student:
-                    student = Student(roll=roll_str)
+                    student = Student()
+                    if roll_attr:
+                        setattr(student, roll_attr, roll_str)
                     db.session.add(student)
                     added_count += 1
                 else:
                     updated_count += 1
 
+                # কলাম অনুযায়ী ডেটা ফিল করা
                 for col_name, val in row.items():
                     if not col_name or not val:
                         continue
                     clean_col = col_name.strip().lower().replace(' ', '_')
                     
-                    if 'name' in clean_col and 'bangla' not in clean_col:
-                        if hasattr(student, 'name_english'): student.name_english = val.strip()
-                        if hasattr(student, 'name'): student.name = val.strip()
-                    elif 'bangla' in clean_col:
-                        if hasattr(student, 'name_bangla'): student.name_bangla = val.strip()
-                    elif 'email' in clean_col:
-                        if hasattr(student, 'personal_email'): student.personal_email = val.strip()
-                        if hasattr(student, 'email'): student.email = val.strip()
-                    elif 'phone' in clean_col or 'contact' in clean_col or 'mobile' in clean_col:
-                        if hasattr(student, 'contact_no'): student.contact_no = val.strip()
-                        if hasattr(student, 'phone'): student.phone = val.strip()
-                    elif 'blood' in clean_col:
-                        if hasattr(student, 'blood_group'): student.blood_group = val.strip()
-                    elif 'course' in clean_col:
-                        if hasattr(student, 'course'): student.course = val.strip()
-                    elif 'session' in clean_col:
-                        if hasattr(student, 'session'): student.session = val.strip()
+                    for v_col in valid_cols:
+                        if v_col in clean_col or clean_col in v_col:
+                            if not getattr(student, v_col, None):
+                                setattr(student, v_col, val.strip())
 
             db.session.commit()
-            return f"<h2>Sync Successful!</h2><p><b>Added New:</b> {added_count}</p><p><b>Preserved/Updated:</b> {updated_count}</p><br><a href='/admin'>Go to Admin Portal</a>"
+            return f"<h2>Sync Successful!</h2><p><b>Model Columns:</b> {valid_cols}</p><p><b>Added New:</b> {added_count}</p><p><b>Preserved/Updated:</b> {updated_count}</p><br><a href='/admin'>Go to Admin Portal</a>"
             
     except Exception as e:
         db.session.rollback()
-        return f"<h3>Database Error:</h3> <p>{str(e)}</p>"
+        return f"<h3>Database Error:</h3> <p>{str(e)}</p><p><b>Available Model Columns:</b> {valid_cols}</p>"
