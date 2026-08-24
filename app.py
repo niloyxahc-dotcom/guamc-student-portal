@@ -577,7 +577,8 @@ return render_template('admin.html',
                            nav_links=nav_links,
                            search_q=search_q,
                            course_filter=course_filter)
-                           
+
+
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
 @app.route('/admin/student_detail/<int:id>')
@@ -620,7 +621,6 @@ def admin_get_student_json(id):
         "student": data,
         **data
     })
-
 # ==========================================================
 # ২. নির্ভুল ফিল্ড পার্সিং সিঙ্ক (পিতা/মাতার নাম ও সম্পূর্ণ ডাটা)
 # ==========================================================
