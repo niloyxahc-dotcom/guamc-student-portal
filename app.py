@@ -578,6 +578,87 @@ def admin_panel():
                            search_q=search_q, 
                            course_filter=course_filter)
 
+# ==========================================================
+# ১. সার্বজনীন Dossier API (কনসোলের 404 রুটটি সহ ফিক্সড)
+# ==========================================================
+@app.route('/admin/student-detail_<student_id>')
+@app.route('/admin/student-detail/<student_id>')
+@app.route('/admin/student_detail/<student_id>')
+@app.route('/admin/get_student/<student_id>')
+@app.route('/admin/get_student_details/<student_id>')
+@app.route('/admin/student_details/<student_id>')
+@app.route('/admin/student/<student_id>')
+@app.route('/api/student/<student_id>')
+def get_student_details_api(student_id):
+    try:
+        student = None
+        s_str = str(student_id).strip()
+        
+        # ১. আইডি অথবা রোল দিয়ে খোঁজা
+        if s_str.isdigit():
+            student = Student.query.get(int(s_str))
+        
+        if not student:
+            student = Student.query.filter(
+                (Student.roll_no == s_str) | 
+                (Student.roll_no == s_str.zfill(2)) | 
+                (Student.unique_id == s_str) |
+                (Student.email == s_str)
+            ).first()
+
+        if not student:
+            return jsonify({"success": False, "error": "Student not found"}), 404
+
+        # ২. সব ফিল্ড নিরাপদ ডিকশনারিতে নেওয়া
+        data = {}
+        for column in student.__table__.columns:
+            try:
+                val = getattr(student, column.name)
+                if val is None:
+                    data[column.name] = "N/A"
+                elif hasattr(val, 'strftime'):
+                    data[column.name] = val.strftime('%Y-%m-%d')
+                else:
+                    data[column.name] = str(val)
+            except Exception:
+                data[column.name] = "N/A"
+
+        # ৩. গুগল ড্রাইভ ফটোর থাম্বনেইল লিংক
+        photo_url = data.get('photo', '')
+        if photo_url and 'drive.google.com' in photo_url:
+            file_id = None
+            if 'id=' in photo_url:
+                file_id = photo_url.split('id=')[-1].split('&')[0]
+            elif '/d/' in photo_url:
+                file_id = photo_url.split('/d/')[1].split('/')[0]
+            if file_id:
+                data['photo'] = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
+
+        # ফ্রন্টএন্ডের জন্য ফিল্ড ম্যাপিং
+        c_code = "2" if str(data.get('course', '')).upper() == "BAMS" else "1"
+        r_fmt = str(data.get('roll_no', '01')).zfill(2)
+        
+        data['name'] = data.get('name_english') or data.get('name') or "N/A"
+        data['name_english'] = data['name']
+        data['name_bangla'] = data.get('name_bangla') or "N/A"
+        data['father_name'] = data.get('father_name') or "N/A"
+        data['mother_name'] = data.get('mother_name') or "N/A"
+        data['roll'] = r_fmt
+        data['roll_no'] = r_fmt
+        data['phone'] = data.get('contact_number') or data.get('phone') or "N/A"
+        data['contact_number'] = data['phone']
+        data['course'] = data.get('course') or "BUMS"
+        data['unique_id'] = data.get('unique_id') or f"37{c_code}{r_fmt}"
+
+        return jsonify({
+            "success": True,
+            "status": "success",
+            "student": data,
+            **data
+        })
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 @app.route('/admin/student/<int:id>/details-json')
 @login_required
 def admin_get_student_json(id):
