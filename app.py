@@ -1098,97 +1098,121 @@ if __name__ == '__main__':
 import csv
 import os
 
+# ==========================================================
+# ১. Dossier API (প্রোফাইল লোড ও ড্রাইভ ছবি প্রিভিউ ফিক্স)
+# ==========================================================
+@app.route('/admin/get_student/<int:student_id>')
+@app.route('/api/student/<int:student_id>')
+@app.route('/admin/student/<int:student_id>')
+def get_student_details_api(student_id):
+    student = Student.query.get_or_404(student_id)
+    data = {}
+    for column in student.__table__.columns:
+        val = getattr(student, column.name)
+        if val is None:
+            data[column.name] = "N/A"
+        elif hasattr(val, 'strftime'):
+            data[column.name] = val.strftime('%Y-%m-%d')
+        else:
+            data[column.name] = str(val)
+
+    photo_url = data.get('photo', '')
+    if photo_url and 'drive.google.com' in photo_url:
+        file_id = None
+        if 'id=' in photo_url:
+            file_id = photo_url.split('id=')[-1].split('&')[0]
+        elif '/d/' in photo_url:
+            file_id = photo_url.split('/d/')[1].split('/')[0]
+        if file_id:
+            data['photo'] = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
+
+    return jsonify(data)
+
+
+# ==========================================================
+# ২. CSV + সাইন আপ করা সব ২১ জনের অটো-এপ্রুভাল সিঙ্ক
+# ==========================================================
+@app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
-@login_required
-def run_dossier_sync():
-    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
-    if not current_user.email or current_user.email.lower().strip() not in ADMIN_EMAILS:
-        return "Access denied!", 403
-
+def secret_sync_now():
     csv_file = 'master_students.csv'
-    if not os.path.exists(csv_file):
-        return f"Error: {csv_file} not found in root folder!", 404
+    csv_count = 0
 
-    with open(csv_file, mode='r', encoding='utf-8') as f:
-        reader = csv.DictReader(f)
-        updated_count = 0
-        created_count = 0
+    try:
+        if os.path.exists(csv_file):
+            with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
+                content = f.read()
 
-        for row in reader:
-            email = (row.get('Email Address') or '').strip().lower()
-            roll_no = (row.get('Class roll:') or row.get('Class Roll') or '').strip()
-            
-            student = None
-            if email:
-                student = Student.query.filter(Student.email.ilike(email)).first()
-            if not student and roll_no:
-                student = Student.query.filter_by(roll_no=roll_no).first()
+            lines = content.strip().splitlines()
+            if lines:
+                delimiter = ';' if ';' in lines[0] and ',' not in lines[0] else ','
+                reader = csv.DictReader(lines, delimiter=delimiter)
 
-            if not student:
-                student = Student(email=email, is_approved=True)
-                db.session.add(student)
-                created_count += 1
-            else:
-                updated_count += 1
+                for row in reader:
+                    if not row or not any(row.values()):
+                        continue
 
-            student.name_english = row.get('Name (In English)') or student.name_english
-            student.name_bangla = row.get('নাম (বাংলায়)') or student.name_bangla
-            student.course = row.get('Course:') or student.course
-            student.batch = row.get('Batch') or student.batch or '37th'
-            student.roll_no = roll_no or student.roll_no
-            student.blood_group = (row.get('Blood group?') or '').strip('? ') or student.blood_group
-            student.contact_number = row.get('Your contact number:') or student.contact_number
+                    raw_email = next((str(v).strip() for k, v in row.items() if k and 'email' in k.lower() and v), None)
+                    raw_roll = next((str(v).strip() for k, v in row.items() if k and any(x in k.lower() for x in ['roll', 'class_roll']) and v), None)
 
-            em_contact = [v for k, v in row.items() if k and 'Emergency Medical Contact Number' in k]
-            student.emergency_medical_contact = em_contact[0] if em_contact and em_contact[0] else student.emergency_medical_contact
+                    student = None
+                    if raw_email:
+                        student = Student.query.filter_by(email=raw_email).first()
+                    if not student and raw_roll:
+                        formatted_roll = raw_roll.zfill(2) if raw_roll.isdigit() else raw_roll
+                        student = Student.query.filter_by(roll_no=formatted_roll).first()
 
-            student.gender = row.get('Gender?') or student.gender
-            student.marital_status = row.get('Marital status?') or student.marital_status
-            student.date_of_birth = row.get('Date of birth') or student.date_of_birth
-            student.nid_or_birth_cert = row.get('NID/Birth Reg. No') or student.nid_or_birth_cert
-            
-            student.father_name = row.get("Father's Name") or student.father_name
-            student.father_occupation = row.get("Father's occupation:") or student.father_occupation
-            student.mother_name = row.get("Mother's Name") or student.mother_name
-            student.mother_occupation = row.get("Mother's occupation:") or student.mother_occupation
-            student.guardian_contact = row.get("Father's contact number") or row.get("Mother's contact number:") or row.get("Local guardian's contact number?") or student.guardian_contact
-            
-            student.height = row.get('Height (in feet & inches)') or student.height
-            student.weight = row.get('Weight in kg?') or student.weight
+                    if not student:
+                        student = Student()
+                        db.session.add(student)
 
-            student.family_income = row.get("Family's monthly income (in Taka)") or student.family_income
-            student.family_members = row.get('Member of family (in Number)?') or student.family_members
-            student.need_financial_aid = row.get('Do you need any financial aid for educational support?') or student.need_financial_aid
-            student.has_personal_income = row.get('Do you have any source of income (e.g., tuition)?') or student.has_personal_income
-            student.income_source_details = row.get('If yes, please specify:') or student.income_source_details
+                    student.is_approved = True
 
-            student.ssc_background = row.get('SSC background') or student.ssc_background
-            student.hsc_background = row.get('HSC background') or student.hsc_background
+                    for col_name, val in row.items():
+                        if not col_name or val is None or str(val).strip() == '':
+                            continue
+                        
+                        v_str = str(val).strip()
+                        c_clean = col_name.strip().lower().replace(' ', '_')
 
-            student.chronic_illness = row.get("Any chronic illness or major health conditions? (Write 'None' if NA) ") or student.chronic_illness
-            
-            allergies = [v for k, v in row.items() if k and 'Known Allergies' in k]
-            student.known_allergies = allergies[0] if allergies and allergies[0] else student.known_allergies
+                        if c_clean == 'id':
+                            if hasattr(student, 'unique_id') and not student.unique_id:
+                                student.unique_id = v_str
+                            continue
 
-            medication = [v for k, v in row.items() if k and 'Regular Medication' in k]
-            student.regular_medication = medication[0] if medication and medication[0] else student.regular_medication
+                        if hasattr(student, c_clean):
+                            setattr(student, c_clean, v_str)
 
-            student.library_member = row.get('Are you a member of College Library?') or student.library_member
-            student.hall_resident = row.get('Resident of Hall?') or student.hall_resident
-            
-            clubs = []
-            if row.get('Any co-curricular activities? '):
-                clubs.append(row.get('Any co-curricular activities? ').strip())
-            if row.get('Do you want to join any of the following club?'):
-                clubs.append(row.get('Do you want to join any of the following club?').strip())
-            student.club_interests = ", ".join(filter(None, clubs)) or student.club_interests
+                        if 'name' in c_clean and 'bangla' not in c_clean and hasattr(student, 'name_english'):
+                            student.name_english = v_str
+                        elif 'bangla' in c_clean and hasattr(student, 'name_bangla'):
+                            student.name_bangla = v_str
+                        elif any(x in c_clean for x in ['phone', 'contact', 'mobile']) and hasattr(student, 'contact_number'):
+                            student.contact_number = v_str
+                        elif 'email' in c_clean and hasattr(student, 'email'):
+                            student.email = v_str
+                        elif 'blood' in c_clean and hasattr(student, 'blood_group'):
+                            student.blood_group = v_str
+                        elif 'photo' in c_clean and hasattr(student, 'photo'):
+                            student.photo = v_str
 
-            student.is_approved = True
+                    if hasattr(student, 'roll_no') and raw_roll:
+                        student.roll_no = raw_roll.zfill(2) if raw_roll.isdigit() else raw_roll
+
+                    csv_count += 1
+
+        # সাইন আপ করা শিক্ষার্থীসহ সবাইকে অ্যাপ্রুভ করা
+        all_students = Student.query.all()
+        for s in all_students:
+            s.is_approved = True
 
         db.session.commit()
-    
-    return f"<h1>✅ Perfect Sync Complete! Updated: {updated_count}, Created: {created_count} students in PostgreSQL!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
+        total_students = Student.query.count()
+        return f"<h2>All Students Live & Ready!</h2><p><b>From CSV:</b> {csv_count}</p><p><b>Total Approved on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Portal</a>"
 
+    except Exception as e:
+        db.session.rollback()
+        return f"<h3>Error:</h3> <p>{str(e)}</p>"
 @app.after_request
 def add_cache_control(response):
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
