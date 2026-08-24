@@ -1,139 +1,188 @@
-import os
 import csv
+import os
 import re
-from datetime import datetime
-from werkzeug.security import generate_password_hash
-from app import app
-from models import db, Student
+from app import app, db, Student
 
-def clean_phone(val):
-    if not val:
-        return None
-    val = str(val).strip()
+OCCUPATION_KEYWORDS = [
+    'farmer', 'farming', 'agriculture', 'housewife', 'house wife', 'homemaker',
+    'business', 'businessman', 'business man', 'service', 'job', 'private', 'govt',
+    'doctor', 'teacher', 'engineer', 'driver', 'worker', 'retired', 'deceased', 'late',
+    'ব্যবসায়ী', 'কৃষি', 'গৃহিনী', 'গৃহিণী', 'চাকুরীজীবী', 'চাকরি'
+]
+
+def is_likely_occupation(text):
+    if not text:
+        return False
+    t = str(text).strip().lower()
+    return any(word in t for word in OCCUPATION_KEYWORDS)
+
+def format_bd_phone(raw_val):
+    if not raw_val:
+        return ""
+    val = str(raw_val).strip()
+    if 'E+' in val or 'e+' in val:
+        try:
+            val = str(int(float(val)))
+        except Exception:
+            pass
     digits = re.sub(r'\D', '', val)
-    if digits.startswith('8801') and len(digits) == 13:
-        return digits[2:]
-    if digits.startswith('1') and len(digits) == 10:
+    if not digits:
+        return ""
+    if len(digits) == 10 and digits.startswith('1'):
         return '0' + digits
-    if digits.startswith('01') and len(digits) == 11:
+    if len(digits) == 11 and digits.startswith('01'):
         return digits
-    return val if len(val) <= 15 else None
+    if len(digits) == 13 and digits.startswith('8801'):
+        return digits[2:]
+    return val
 
-def clean_drive_url(url):
-    if not url:
-        return None
-    url = str(url).strip()
-    m = re.search(r'id=([a-zA-Z0-9_-]{20,})', url) or re.search(r'/d/([a-zA-Z0-9_-]{20,})', url)
-    if m:
-        return f"https://drive.google.com/thumbnail?id={m.group(1)}&sz=w600"
-    return url
-
-def clean_text(val):
-    if not val or str(val).strip().lower() in ['none', 'na', 'n/a', 'no', 'nai', '']:
-        return None
-    return str(val).strip()
-
-def run_sync():
-    csv_file = 'master_students.csv'
+def clean_and_sync():
+    csv_file = 'master_students.csv' if os.path.exists('master_students.csv') else 'students.csv'
     if not os.path.exists(csv_file):
-        print(f"❌ Error: {csv_file} not found!")
+        print(f"Error: {csv_file} not found!")
         return
 
-    print("🚀 Starting robust CSV parsing & Supabase sync...")
-    
     with app.app_context():
         with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
-            reader = csv.DictReader(f)
-            
-            success_count = 0
-            for row in reader:
-                # ১. বাধ্যতামূলক তথ্য
-                email = str(row.get('Email Address', '')).strip().lower()
-                if not email or '@' not in email:
+            content = f.read()
+
+        lines = [l for l in content.strip().splitlines() if l.strip()]
+        delimiter = ';' if ';' in lines[0] and ',' not in lines[0] else ','
+        reader = csv.DictReader(lines, delimiter=delimiter)
+
+        updated_count = 0
+        for row in reader:
+            if not row or not any(row.values()):
+                continue
+
+            extracted = {
+                'email': '', 'roll': '', 'course': 'BUMS', 'batch': '37th', 'session': '',
+                'name_en': '', 'name_bn': '', 'gender': '', 'marital_status': '',
+                'father_name': '', 'father_occ': '', 'mother_name': '', 'mother_occ': '',
+                'dob': '', 'nid': '', 'income': '', 'members': '', 'contact': '',
+                'guardian_contact': '', 'emergency_contact': '', 'present_addr': '',
+                'permanent_addr': '', 'blood': '', 'photo': ''
+            }
+
+            for k, v in row.items():
+                if not k or v is None:
+                    continue
+                k_l = str(k).lower().strip()
+                v_s = str(v).strip()
+                if not v_s:
                     continue
 
-                course = str(row.get('Course:', 'BUMS')).strip().upper()
-                batch = str(row.get('Batch', '37')).strip()
-                name_eng = str(row.get('Name (In English)', '')).strip()
-                name_ban = str(row.get('নাম (বাংলায়)', '')).strip()
-                
-                # রোল নম্বর
-                raw_roll = re.sub(r'\D', '', str(row.get('Class roll:', '01')))
-                roll_no = raw_roll.zfill(2) if raw_roll else '01'
-                
-                # DIU / College Unique ID
-                dept_code = "2" if "BAMS" in course else "1"
-                unique_id = f"37{dept_code}{roll_no}"
+                if '@' in v_s and '.' in v_s:
+                    extracted['email'] = v_s.lower()
+                elif any(x in k_l for x in ['class_roll', 'roll_no', 'college_roll', 'রোল', 'roll']) and v_s.isdigit():
+                    extracted['roll'] = v_s.zfill(2)
+                elif any(x in k_l for x in ['course', 'বিভাগ', 'কোর্স']):
+                    extracted['course'] = 'BAMS' if ('ayurved' in v_s.lower() or 'bams' in v_s.lower()) else 'BUMS'
+                elif 'batch' in k_l or 'ব্যাচ' in k_l:
+                    extracted['batch'] = v_s
+                elif 'session' in k_l or 'সেশন' in k_l:
+                    extracted['session'] = v_s
+                elif any(x in k_l for x in ['gender', 'লিঙ্গ', 'sex']):
+                    extracted['gender'] = v_s
+                elif any(x in k_l for x in ['marital', 'বৈবাহিক']):
+                    extracted['marital_status'] = v_s
+                elif any(x in k_l for x in ['father_occupation', 'পিতার পেশা']):
+                    extracted['father_occ'] = v_s
+                elif any(x in k_l for x in ['father_name', 'পিতার নাম', 'বাবার নাম', 'father', 'পিতা']) and not any(x in k_l for x in ['occup', 'পেশা', 'phone', 'contact', 'number']):
+                    extracted['father_name'] = v_s
+                elif any(x in k_l for x in ['mother_occupation', 'মাতার পেশা']):
+                    extracted['mother_occ'] = v_s
+                elif any(x in k_l for x in ['mother_name', 'মাতার নাম', 'মায়ের নাম', 'mother', 'মাতা']) and not any(x in k_l for x in ['occup', 'পেশা', 'phone', 'contact', 'number']):
+                    extracted['mother_name'] = v_s
+                elif any(x in k_l for x in ['birth', 'dob', 'জন্ম']):
+                    extracted['dob'] = v_s
+                elif any(x in k_l for x in ['nid', 'birth_cert', 'এনআইডি', 'জন্ম নিবন্ধন']):
+                    extracted['nid'] = v_s
+                elif any(x in k_l for x in ['income', 'আয়', 'আয়']):
+                    extracted['income'] = v_s
+                elif any(x in k_l for x in ['member', 'সদস্য']):
+                    extracted['members'] = v_s
+                elif any(x in k_l for x in ['emergency', 'জরুরি']):
+                    extracted['emergency_contact'] = format_bd_phone(v_s)
+                elif any(x in k_l for x in ['guardian', 'অভিভাবক']):
+                    extracted['guardian_contact'] = format_bd_phone(v_s)
+                elif any(x in k_l for x in ['mobile', 'phone', 'contact', 'ফোন', 'মোবাইল', 'যোগাযোগ']):
+                    extracted['contact'] = format_bd_phone(v_s)
+                elif any(x in k_l for x in ['present_address', 'বর্তমান ঠিকানা', 'present']):
+                    extracted['present_addr'] = v_s
+                elif any(x in k_l for x in ['permanent_address', 'স্থায়ী ঠিকানা', 'স্থায়ী ঠিকানা', 'permanent']):
+                    extracted['permanent_addr'] = v_s
+                elif 'blood' in k_l or 'রক্তের গ্রুপ' in k_l or v_s.upper() in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']:
+                    extracted['blood'] = v_s.upper()
+                elif 'drive.google.com' in v_s or 'photo' in k_l or 'ছবি' in k_l or 'image' in k_l:
+                    extracted['photo'] = v_s
+                elif any(x in k_l for x in ['bangla', 'বাংলা']):
+                    extracted['name_bn'] = v_s
+                elif any(x in k_l for x in ['name', 'নাম']) and not any(x in k_l for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college', 'bangla', 'বাংলা', 'occupation', 'পেশা']):
+                    extracted['name_en'] = v_s
 
-                # ২. পিতা-মাতার নাম ও পেশা (১০০% নির্ভুল ম্যাপিং)
-                father_name = clean_text(row.get("Father's Name"))
-                father_occup = clean_text(row.get("Father's occupation:"))
-                mother_name = clean_text(row.get("Mother's Name"))
-                mother_occup = clean_text(row.get("Mother's occupation:"))
+            # Swap Fix: নাম ও পেশার অদলবদল ঠিক করা
+            if is_likely_occupation(extracted['father_name']) and not is_likely_occupation(extracted['father_occ']):
+                extracted['father_name'], extracted['father_occ'] = extracted['father_occ'], extracted['father_name']
+            elif is_likely_occupation(extracted['father_name']):
+                extracted['father_occ'] = extracted['father_name']
+                extracted['father_name'] = ""
 
-                # ৩. যোগাযোগ নম্বর
-                contact = clean_phone(row.get("Your contact number:"))
-                em_contact = clean_phone(row.get("Emergency Medical Contact Number:  অসুস্থতার মতো জরুরি মুহূর্তে দ্রুত যোগাযোগের জন্য নম্বর। ")) or clean_phone(row.get("Father's contact number")) or clean_phone(row.get("Mother's contact number:"))
-                guardian_contact = clean_phone(row.get("Local guardian's contact number?"))
+            if is_likely_occupation(extracted['mother_name']) and not is_likely_occupation(extracted['mother_occ']):
+                extracted['mother_name'], extracted['mother_occ'] = extracted['mother_occ'], extracted['mother_name']
+            elif is_likely_occupation(extracted['mother_name']):
+                extracted['mother_occ'] = extracted['mother_name']
+                extracted['mother_name'] = ""
 
-                # ৪. ঠিকানা ও ব্যক্তিগত তথ্য
-                present_addr = clean_text(row.get("Present address:"))
-                permanent_addr = clean_text(row.get("Your Permanent address:"))
-                blood = str(row.get("Blood group?", "")).strip().upper()
-                if blood not in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']:
-                    blood = None
-                
-                gender = clean_text(row.get("Gender?"))
-                marital = clean_text(row.get("Marital status?"))
-                dob = clean_text(row.get("Date of birth"))
-                nid = clean_text(row.get("NID/Birth Reg. No"))
-                photo = clean_drive_url(row.get("Upload Recent Passport Size Photo "))
+            student = None
+            if extracted['email']:
+                student = Student.query.filter(db.func.lower(Student.email) == extracted['email']).first()
+            if not student and extracted['roll']:
+                student = Student.query.filter_by(roll_no=extracted['roll']).first()
 
-                # ৫. ডেটাবেস অবজেক্ট তৈরি বা আপডেট (UPSERT)
-                student = Student.query.filter(db.func.lower(Student.email) == email).first()
-                if not student:
-                    student = Student.query.filter_by(roll_no=roll_no, course=course).first()
+            if not student:
+                student = Student(email=extracted['email'] or f"student_{extracted['roll']}@portal.local")
+                db.session.add(student)
 
-                if not student:
-                    student = Student(email=email)
-                    db.session.add(student)
+            student.is_approved = True
+            if extracted['roll']:
+                student.roll_no = extracted['roll']
+                student.class_roll = extracted['roll']
+            if extracted['name_en']: student.name_english = extracted['name_en']
+            if extracted['name_bn']: student.name_bangla = extracted['name_bn']
+            if extracted['course']: student.course = extracted['course']
+            if extracted['batch']: student.batch = extracted['batch']
+            if extracted['session']: student.session = extracted['session']
+            if extracted['gender'] and hasattr(student, 'gender'): student.gender = extracted['gender']
+            if extracted['marital_status'] and hasattr(student, 'marital_status'): student.marital_status = extracted['marital_status']
+            if extracted['father_name']: student.father_name = extracted['father_name']
+            if extracted['father_occ'] and hasattr(student, 'father_occupation'): student.father_occupation = extracted['father_occ']
+            if extracted['mother_name']: student.mother_name = extracted['mother_name']
+            if extracted['mother_occ'] and hasattr(student, 'mother_occupation'): student.mother_occupation = extracted['mother_occ']
+            if extracted['dob'] and hasattr(student, 'date_of_birth'): student.date_of_birth = extracted['dob']
+            if extracted['nid'] and hasattr(student, 'nid_or_birth_cert'): student.nid_or_birth_cert = extracted['nid']
+            if extracted['income'] and hasattr(student, 'family_income'): student.family_income = extracted['income']
+            if extracted['members'] and hasattr(student, 'family_members'): student.family_members = extracted['members']
+            if extracted['contact'] and hasattr(student, 'contact_number'): student.contact_number = extracted['contact']
+            if extracted['guardian_contact'] and hasattr(student, 'guardian_contact'): student.guardian_contact = extracted['guardian_contact']
+            if extracted['emergency_contact'] and hasattr(student, 'emergency_medical_contact'): student.emergency_medical_contact = extracted['emergency_contact']
+            if extracted['present_addr'] and hasattr(student, 'present_address'): student.present_address = extracted['present_addr']
+            if extracted['permanent_addr'] and hasattr(student, 'permanent_address'): student.permanent_address = extracted['permanent_addr']
+            if extracted['blood']: student.blood_group = extracted['blood']
+            if extracted['photo']: student.photo = extracted['photo']
 
-                student.email = email
-                student.course = course
-                student.batch = batch
-                student.roll_no = roll_no
-                student.class_roll = roll_no
-                student.unique_id = unique_id
-                student.name_english = name_eng
-                student.name_bangla = name_ban
-                student.father_name = father_name
-                student.father_occupation = father_occup
-                student.mother_name = mother_name
-                student.mother_occupation = mother_occup
-                student.contact_number = contact
-                student.emergency_medical_contact = em_contact
-                student.guardian_contact = guardian_contact
-                student.present_address = present_addr
-                student.permanent_address = permanent_addr
-                student.blood_group = blood
-                student.gender = gender
-                student.marital_status = marital
-                student.date_of_birth = dob
-                student.nid_or_birth_cert = nid
-                if photo:
-                    student.photo = photo
-                student.is_approved = True
+            c_digit = "2" if student.course == 'BAMS' else "1"
+            b_digit = re.sub(r'\D', '', str(student.batch)) or "37"
+            r_digit = str(student.roll_no or "01").zfill(2)
+            student.unique_id = f"{b_digit}{c_digit}{r_digit}"
 
-                # অ্যাডমিন ও ডিফল্ট পাসওয়ার্ড
-                if email in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-                    student.password_hash = generate_password_hash('6456994')
-                elif not student.password_hash:
-                    student.password_hash = generate_password_hash(f"guamc{roll_no}")
+            if not student.password_hash:
+                student.password_hash = "guamc123"
 
-                success_count += 1
+            updated_count += 1
 
-            db.session.commit()
-            print(f"✅ Success! Cleaned & Synced {success_count} students permanently to Supabase.")
+        db.session.commit()
+        print(f"✅ Success! All {updated_count} students cleaned and synced to Supabase.")
 
 if __name__ == '__main__':
-    run_sync()
+    clean_and_sync()

@@ -64,7 +64,7 @@
                         </td>
                         <td class="p-3 font-black text-slate-900">{{ p.name_english }}</td>
                         <td class="p-3 font-normal text-slate-600">{{ p.email }}</td>
-                        <td class="p-3 text-slate-600">{{ p.contact_number }}</td>
+                        <td class="p-3 text-slate-600">{{ p.contact_number or 'N/A' }}</td>
                         <td class="p-3 text-center">
                             <button onclick="viewStudentDetails('{{ p.id }}')" class="px-3 py-1 bg-indigo-50 border border-indigo-200 text-indigo-800 hover:bg-indigo-100 rounded-xl text-xs font-black transition shadow-sm">
                                 🔍 View Dossier
@@ -174,7 +174,7 @@
                                 <a href="{{ url_for('admin_impersonate_student', id=s.id) }}" class="p-1.5 bg-slate-100 hover:bg-emerald-50 text-emerald-800 rounded-lg border border-slate-200" title="View as Student">
                                     👁️
                                 </a>
-                                <button onclick="openEditModal('{{ s.id }}', '{{ s.name_english|escape }}', '{{ s.name_bangla or ''|escape }}', '{{ s.father_name or ''|escape }}', '{{ s.email }}', '{{ s.course }}', '{{ s.roll_no }}', '{{ s.blood_group or '' }}', '{{ s.contact_number or '' }}', '{{ s.emergency_medical_contact or '' }}', '{{ s.attendance or '' }}', '{{ s.batch or '37th' }}')" class="p-1.5 bg-slate-100 hover:bg-blue-50 text-blue-700 rounded-lg border border-slate-200" title="Edit Profile">
+                                <button onclick="openEditModal('{{ s.id }}', '{{ s.name_english|escape }}', '{{ s.name_bangla or ''|escape }}', '{{ s.father_name or ''|escape }}', '{{ s.father_occupation or ''|escape }}', '{{ s.mother_name or ''|escape }}', '{{ s.mother_occupation or ''|escape }}', '{{ s.email }}', '{{ s.course }}', '{{ s.roll_no }}', '{{ s.blood_group or '' }}', '{{ s.contact_number or '' }}', '{{ s.guardian_contact or '' }}', '{{ s.emergency_medical_contact or '' }}', '{{ s.date_of_birth or '' }}', '{{ s.nid_or_birth_cert or '' }}', '{{ s.family_income or '' }}', '{{ s.family_members or '' }}', '{{ s.present_address or ''|escape }}', '{{ s.permanent_address or ''|escape }}', '{{ s.attendance or '' }}', '{{ s.batch or '37th' }}', '{{ s.session or '' }}')" class="p-1.5 bg-slate-100 hover:bg-blue-50 text-blue-700 rounded-lg border border-slate-200" title="Edit Profile">
                                     ✏️
                                 </button>
                                 <form method="POST" action="{{ url_for('admin_reset_password', id=s.id) }}" onsubmit="return confirm('Reset password for {{ s.name_english }} to guamc123?');">
@@ -204,14 +204,14 @@
 
 </div>
 
-<!-- MODAL: FULL DOSSIER DETAILS -->
+<!-- MODAL: FULL COMPREHENSIVE DOSSIER -->
 <div id="modal-dossier" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-3xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
         <div class="flex justify-between items-center pb-3 border-b border-slate-100">
             <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
-                <span>📋</span> Comprehensive Student Profile
+                <span>📑</span> Student Dossier &amp; Comprehensive Profile
             </h3>
-            <button onclick="document.getElementById('modal-dossier').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
+            <button onclick="document.getElementById('modal-dossier').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600 transition">&times;</button>
         </div>
         <div id="dossier-content" class="text-xs space-y-4">
             <!-- Loaded dynamically via JS -->
@@ -219,76 +219,136 @@
     </div>
 </div>
 
-<!-- MODAL: EDIT STUDENT -->
+<!-- MODAL: EDIT STUDENT RECORD -->
 <div id="modal-edit-student" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
+    <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
             <h3 class="text-base font-black text-slate-800">✏️ Edit Full Student Record</h3>
             <button onclick="document.getElementById('modal-edit-student').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
         </div>
         <form id="form-edit-student" method="POST" class="space-y-3 text-xs font-bold">
-            <div>
-                <label class="text-slate-600">Full Name (English)</label>
-                <input type="text" name="name_english" id="edit_name_english" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-            </div>
-            <div>
-                <label class="text-slate-600">নাম (বাংলায়)</label>
-                <input type="text" name="name_bangla" id="edit_name_bangla" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-            </div>
-            <div>
-                <label class="text-slate-600">Email Address</label>
-                <input type="email" name="email" id="edit_email" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
-            </div>
-            <div class="grid grid-cols-3 gap-2">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                    <label class="text-slate-600">Course</label>
+                    <label class="text-slate-600">Full Name (English) *</label>
+                    <input type="text" name="name_english" id="edit_name_english" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">নাম (বাংলায়)</label>
+                    <input type="text" name="name_bangla" id="edit_name_bangla" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="text-slate-600">Course *</label>
                     <select name="course" id="edit_course" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold">
                         <option value="BUMS">BUMS</option>
                         <option value="BAMS">BAMS</option>
                     </select>
                 </div>
                 <div>
-                    <label class="text-slate-600">Batch</label>
+                    <label class="text-slate-600">Batch *</label>
                     <input type="text" name="batch" id="edit_batch" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
                 </div>
                 <div>
-                    <label class="text-slate-600">Class Roll</label>
+                    <label class="text-slate-600">Class Roll *</label>
                     <input type="text" name="roll_no" id="edit_roll_no" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-slate-600">Email Address *</label>
+                    <input type="email" name="email" id="edit_email" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Session</label>
+                    <input type="text" name="session" id="edit_session" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="text-slate-600">Father's Name</label>
                     <input type="text" name="father_name" id="edit_father_name" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Father's Occupation</label>
+                    <input type="text" name="father_occupation" id="edit_father_occupation" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-slate-600">Mother's Name</label>
+                    <input type="text" name="mother_name" id="edit_mother_name" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Mother's Occupation</label>
+                    <input type="text" name="mother_occupation" id="edit_mother_occupation" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                    <label class="text-slate-600">Student Phone</label>
+                    <input type="text" name="contact_number" id="edit_contact_number" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Guardian Contact</label>
+                    <input type="text" name="guardian_contact" id="edit_guardian_contact" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
                 </div>
                 <div>
                     <label class="text-slate-600">Blood Group</label>
                     <input type="text" name="blood_group" id="edit_blood_group" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                    <label class="text-slate-600">Phone</label>
-                    <input type="text" name="contact_number" id="edit_contact_number" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                    <label class="text-slate-600">Date of Birth</label>
+                    <input type="text" name="date_of_birth" id="edit_dob" placeholder="YYYY-MM-DD" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
                 </div>
                 <div>
-                    <label class="text-slate-600">Emergency Phone</label>
-                    <input type="text" name="emergency_medical_contact" id="edit_emergency_contact" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                    <label class="text-slate-600">NID / Birth Certificate</label>
+                    <input type="text" name="nid_or_birth_cert" id="edit_nid" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
                 </div>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-slate-600">Family Income</label>
+                    <input type="text" name="family_income" id="edit_income" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Family Members</label>
+                    <input type="text" name="family_members" id="edit_members" class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+            </div>
+
+            <div>
+                <label class="text-slate-600">Present Address</label>
+                <textarea name="present_address" id="edit_present_address" rows="2" class="w-full p-2 border border-slate-200 rounded-xl mt-1"></textarea>
+            </div>
+            <div>
+                <label class="text-slate-600">Permanent Address</label>
+                <textarea name="permanent_address" id="edit_permanent_address" rows="2" class="w-full p-2 border border-slate-200 rounded-xl mt-1"></textarea>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                     <label class="text-slate-600">Attendance %</label>
                     <input type="number" step="0.1" name="attendance" id="edit_attendance" placeholder="None" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-black text-emerald-800">
                 </div>
                 <div>
                     <label class="text-slate-600">Set Custom Password</label>
-                    <input type="text" name="custom_password" placeholder="Leave blank to keep" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-mono">
+                    <input type="text" name="custom_password" placeholder="Leave blank to keep current" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-mono">
                 </div>
             </div>
+
             <div class="pt-4 flex justify-end gap-2">
-                <button type="button" onclick="document.getElementById('modal-edit-student').classList.add('hidden')" class="px-4 py-2 bg-slate-100 rounded-xl text-slate-700">Cancel</button>
-                <button type="submit" class="px-5 py-2 bg-blue-700 text-white rounded-xl font-black shadow-md">Update Record</button>
+                <button type="button" onclick="document.getElementById('modal-edit-student').classList.add('hidden')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 transition">Cancel</button>
+                <button type="submit" class="px-5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-black shadow-md transition">Update Record</button>
             </div>
         </form>
     </div>
@@ -299,17 +359,17 @@
     <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
             <h3 class="text-base font-black text-slate-800">📁 Upload Materials &amp; Manage Folders</h3>
-            <button onclick="document.getElementById('modal-file-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
+            <button onclick="document.getElementById('modal-file-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
         </div>
 
         <form method="POST" action="{{ url_for('admin_add_folder') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4 flex gap-2 text-xs font-bold">
             <input type="text" name="folder_name" placeholder="New Folder Name" required class="flex-1 p-2 border border-slate-200 rounded-xl">
-            <select name="course" class="p-2 border border-slate-200 rounded-xl">
+            <select name="course" class="p-2 border border-slate-200 rounded-xl font-bold">
                 <option value="ALL">ALL</option>
                 <option value="BUMS">BUMS</option>
                 <option value="BAMS">BAMS</option>
             </select>
-            <button type="submit" class="px-4 py-2 bg-slate-800 text-white rounded-xl font-bold">+ Folder</button>
+            <button type="submit" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold transition">+ Folder</button>
         </form>
 
         <form method="POST" action="{{ url_for('admin_upload_file') }}" enctype="multipart/form-data" class="bg-blue-50 p-4 rounded-2xl border border-blue-200 mb-4 space-y-3 text-xs font-bold">
@@ -341,7 +401,7 @@
                 <input type="file" name="file" class="w-full p-1 bg-white border border-slate-200 rounded-xl">
             </div>
             <input type="text" name="file_url" placeholder="Or External Google Drive Link" class="w-full p-2 border border-slate-200 rounded-xl">
-            <button type="submit" class="w-full py-2 bg-blue-700 text-white rounded-xl font-black">Upload Material</button>
+            <button type="submit" class="w-full py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl font-black transition">Upload Material</button>
         </form>
 
         <h4 class="text-xs uppercase text-slate-500 font-black mb-2">Uploaded Materials</h4>
@@ -353,7 +413,7 @@
                     <p class="text-[10px] text-slate-500">Course: {{ f.course }}</p>
                 </div>
                 <form method="POST" action="{{ url_for('admin_delete_file', id=f.id) }}" onsubmit="return confirm('Delete file?');">
-                    <button type="submit" class="text-rose-600 font-black p-1">Delete</button>
+                    <button type="submit" class="text-rose-600 hover:text-rose-800 font-black p-1">Delete</button>
                 </form>
             </div>
             {% endfor %}
@@ -366,7 +426,7 @@
     <div class="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
             <h3 class="text-base font-black text-slate-800">🏛️ Manage Departments</h3>
-            <button onclick="document.getElementById('modal-dept-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
+            <button onclick="document.getElementById('modal-dept-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
         </div>
         <form method="POST" action="{{ url_for('admin_save_department') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-4 space-y-2 text-xs font-bold">
             <input type="text" name="name" placeholder="Department Name" required class="w-full p-2 border border-slate-200 rounded-xl">
@@ -377,7 +437,7 @@
                 </select>
                 <input type="number" name="order" placeholder="Order" value="{{ (departments|length)+1 }}" class="p-2 border border-slate-200 rounded-xl">
             </div>
-            <button type="submit" class="w-full py-2 bg-purple-800 text-white rounded-xl font-black">+ Add Department</button>
+            <button type="submit" class="w-full py-2 bg-purple-800 hover:bg-purple-900 text-white rounded-xl font-black transition">+ Add Department</button>
         </form>
         <div class="space-y-2">
             {% for d in departments %}
@@ -387,7 +447,7 @@
                     <span class="ml-1 text-slate-900">{{ d.name }}</span>
                 </div>
                 <form method="POST" action="{{ url_for('admin_delete_department', id=d.id) }}" onsubmit="return confirm('Delete department?');">
-                    <button type="submit" class="text-rose-600 font-bold p-1">✕</button>
+                    <button type="submit" class="text-rose-600 hover:text-rose-800 font-bold p-1">✕</button>
                 </form>
             </div>
             {% endfor %}
@@ -400,7 +460,7 @@
     <div class="bg-white rounded-3xl p-6 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
         <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
             <h3 class="text-base font-black text-slate-800">🧭 Navigation Manager</h3>
-            <button onclick="document.getElementById('modal-nav-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400">&times;</button>
+            <button onclick="document.getElementById('modal-nav-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
         </div>
         <form method="POST" action="{{ url_for('admin_save_nav_link') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 space-y-3 text-xs font-bold">
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
@@ -415,7 +475,7 @@
                     <span class="text-[11px] text-slate-600">External URL?</span>
                 </label>
             </div>
-            <button type="submit" class="w-full py-2 bg-indigo-700 text-white rounded-xl font-black">+ Add Nav Item</button>
+            <button type="submit" class="w-full py-2 bg-indigo-700 hover:bg-indigo-800 text-white rounded-xl font-black transition">+ Add Nav Item</button>
         </form>
         <div class="space-y-2">
             {% for item in nav_links %}
@@ -428,7 +488,7 @@
                     </div>
                 </div>
                 <form method="POST" action="{{ url_for('admin_delete_nav_link', id=item.id) }}" onsubmit="return confirm('Remove nav link?');">
-                    <button type="submit" class="text-rose-600 font-black p-1">Delete</button>
+                    <button type="submit" class="text-rose-600 hover:text-rose-800 font-black p-1">Delete</button>
                 </form>
             </div>
             {% endfor %}
@@ -447,35 +507,45 @@ function calculateAtt(id) {
         attInput.value = percentage.toFixed(1);
     }
 }
-function openEditModal(id, nameEng, nameBan, father, email, course, roll, blood, phone, emergency, att, batch) {
+
+function openEditModal(id, nameEng, nameBan, father, fatherOcc, mother, motherOcc, email, course, roll, blood, phone, guardian, emergency, dob, nid, income, members, presentAddr, permanentAddr, att, batch, session) {
     document.getElementById('form-edit-student').action = '/admin/student/edit/' + id;
-    document.getElementById('edit_name_english').value = nameEng;
-    document.getElementById('edit_name_bangla').value = nameBan;
-    document.getElementById('edit_father_name').value = father;
-    document.getElementById('edit_email').value = email;
-    document.getElementById('edit_course').value = course;
-    document.getElementById('edit_batch').value = batch;
-    document.getElementById('edit_roll_no').value = roll;
-    document.getElementById('edit_blood_group').value = blood;
-    document.getElementById('edit_contact_number').value = phone;
-    document.getElementById('edit_emergency_contact').value = emergency;
+    document.getElementById('edit_name_english').value = nameEng || '';
+    document.getElementById('edit_name_bangla').value = nameBan || '';
+    document.getElementById('edit_father_name').value = father || '';
+    document.getElementById('edit_father_occupation').value = fatherOcc || '';
+    document.getElementById('edit_mother_name').value = mother || '';
+    document.getElementById('edit_mother_occupation').value = motherOcc || '';
+    document.getElementById('edit_email').value = email || '';
+    document.getElementById('edit_course').value = course || 'BUMS';
+    document.getElementById('edit_batch').value = batch || '37th';
+    document.getElementById('edit_roll_no').value = roll || '';
+    document.getElementById('edit_session').value = session || '';
+    document.getElementById('edit_blood_group').value = blood || '';
+    document.getElementById('edit_contact_number').value = phone || '';
+    document.getElementById('edit_guardian_contact').value = guardian || '';
+    document.getElementById('edit_dob').value = dob || '';
+    document.getElementById('edit_nid').value = nid || '';
+    document.getElementById('edit_income').value = income || '';
+    document.getElementById('edit_members').value = members || '';
+    document.getElementById('edit_present_address').value = presentAddr || '';
+    document.getElementById('edit_permanent_address').value = permanentAddr || '';
     document.getElementById('edit_attendance').value = att || '';
     document.getElementById('modal-edit-student').classList.remove('hidden');
 }
 
 function viewStudentDetails(id) {
-    const modal = document.getElementById('modal-dossier') || document.getElementById('studentDetailsModal');
-    const contentBox = document.getElementById('dossier-content') || document.getElementById('studentDetailsContent');
+    const modal = document.getElementById('modal-dossier');
+    const contentBox = document.getElementById('dossier-content');
     
     if (modal) {
         modal.classList.remove('hidden');
     }
     
     if (contentBox) {
-        contentBox.innerHTML = '<div class="text-center py-6 text-slate-500 font-medium">তথ্য লোড হচ্ছে...</div>';
+        contentBox.innerHTML = '<div class="text-center py-10 text-slate-500 font-medium">ডসিয়ার তথ্য লোড হচ্ছে...</div>';
     }
 
-    // ব্যাকএন্ডের সঠিক রুট কল
     fetch(`/admin/student-detail_${id}?t=${new Date().getTime()}`)
         .then(res => {
             if (!res.ok) throw new Error("HTTP " + res.status);
@@ -495,18 +565,79 @@ function viewStudentDetails(id) {
             let html = `
                 <div class="space-y-4 text-left">
                     <div class="flex flex-col items-center justify-center border-b pb-4">
-                        ${photoUrl ? `<img src="${photoUrl}" class="w-24 h-24 rounded-full object-cover border-2 border-emerald-500 shadow-sm mb-2" onerror="this.style.display='none'">` : ''}
-                        <h3 class="text-lg font-bold text-gray-800">${s.name_english || s.name || 'N/A'}</h3>
-                        <p class="text-xs text-gray-500 font-mono">ID: ${s.unique_id || 'N/A'} | Dept: ${s.course || 'BUMS'}</p>
+                        ${photoUrl ? `<img src="${photoUrl}" class="w-24 h-24 rounded-full object-cover border-2 border-emerald-600 shadow-md mb-2" onerror="this.style.display='none'">` : ''}
+                        <h3 class="text-lg font-black text-slate-900">${s.name_english || s.name || 'N/A'}</h3>
+                        <p class="text-xs text-slate-500 font-mono font-bold mt-0.5">ID: ${s.unique_id || 'N/A'} | Dept: <span class="text-emerald-800 font-black">${s.course || 'BUMS'}</span> | Roll: ${s.roll_no || s.class_roll || 'N/A'}</p>
                     </div>
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                        <div class="p-2 bg-gray-50 rounded"><strong>রোল:</strong> ${s.roll_no || s.roll || 'N/A'}</div>
-                        <div class="p-2 bg-gray-50 rounded"><strong>বাংলা নাম:</strong> ${s.name_bangla || 'N/A'}</div>
-                        <div class="p-2 bg-gray-50 rounded"><strong>পিতার নাম:</strong> ${s.father_name || 'N/A'}</div>
-                        <div class="p-2 bg-gray-50 rounded"><strong>মাতার নাম:</strong> ${s.mother_name || 'N/A'}</div>
-                        <div class="p-2 bg-gray-50 rounded col-span-2"><strong>ইমেইল:</strong> ${s.email || 'N/A'}</div>
-                        <div class="p-2 bg-gray-50 rounded"><strong>ফোন:</strong> ${s.contact_number || s.phone || 'N/A'}</div>
-                        <div class="p-2 bg-gray-50 rounded"><strong>ব্লাড গ্রুপ:</strong> ${s.blood_group || 'N/A'}</div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">বাংলা নাম</span>
+                            <span class="text-slate-900 font-black">${s.name_bangla || 'N/A'}</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">সেশন ও ব্যাচ</span>
+                            <span class="text-slate-900 font-black">${s.session || 'N/A'} (${s.batch || '37th'})</span>
+                        </div>
+
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">পিতার নাম</span>
+                            <span class="text-slate-900 font-black">${s.father_name || 'N/A'}</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">পিতার পেশা</span>
+                            <span class="text-slate-900 font-black">${s.father_occupation || 'N/A'}</span>
+                        </div>
+
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">মাতার নাম</span>
+                            <span class="text-slate-900 font-black">${s.mother_name || 'N/A'}</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">মাতার পেশা</span>
+                            <span class="text-slate-900 font-black">${s.mother_occupation || 'N/A'}</span>
+                        </div>
+
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">শিক্ষার্থীর ফোন</span>
+                            <span class="text-slate-900 font-black">${s.contact_number || 'N/A'}</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">অভিভাবকের যোগাযোগ</span>
+                            <span class="text-slate-900 font-black">${s.guardian_contact || s.emergency_medical_contact || 'N/A'}</span>
+                        </div>
+
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 sm:col-span-2">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">ইমেইল এড্রেস</span>
+                            <span class="text-slate-900 font-mono font-bold">${s.email || 'N/A'}</span>
+                        </div>
+
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">জন্ম তারিখ</span>
+                            <span class="text-slate-900 font-black">${s.date_of_birth || 'N/A'}</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">রক্তের গ্রুপ</span>
+                            <span class="text-rose-600 font-black text-sm">${s.blood_group || 'N/A'}</span>
+                        </div>
+
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">NID / জন্ম নিবন্ধন নম্বর</span>
+                            <span class="text-slate-900 font-mono font-bold">${s.nid_or_birth_cert || 'N/A'}</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">পারিবারিক আয় ও সদস্য</span>
+                            <span class="text-slate-900 font-black">${s.family_income || 'N/A'} | সদস্য: ${s.family_members || 'N/A'}</span>
+                        </div>
+
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 sm:col-span-2">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">বর্তমান ঠিকানা</span>
+                            <span class="text-slate-800 font-medium">${s.present_address || 'N/A'}</span>
+                        </div>
+                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 sm:col-span-2">
+                            <span class="text-slate-400 block font-bold text-[10px] uppercase">স্থায়ী ঠিকানা</span>
+                            <span class="text-slate-800 font-medium">${s.permanent_address || 'N/A'}</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -517,7 +648,7 @@ function viewStudentDetails(id) {
         .catch(err => {
             console.error("Dossier Fetch Error:", err);
             if (contentBox) {
-                contentBox.innerHTML = '<div class="text-center py-6 text-rose-500 font-medium">ডেটা লোড করতে সমস্যা হয়েছে।</div>';
+                contentBox.innerHTML = '<div class="text-center py-10 text-rose-500 font-medium">ডসিয়ার ডেটা লোড করতে সমস্যা হয়েছে।</div>';
             }
         });
 }
