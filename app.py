@@ -572,7 +572,8 @@ def admin_panel():
                            students=approved_students, 
                            pending_students=pending_students, 
                            departments=departments,
-                           folders=folders,
+                 return jsonify({
+                folders=folders,
                            files=files,
                            nav_links=nav_links,
                            search_q=search_q, 
@@ -588,52 +589,175 @@ def admin_panel():
 def admin_get_student_json(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return jsonify({'error': 'Unauthorized'}), 403
+
     s = Student.query.get_or_404(id)
+
+    photo_url = getattr(s, 'photo', '') or ''
+    if photo_url and 'drive.google.com' in photo_url:
+        file_id = None
+        if 'id=' in photo_url:
+            file_id = photo_url.split('id=')[-1].split('&')[0]
+        elif '/d/' in photo_url:
+            file_id = photo_url.split('/d/')[1].split('/')[0]
+        if file_id:
+            photo_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
+
+    data = {}
+    for column in s.__table__.columns:
+        try:
+            val = getattr(s, column.name)
+            if val is None:
+                data[column.name] = "N/A"
+            elif hasattr(val, 'strftime'):
+                data[column.name] = val.strftime('%Y-%m-%d')
+            else:
+                data[column.name] = str(val)
+        except Exception:
+            data[column.name] = "N/A"
+
+    data['photo'] = photo_url
     return jsonify({
-        'id': s.id,
-        'unique_id': s.unique_id,
-        'batch': s.batch,
-        'course': s.course,
-        'roll_no': s.roll_no,
-        'session': s.session or 'N/A',
-        'name_english': s.name_english,
-        'name_bangla': s.name_bangla or 'N/A',
-        'gender': s.gender or 'N/A',
-        'marital_status': s.marital_status or 'N/A',
-        'father_name': s.father_name or 'N/A',
-        'father_occupation': s.father_occupation or 'N/A',
-        'mother_name': s.mother_name or 'N/A',
-        'mother_occupation': s.mother_occupation or 'N/A',
-        'date_of_birth': s.date_of_birth or 'N/A',
-        'nid_or_birth_cert': s.nid_or_birth_cert or 'N/A',
-        'blood_group': s.blood_group or 'N/A',
-        'height': s.height or 'N/A',
-        'weight': s.weight or 'N/A',
-        'wear_glasses': s.wear_glasses or 'N/A',
-        'chronic_illness': s.chronic_illness or 'None',
-        'known_allergies': s.known_allergies or 'None',
-        'regular_medication': s.regular_medication or 'None',
-        'emergency_medical_contact': s.emergency_medical_contact or 'N/A',
-        'identification_mark': s.identification_mark or 'N/A',
-        'family_income': s.family_income or 'N/A',
-        'family_members': s.family_members or 'N/A',
-        'need_financial_aid': s.need_financial_aid or 'No',
-        'has_personal_income': s.has_personal_income or 'No',
-        'income_source_details': s.income_source_details or 'None',
-        'hsc_background': s.hsc_background or 'N/A',
-        'ssc_background': s.ssc_background or 'N/A',
-        'library_member': s.library_member or 'No',
-        'hall_resident': s.hall_resident or 'No',
-        'co_curricular_activities': s.co_curricular_activities or 'None',
-        'club_interests': s.club_interests or 'None',
-        'contact_number': s.contact_number or 'N/A',
-        'guardian_contact': s.guardian_contact or 'N/A',
-        'present_address': s.present_address or 'N/A',
-        'permanent_address': s.permanent_address or 'N/A',
-        'email': s.email,
-        'photo': s.photo or url_for('user_avatar', user_id=s.id)
+        "status": "success",
+        "student": data,
+        **data
     })
 
+# ==========================================================
+# ২. নির্ভুল ফিল্ড পার্সিং সিঙ্ক (পিতা/মাতার নাম ও সম্পূর্ণ ডাটা)
+# ==========================================================
+@app.route('/admin/secret-sync-now')
+@app.route('/admin/run-dossier-sync')
+def secret_sync_now():
+    csv_file = 'master_students.csv'
+    csv_processed = 0
+
+    try:
+        if os.path.exists(csv_file):
+            with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
+                content = f.read()
+
+            lines = [l for l in content.strip().splitlines() if l.strip()]
+            if lines:
+                delimiter = ';' if ';' in lines[0] and ',' not in lines[0] else ','
+                reader = csv.DictReader(lines, delimiter=delimiter)
+
+                for row in reader:
+                    if not row or not any(row.values()):
+                        continue
+
+                    email_val = None
+                    class_roll = None
+                    detected_course = 'BUMS'
+
+                    for k, v in row.items():
+                        if not k or v is None:
+                            continue
+                        k_clean = k.strip().lower()
+                        v_str = str(v).strip()
+                        if not v_str:
+                            continue
+
+                        if '@' in v_str and '.' in v_str:
+                            email_val = v_str
+                        elif any(r in k_clean for r in ['class_roll', 'college_roll', 'roll_no', 'বর্তমান রোল', 'roll']) and v_str.isdigit() and len(v_str) <= 3:
+                            class_roll = v_str.zfill(2)
+                        
+                        if any(c in k_clean for c in ['course', 'dept', 'department', 'বিভাগ', 'কোর্স']):
+                            if 'ayurved' in v_str.lower() or 'bams' in v_str.lower():
+                                detected_course = 'BAMS'
+                            elif 'unani' in v_str.lower() or 'bums' in v_str.lower():
+                                detected_course = 'BUMS'
+
+                    student = None
+                    if email_val:
+                        student = Student.query.filter_by(email=email_val).first()
+                    if not student and class_roll:
+                        student = Student.query.filter_by(roll_no=class_roll).first()
+
+                    if not student:
+                        student = Student()
+                        db.session.add(student)
+
+                    student.is_approved = True
+
+                    if class_roll:
+                        student.roll_no = class_roll
+                    if email_val:
+                        student.email = email_val
+                    
+                    if hasattr(student, 'course'):
+                        student.course = detected_course
+
+                    if hasattr(student, 'unique_id') and class_roll:
+                        dept_digit = "2" if detected_course == 'BAMS' else "1"
+                        student.unique_id = f"37{dept_digit}{class_roll}"
+
+                    # সকল ফিল্ডের নিখুঁত অ্যাসাইনমেন্ট
+                    for k, v in row.items():
+                        if not k or v is None:
+                            continue
+                        k_clean = k.strip().lower()
+                        v_str = str(v).strip()
+                        if not v_str:
+                            continue
+
+                        # ফোন নম্বর ফিল্টারিং (নামের ওপর যেন ওভাররাইট না হয়)
+                        if (v_str.startswith('01') or v_str.startswith('+8801')) and len(v_str.replace('+88', '')) >= 11:
+                            if 'emergency' in k_clean or 'অভিভাবক' in k_clean:
+                                if hasattr(student, 'emergency_contact'): student.emergency_contact = v_str
+                            else:
+                                if hasattr(student, 'contact_number'): student.contact_number = v_str
+                            continue
+
+                        if v_str.upper() in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']:
+                            if hasattr(student, 'blood_group'): student.blood_group = v_str.upper()
+                            continue
+
+                        if 'drive.google.com' in v_str or 'photo' in k_clean:
+                            if hasattr(student, 'photo'): student.photo = v_str
+                            continue
+
+                        # পিতা ও মাতার নাম (ফোন নম্বর এড়িয়ে চলা)
+                        if any(f in k_clean for f in ['father', 'পিতা', 'বাবার নাম']) and not any(p in k_clean for p in ['phone', 'mobile', 'নাম্বার', 'নং']):
+                            if hasattr(student, 'father_name'): student.father_name = v_str
+                        elif any(m in k_clean for m in ['mother', 'মাতা', 'মায়ের নাম']) and not any(p in k_clean for p in ['phone', 'mobile', 'নাম্বার', 'নং']):
+                            if hasattr(student, 'mother_name'): student.mother_name = v_str
+                        elif any(b in k_clean for b in ['bangla', 'বাংলা']) and 'father' not in k_clean and 'mother' not in k_clean:
+                            if hasattr(student, 'name_bangla'): student.name_bangla = v_str
+                        elif any(n in k_clean for n in ['name', 'student_name', 'পূর্ণ নাম', 'নাম']) and not any(x in k_clean for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college', 'bangla', 'বাংলা']):
+                            student.name_english = v_str
+
+                        # ডাইনামিক ফিল্ডস
+                        attr = k_clean.replace(' ', '_').replace('-', '_')
+                        if hasattr(student, attr) and not getattr(student, attr, None):
+                            setattr(student, attr, v_str)
+
+                    csv_processed += 1
+
+        all_students = Student.query.all()
+        for idx, s in enumerate(all_students, start=1):
+            s.is_approved = True
+            c_name = getattr(s, 'course', 'BUMS') or 'BUMS'
+            d_code = "2" if c_name == 'BAMS' else "1"
+            r_num = getattr(s, 'roll_no', str(idx).zfill(2)) or str(idx).zfill(2)
+
+            if hasattr(s, 'unique_id'):
+                s.unique_id = f"37{d_code}{r_num}"
+
+            default_pwd = f"guamc{r_num}"
+            if hasattr(s, 'password_hash') and not s.password_hash:
+                s.password_hash = generate_password_hash(default_pwd)
+            elif hasattr(s, 'password') and not s.password:
+                s.password = generate_password_hash(default_pwd)
+
+        db.session.commit()
+        total_students = Student.query.count()
+        return f"<h2>All {total_students} Students Cleaned & Synced!</h2><p><b>From CSV:</b> {csv_processed}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
+
+    except Exception as e:
+        db.session.rollback()
+        return f"<h3>Error:</h3> <p>{str(e)}</p>"
+        
 @app.route('/admin/live-attendance', methods=['GET', 'POST'])
 @login_required
 def admin_live_attendance():
@@ -1103,146 +1227,3 @@ import os
 from flask import jsonify
 from werkzeug.security import generate_password_hash
 
-
-# ==========================================================
-# ২. ২২ জনের মাস্টার সিঙ্ক: 371XX / 372XX আইডি, পাসওয়ার্ড ও কোর্স ফিক্স
-# ==========================================================
-@app.route('/admin/secret-sync-now')
-@app.route('/admin/run-dossier-sync')
-def secret_sync_now():
-    csv_file = 'master_students.csv'
-    csv_processed = 0
-
-    try:
-        if os.path.exists(csv_file):
-            with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
-                content = f.read()
-
-            lines = [l for l in content.strip().splitlines() if l.strip()]
-            if lines:
-                delimiter = ';' if ';' in lines[0] and ',' not in lines[0] else ','
-                reader = csv.DictReader(lines, delimiter=delimiter)
-
-                for row in reader:
-                    if not row or not any(row.values()):
-                        continue
-
-                    email_val = None
-                    class_roll = None
-                    detected_course = 'BUMS'
-
-                    for k, v in row.items():
-                        if not k or v is None:
-                            continue
-                        k_clean = k.strip().lower()
-                        v_str = str(v).strip()
-                        if not v_str:
-                            continue
-
-                        if '@' in v_str and '.' in v_str:
-                            email_val = v_str
-                        elif any(r in k_clean for r in ['class_roll', 'college_roll', 'roll_no', 'বর্তমান রোল', 'roll']) and v_str.isdigit() and len(v_str) <= 3:
-                            class_roll = v_str.zfill(2)
-                        
-                        if any(c in k_clean for c in ['course', 'dept', 'department', 'বিভাগ', 'কোর্স']):
-                            if 'ayurved' in v_str.lower() or 'bams' in v_str.lower():
-                                detected_course = 'BAMS'
-                            elif 'unani' in v_str.lower() or 'bums' in v_str.lower():
-                                detected_course = 'BUMS'
-
-                    student = None
-                    if email_val:
-                        student = Student.query.filter_by(email=email_val).first()
-                    if not student and class_roll:
-                        student = Student.query.filter_by(roll_no=class_roll).first()
-
-                    if not student:
-                        student = Student()
-                        db.session.add(student)
-
-                    student.is_approved = True
-
-                    if class_roll:
-                        student.roll_no = class_roll
-                    if email_val:
-                        student.email = email_val
-                    
-                    if hasattr(student, 'course'):
-                        student.course = detected_course
-
-                    # ৫-সংখ্যার স্ট্যান্ডার্ড ইউনিক আইডি তৈরি: 37 + (1 for BUMS / 2 for BAMS) + Roll
-                    if hasattr(student, 'unique_id') and class_roll:
-                        dept_digit = "2" if detected_course == 'BAMS' else "1"
-                        student.unique_id = f"37{dept_digit}{class_roll}"
-
-                    # ফোন, রক্ত, ছবি ও অভিভাবকের নাম
-                    for k, v in row.items():
-                        if not k or v is None:
-                            continue
-                        k_clean = k.strip().lower()
-                        v_str = str(v).strip()
-                        if not v_str:
-                            continue
-
-                        if (v_str.startswith('01') or v_str.startswith('+8801')) and len(v_str.replace('+88', '')) >= 11:
-                            if hasattr(student, 'contact_number'):
-                                student.contact_number = v_str
-                        elif v_str.upper() in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']:
-                            if hasattr(student, 'blood_group'):
-                                student.blood_group = v_str.upper()
-                        elif 'drive.google.com' in v_str or 'photo' in k_clean:
-                            if hasattr(student, 'photo'):
-                                student.photo = v_str
-
-                        if any(f in k_clean for f in ['father', 'পিতা', 'বাবার নাম']):
-                            if hasattr(student, 'father_name'):
-                                student.father_name = v_str
-                        elif any(m in k_clean for m in ['mother', 'মাতা', 'মায়ের নাম']):
-                            if hasattr(student, 'mother_name'):
-                                student.mother_name = v_str
-                        elif any(b in k_clean for b in ['bangla', 'বাংলা']) and 'father' not in k_clean and 'mother' not in k_clean:
-                            if hasattr(student, 'name_bangla'):
-                                student.name_bangla = v_str
-                        elif any(n in k_clean for n in ['name', 'student_name', 'পূর্ণ নাম', 'নাম']) and not any(x in k_clean for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college', 'bangla', 'বাংলা']):
-                            student.name_english = v_str
-
-                        attr = k_clean.replace(' ', '_').replace('-', '_')
-                        if hasattr(student, attr) and not getattr(student, attr, None):
-                            setattr(student, attr, v_str)
-
-                    # ডিফল্ট পাসওয়ার্ড হ্যাশ
-                    default_pwd = "guamc" + (class_roll if class_roll else "1234")
-                    if hasattr(student, 'password_hash') and not student.password_hash:
-                        student.password_hash = generate_password_hash(default_pwd)
-                    elif hasattr(student, 'password') and not student.password:
-                        student.password = generate_password_hash(default_pwd)
-
-                    csv_processed += 1
-
-        # সকল স্টুডেন্টের আইডি ভ্যালিডেশন
-        all_students = Student.query.all()
-        for idx, s in enumerate(all_students, start=1):
-            s.is_approved = True
-            
-            c_name = getattr(s, 'course', 'BUMS') or 'BUMS'
-            d_code = "2" if c_name == 'BAMS' else "1"
-            r_num = getattr(s, 'roll_no', str(idx).zfill(2)) or str(idx).zfill(2)
-
-            # আইডি 371XX / 372XX নিশ্চিত করা
-            if hasattr(s, 'unique_id'):
-                s.unique_id = f"37{d_code}{r_num}"
-
-            # পাসওয়ার্ড নিশ্চিত করা
-            default_pwd = f"guamc{r_num}"
-            if hasattr(s, 'password_hash') and not s.password_hash:
-                s.password_hash = generate_password_hash(default_pwd)
-            elif hasattr(s, 'password') and not s.password:
-                s.password = generate_password_hash(default_pwd)
-
-        db.session.commit()
-        total_students = Student.query.count()
-        return f"<h2>All {total_students} Students Synced!</h2><p><b>Unique IDs:</b> 37101 (BUMS) / 37201 (BAMS) format applied.</p><p><b>Default Password:</b> <code>guamc[Roll]</code></p><br><a href='/admin'>Go to Admin Dashboard</a>"
-
-    except Exception as e:
-        db.session.rollback()
-        return f"<h3>Error:</h3> <p>{str(e)}</p>"
