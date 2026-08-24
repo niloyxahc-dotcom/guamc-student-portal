@@ -28,6 +28,7 @@ def upload_to_supabase_storage(file_bytes, filename, content_type):
     else:
         print(f"Supabase REST Error: {response.status_code} - {response.text}")
         return None
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'guamc-aims-master-bulletproof-2026'
 
@@ -40,13 +41,13 @@ if db_url and db_url.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url or ('sqlite:///' + os.path.join(basedir, 'portal_master_v14_permanent.db'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 500 KB Max Upload Size Limit for Storage Economy
-app.config['MAX_CONTENT_LENGTH'] = 16 * 1026 * 1024 
+# 16 MB Max Upload Size Limit
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'pdf', 'docx','jpeg'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'pdf', 'docx', 'jpeg'}
 
 from models import (
     db, 
@@ -383,6 +384,7 @@ def login():
             flash('An error occurred during authentication.', 'danger')
             
     return render_template('login.html')
+
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if current_user.is_authenticated:
@@ -485,6 +487,7 @@ def signup():
             return render_template('signup.html')
 
     return render_template('signup.html')
+
 # ==================== STUDENT DASHBOARD ====================
 
 @app.route('/dashboard')
@@ -568,7 +571,7 @@ def admin_panel():
     files = AcademicFile.query.order_by(AcademicFile.id.desc()).all()
     nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all()
     
-return render_template('admin.html',
+    return render_template('admin.html',
                            students=approved_students,
                            pending_students=pending_students,
                            departments=departments,
@@ -578,6 +581,7 @@ return render_template('admin.html',
                            search_q=search_q,
                            course_filter=course_filter)
 
+# ==================== DOSSIER API ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -621,9 +625,9 @@ def admin_get_student_json(id):
         "student": data,
         **data
     })
-# ==========================================================
-# ২. নির্ভুল ফিল্ড পার্সিং সিঙ্ক (পিতা/মাতার নাম ও সম্পূর্ণ ডাটা)
-# ==========================================================
+
+# ==================== CSV MASTER SYNC ====================
+
 @app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
 def secret_sync_now():
@@ -700,7 +704,7 @@ def secret_sync_now():
                         if not v_str:
                             continue
 
-                        # ফোন নম্বর ফিল্টারিং (নামের ওপর যেন ওভাররাইট না হয়)
+                        # ফোন নম্বর ফিল্টারিং (নামের ওপর যেন ওভাররাইট না হয়)
                         if (v_str.startswith('01') or v_str.startswith('+8801')) and len(v_str.replace('+88', '')) >= 11:
                             if 'emergency' in k_clean or 'অভিভাবক' in k_clean:
                                 if hasattr(student, 'emergency_contact'): student.emergency_contact = v_str
@@ -716,10 +720,10 @@ def secret_sync_now():
                             if hasattr(student, 'photo'): student.photo = v_str
                             continue
 
-                        # পিতা ও মাতার নাম (ফোন নম্বর এড়িয়ে চলা)
+                        # পিতা ও মাতার নাম (ফোন নম্বর এড়িয়ে চলা)
                         if any(f in k_clean for f in ['father', 'পিতা', 'বাবার নাম']) and not any(p in k_clean for p in ['phone', 'mobile', 'নাম্বার', 'নং']):
                             if hasattr(student, 'father_name'): student.father_name = v_str
-                        elif any(m in k_clean for m in ['mother', 'মাতা', 'মায়ের নাম']) and not any(p in k_clean for p in ['phone', 'mobile', 'নাম্বার', 'নং']):
+                        elif any(m in k_clean for m in ['mother', 'মাতা', 'মায়ের নাম']) and not any(p in k_clean for p in ['phone', 'mobile', 'নাম্বার', 'নং']):
                             if hasattr(student, 'mother_name'): student.mother_name = v_str
                         elif any(b in k_clean for b in ['bangla', 'বাংলা']) and 'father' not in k_clean and 'mother' not in k_clean:
                             if hasattr(student, 'name_bangla'): student.name_bangla = v_str
@@ -1180,7 +1184,7 @@ def upload_photo():
             print(f"Supabase upload fallback: {e}")
             file.seek(0)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
+            f.save(filepath)
             photo_path = url_for('static', filename=f'uploads/{filename}')
 
         current_user.photo = photo_path
@@ -1220,9 +1224,3 @@ def change_password():
 def logout():
     logout_user()
     return redirect(url_for('login'))
-
-import csv
-import os
-from flask import jsonify
-from werkzeug.security import generate_password_hash
-
