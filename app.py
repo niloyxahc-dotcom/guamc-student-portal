@@ -1096,24 +1096,21 @@ def logout():
 import csv
 import os
 from flask import jsonify
+from werkzeug.security import generate_password_hash
 
 # ==========================================================
-# ১. সার্বজনীন Dossier API (সব রুট অ্যালিয়াস ও JSON ডাটা সাপোর্ট)
+# ১. সার্বজনীন Dossier API (HTML মডাল এবং JSON উভয় সাপোর্ট)
 # ==========================================================
 @app.route('/admin/get_student/<student_id>')
 @app.route('/admin/get_student_details/<student_id>')
 @app.route('/admin/student_details/<student_id>')
-@app.route('/admin/student_dossier/<student_id>')
 @app.route('/admin/student/<student_id>')
-@app.route('/admin/dossier/<student_id>')
 @app.route('/api/student/<student_id>')
-@app.route('/api/student_details/<student_id>')
 def get_student_details_api(student_id):
     try:
         student = None
         s_str = str(student_id).strip()
         
-        # ১. আইডি অথবা রোল দিয়ে খোঁজা
         if s_str.isdigit():
             student = Student.query.get(int(s_str))
         
@@ -1126,9 +1123,8 @@ def get_student_details_api(student_id):
             ).first()
 
         if not student:
-            return jsonify({"error": "Student not found", "status": "error"}), 404
+            return jsonify({"success": False, "error": "Student not found"}), 404
 
-        # ২. সব ফিল্ড নিরাপদ স্ট্রিংয়ে রূপান্তর
         data = {}
         for column in student.__table__.columns:
             try:
@@ -1142,7 +1138,7 @@ def get_student_details_api(student_id):
             except Exception:
                 data[column.name] = "N/A"
 
-        # ৩. গুগল ড্রাইভ ফটোর সরাসরি প্রিভিউ লিংক
+        # গুগল ড্রাইভ ফটোর সরাসরি প্রিভিউ লিংক
         photo_url = data.get('photo', '')
         if photo_url and 'drive.google.com' in photo_url:
             file_id = None
@@ -1153,30 +1149,35 @@ def get_student_details_api(student_id):
             if file_id:
                 data['photo'] = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
 
-        # ফ্রন্টএন্ড যাতে কোনো ফিল্ড মিস না করে
+        # ৫-সংখ্যার আইডি ও অন্যান্য কমন ফিল্ড
+        c_code = "2" if str(data.get('course', '')).upper() == "BAMS" else "1"
+        r_fmt = str(data.get('roll_no', '01')).zfill(2)
+        
         data['name'] = data.get('name_english') or data.get('name') or "N/A"
+        data['name_english'] = data['name']
         data['name_bangla'] = data.get('name_bangla') or "N/A"
         data['father_name'] = data.get('father_name') or "N/A"
         data['mother_name'] = data.get('mother_name') or "N/A"
-        data['roll'] = data.get('roll_no') or data.get('roll') or "N/A"
-        data['roll_no'] = data.get('roll_no') or data.get('roll') or "N/A"
+        data['roll'] = r_fmt
+        data['roll_no'] = r_fmt
         data['phone'] = data.get('contact_number') or data.get('phone') or "N/A"
-        data['contact_number'] = data.get('contact_number') or data.get('phone') or "N/A"
+        data['contact_number'] = data['phone']
         data['course'] = data.get('course') or "BUMS"
-        data['unique_id'] = data.get('unique_id') or f"GUAMC-{data['course']}-37-{data['roll']}"
+        data['unique_id'] = data.get('unique_id') or f"37{c_code}{r_fmt}"
 
         return jsonify({
+            "success": True,
             "status": "success",
             "student": data,
             **data
         })
 
     except Exception as e:
-        return jsonify({"error": str(e), "status": "error"}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ==========================================================
-# ২. ২২ জনের মাস্টার সিঙ্ক + অটো ইউনিক আইডি জেনারেটর + কোর্স বিভাজন
+# ২. ২২ জনের মাস্টার সিঙ্ক: 371XX / 372XX আইডি, পাসওয়ার্ড ও কোর্স ফিক্স
 # ==========================================================
 @app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
@@ -1200,7 +1201,6 @@ def secret_sync_now():
 
                     email_val = None
                     class_roll = None
-                    unique_id_val = None
                     detected_course = 'BUMS'
 
                     for k, v in row.items():
@@ -1215,8 +1215,6 @@ def secret_sync_now():
                             email_val = v_str
                         elif any(r in k_clean for r in ['class_roll', 'college_roll', 'roll_no', 'বর্তমান রোল', 'roll']) and v_str.isdigit() and len(v_str) <= 3:
                             class_roll = v_str.zfill(2)
-                        elif any(u in k_clean for u in ['unique', 'student_id', 'id_no', 'আইডি']):
-                            unique_id_val = v_str
                         
                         if any(c in k_clean for c in ['course', 'dept', 'department', 'বিভাগ', 'কোর্স']):
                             if 'ayurved' in v_str.lower() or 'bams' in v_str.lower():
@@ -1241,16 +1239,13 @@ def secret_sync_now():
                     if email_val:
                         student.email = email_val
                     
-                    # কোর্স সেট করা
                     if hasattr(student, 'course'):
                         student.course = detected_course
 
-                    # ইউনিক আইডি সেট বা অটো-জেনারেট
-                    if hasattr(student, 'unique_id'):
-                        if unique_id_val:
-                            student.unique_id = unique_id_val
-                        elif class_roll:
-                            student.unique_id = f"GUAMC-{detected_course}-37-{class_roll}"
+                    # ৫-সংখ্যার স্ট্যান্ডার্ড ইউনিক আইডি তৈরি: 37 + (1 for BUMS / 2 for BAMS) + Roll
+                    if hasattr(student, 'unique_id') and class_roll:
+                        dept_digit = "2" if detected_course == 'BAMS' else "1"
+                        student.unique_id = f"37{dept_digit}{class_roll}"
 
                     # ফোন, রক্ত, ছবি ও অভিভাবকের নাম
                     for k, v in row.items():
@@ -1287,20 +1282,38 @@ def secret_sync_now():
                         if hasattr(student, attr) and not getattr(student, attr, None):
                             setattr(student, attr, v_str)
 
+                    # ডিফল্ট পাসওয়ার্ড হ্যাশ
+                    default_pwd = "guamc" + (class_roll if class_roll else "1234")
+                    if hasattr(student, 'password_hash') and not student.password_hash:
+                        student.password_hash = generate_password_hash(default_pwd)
+                    elif hasattr(student, 'password') and not student.password:
+                        student.password = generate_password_hash(default_pwd)
+
                     csv_processed += 1
 
-        # সকল শিক্ষার্থীকে অ্যাপ্রুভ করা ও মিসিং ইউনিক আইডি পূরণ করা
+        # সকল স্টুডেন্টের আইডি ভ্যালিডেশন
         all_students = Student.query.all()
         for idx, s in enumerate(all_students, start=1):
             s.is_approved = True
-            if hasattr(s, 'unique_id') and not s.unique_id:
-                c_name = getattr(s, 'course', 'BUMS') or 'BUMS'
-                r_num = getattr(s, 'roll_no', str(idx).zfill(2)) or str(idx).zfill(2)
-                s.unique_id = f"GUAMC-{c_name}-37-{r_num}"
+            
+            c_name = getattr(s, 'course', 'BUMS') or 'BUMS'
+            d_code = "2" if c_name == 'BAMS' else "1"
+            r_num = getattr(s, 'roll_no', str(idx).zfill(2)) or str(idx).zfill(2)
+
+            # আইডি 371XX / 372XX নিশ্চিত করা
+            if hasattr(s, 'unique_id'):
+                s.unique_id = f"37{d_code}{r_num}"
+
+            # পাসওয়ার্ড নিশ্চিত করা
+            default_pwd = f"guamc{r_num}"
+            if hasattr(s, 'password_hash') and not s.password_hash:
+                s.password_hash = generate_password_hash(default_pwd)
+            elif hasattr(s, 'password') and not s.password:
+                s.password = generate_password_hash(default_pwd)
 
         db.session.commit()
         total_students = Student.query.count()
-        return f"<h2>All {total_students} Students Synced! Unique IDs & Dossier Live.</h2><p><b>From CSV:</b> {csv_processed}</p><p><b>Total Approved on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
+        return f"<h2>All {total_students} Students Synced!</h2><p><b>Unique IDs:</b> 37101 (BUMS) / 37201 (BAMS) format applied.</p><p><b>Default Password:</b> <code>guamc[Roll]</code></p><br><a href='/admin'>Go to Admin Dashboard</a>"
 
     except Exception as e:
         db.session.rollback()
