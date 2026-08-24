@@ -1093,10 +1093,9 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-if __name__ == '__main__':
-    app.run(debug=True)
 import csv
 import os
+from flask import jsonify
 
 # ==========================================================
 # ১. Dossier API (প্রোফাইল ডাটা ও গুগল ড্রাইভ ছবি প্রিভিউ ফিক্স)
@@ -1117,7 +1116,6 @@ def get_student_details_api(student_id):
         else:
             data[column.name] = str(val)
 
-    # গুগল ড্রাইভ ফটোর সরাসরি প্রিভিউ লিংক তৈরি
     photo_url = data.get('photo', '')
     if photo_url and 'drive.google.com' in photo_url:
         file_id = None
@@ -1132,238 +1130,78 @@ def get_student_details_api(student_id):
 
 
 # ==========================================================
-# ২. ক্লাস রোল, ইউনিক আইডি এবং সব ২১ জনের পারফেক্ট সিঙ্ক রুট
+# ২. সম্পূর্ণ ক্লিন সিঙ্ক: সঠিক ক্লাস রোল, আইডি ও ড্যাশবোর্ড একটিভেশন
 # ==========================================================
 @app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
 def secret_sync_now():
     csv_file = 'master_students.csv'
-    csv_count = 0
+    if not os.path.exists(csv_file):
+        return f"<h3>File Error:</h3> <p>{csv_file} not found!</p>"
 
     try:
-        if os.path.exists(csv_file):
-            with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
-                content = f.read()
+        # আগের ভুল ডেটা ডিলিট করা (এডমিন বাদে)
+        Student.query.filter(Student.email != 'niloyxahc@gmail.com').delete()
+        db.session.commit()
 
-            lines = content.strip().splitlines()
-            if lines:
-                delimiter = ';' if ';' in lines[0] and ',' not in lines[0] else ','
-                reader = csv.DictReader(lines, delimiter=delimiter)
+        with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
+            content = f.read()
 
-                for row in reader:
-                    if not row or not any(row.values()):
-                        continue
+        lines = content.strip().splitlines()
+        delimiter = ';' if ';' in lines[0] and ',' not in lines[0] else ','
+        reader = csv.DictReader(lines, delimiter=delimiter)
 
-                    # ১. সঠিক ক্লাস রোল ও ইউনিক আইডি শনাক্তকরণ
-                    class_roll = None
-                    unique_id_val = None
-                    email_val = None
+        inserted_count = 0
+        for row in reader:
+            if not row or not any(row.values()):
+                continue
 
-                    for k, v in row.items():
-                        if not k or not v:
-                            continue
-                        k_low = k.lower().replace(' ', '_').replace('-', '_')
-                        v_str = str(v).strip()
+            student = Student()
+            student.is_approved = True
 
-                        if 'email' in k_low:
-                            email_val = v_str
-                        elif 'unique' in k_low or 'student_id' in k_low or 'id_no' in k_low:
-                            unique_id_val = v_str
-                        elif 'class_roll' in k_low or 'college_roll' in k_low or k_low == 'roll':
-                            # ক্লাস রোল সাধারণত ছোট সংখ্যা (যেমন ১-৫০)
-                            if v_str.isdigit() and len(v_str) <= 3:
-                                class_roll = v_str.zfill(2)
-                        elif not class_roll and any(x in k_low for x in ['roll_no', 'roll']) and len(v_str) <= 3:
-                            class_roll = v_str.zfill(2)
+            for col_name, val in row.items():
+                if not col_name or val is None or str(val).strip() == '':
+                    continue
+                
+                v_str = str(val).strip()
+                c_clean = col_name.strip().lower().replace(' ', '_').replace('-', '_')
 
-                    # ২. স্টুডেন্ট ম্যাচিং (ইমেইল বা ক্লাস রোল দিয়ে)
-                    student = None
-                    if email_val:
-                        student = Student.query.filter_by(email=email_val).first()
-                    if not student and class_roll:
-                        student = Student.query.filter_by(roll_no=class_roll).first()
+                if c_clean == 'id':
+                    continue
 
-                    if not student:
-                        student = Student()
-                        db.session.add(student)
+                if any(x == c_clean for x in ['class_roll', 'roll', 'roll_no', 'college_roll']):
+                    if v_str.isdigit() and len(v_str) <= 3:
+                        student.roll_no = v_str.zfill(2)
+                elif 'unique' in c_clean or 'student_id' in c_clean or 'id_no' in c_clean:
+                    if hasattr(student, 'unique_id'):
+                        student.unique_id = v_str
+                
+                if hasattr(student, c_clean):
+                    setattr(student, c_clean, v_str)
 
-                    student.is_approved = True
+                if 'name' in c_clean and 'bangla' not in c_clean and hasattr(student, 'name_english'):
+                    student.name_english = v_str
+                elif 'bangla' in c_clean and hasattr(student, 'name_bangla'):
+                    student.name_bangla = v_str
+                elif any(x in c_clean for x in ['phone', 'contact', 'mobile']) and hasattr(student, 'contact_number'):
+                    student.contact_number = v_str
+                elif 'email' in c_clean and hasattr(student, 'email'):
+                    student.email = v_str
+                elif 'blood' in c_clean and hasattr(student, 'blood_group'):
+                    student.blood_group = v_str
+                elif 'photo' in c_clean and hasattr(student, 'photo'):
+                    student.photo = v_str
 
-                    if class_roll:
-                        student.roll_no = class_roll
-                    if unique_id_val and hasattr(student, 'unique_id'):
-                        student.unique_id = unique_id_val
+            if hasattr(student, 'email') and not student.email:
+                student.email = f"student_{inserted_count+1}@guamc.edu.bd"
 
-                    # ৩. অন্যান্য তথ্য অ্যাসাইন
-                    for col_name, val in row.items():
-                        if not col_name or val is None or str(val).strip() == '':
-                            continue
-                        v_str = str(val).strip()
-                        c_clean = col_name.strip().lower().replace(' ', '_')
-
-                        if hasattr(student, c_clean) and not getattr(student, c_clean, None):
-                            setattr(student, c_clean, v_str)
-
-                        if 'name' in c_clean and 'bangla' not in c_clean and hasattr(student, 'name_english'):
-                            student.name_english = v_str
-                        elif 'bangla' in c_clean and hasattr(student, 'name_bangla'):
-                            student.name_bangla = v_str
-                        elif any(x in c_clean for x in ['phone', 'contact', 'mobile']) and hasattr(student, 'contact_number'):
-                            student.contact_number = v_str
-                        elif 'email' in c_clean and hasattr(student, 'email'):
-                            student.email = v_str
-                        elif 'blood' in c_clean and hasattr(student, 'blood_group'):
-                            student.blood_group = v_str
-                        elif 'photo' in c_clean and hasattr(student, 'photo'):
-                            student.photo = v_str
-
-                    csv_count += 1
-
-        # সকল শিক্ষার্থীকে মূল ড্যাশবোর্ডে অ্যাপ্রুভ রাখা
-        all_students = Student.query.all()
-        for s in all_students:
-            s.is_approved = True
+            db.session.add(student)
+            inserted_count += 1
 
         db.session.commit()
         total_students = Student.query.count()
-        return f"<h2>All Students Live & Ready!</h2><p><b>Processed:</b> {csv_count}</p><p><b>Total Approved on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Portal</a>"
+        return f"<h2>Clean Sync Completed!</h2><p><b>Imported from CSV:</b> {inserted_count}</p><p><b>Total on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
 
     except Exception as e:
         db.session.rollback()
         return f"<h3>Error:</h3> <p>{str(e)}</p>"
-        
-@app.after_request
-def add_cache_control(response):
-    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-    response.headers["Pragma"] = "no-cache"
-    response.headers["Expires"] = "0"
-    return response
-
-
-    import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from flask import request
-
-# ১. সবার কাছে ওয়েলকাম ইমেইল পাঠানোর রুট
-@app.route('/admin/send-all-welcome-emails')
-@login_required
-def send_all_welcome_emails():
-    SMTP_SERVER = "smtp.gmail.com"
-    SMTP_PORT = 587
-    SENDER_EMAIL = "guamc.aims@gmail.com"
-    SENDER_PASSWORD = "kfrzcxchnzijxveo"
-    PORTAL_URL = "https://guamc-portal.onrender.com"
-
-    students = Student.query.all()
-    results = []
-    
-    for s in students:
-        email = getattr(s, 'personal_email', None) or getattr(s, 'email', None)
-        name = getattr(s, 'name_english', None) or getattr(s, 'name_bangla', None) or getattr(s, 'name', 'Student')
-        roll = getattr(s, 'roll', 'N/A')
-        
-        if not email or '@' not in email:
-            continue
-            
-        subject = "Welcome to GUAMC Student Portal - Your Login Access"
-        html_body = f"""
-        <html>
-        <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.6; background-color: #f1f5f9; padding: 20px;">
-            <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0;">
-                <div style="text-align: center; margin-bottom: 25px;">
-                    <h2 style="color: #0f766e; margin: 0;">GUAMC Student Portal</h2>
-                    <p style="color: #64748b; font-size: 14px;">Government Unani & Ayurvedic Medical College & Hospital</p>
-                </div>
-                <p>Dear <strong>{name}</strong>,</p>
-                <p>Your student profile has been integrated into the official GUAMC Student Portal. You can now log in to view your academic records, attendance, and discussions.</p>
-                <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #cbd5e1;">
-                    <h4 style="margin-top: 0; color: #0f172a;">Portal Credentials:</h4>
-                    <p><strong>URL:</strong> <a href="{PORTAL_URL}">{PORTAL_URL}</a></p>
-                    <p><strong>Login Email:</strong> <code>{email}</code></p>
-                    <p><strong>Class Roll:</strong> {roll}</p>
-                    <p><strong>Default Password:</strong> <code>guamc123</code></p>
-                </div>
-                <p style="color: #e11d48; font-size: 13px;"><em>* Please change your password after logging in.</em></p>
-                <p>Best regards,<br><strong>GUAMC Administration</strong></p>
-            </div>
-        </body>
-        </html>
-        """
-        
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"GUAMC Portal Admin <{SENDER_EMAIL}>"
-        msg["To"] = email
-        msg.attach(MIMEText(html_body, "html"))
-
-        try:
-            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SENDER_EMAIL, SENDER_PASSWORD)
-                server.sendmail(SENDER_EMAIL, email, msg.as_string())
-            results.append(f"✅ Sent: {name} ({email})")
-        except Exception as e:
-            results.append(f"❌ Failed: {name} ({email}) - {e}")
-
-    return "<h2>Welcome Email Broadcast Complete!</h2><br>" + "<br>".join(results)
-
-# ২. যেকোনো কাস্টম নোটিশ পাঠানোর রুট
-@app.route('/admin/send-notice', methods=['GET', 'POST'])
-def send_custom_notice():
-    if request.method == 'POST':
-        notice_subject = request.form.get('subject')
-        notice_body = request.form.get('body')
-        
-        SMTP_SERVER = "smtp.gmail.com"
-        SMTP_PORT = 587
-        SENDER_EMAIL = "guamc.aims@gmail.com"
-        SENDER_PASSWORD = "kfrzcxchnzijxveo"
-
-        students = Student.query.all()
-        sent_count = 0
-        
-        for s in students:
-            email = getattr(s, 'personal_email', None) or getattr(s, 'email', None)
-            name = getattr(s, 'name_english', None) or getattr(s, 'name_bangla', None) or getattr(s, 'name', 'Student')
-            
-            if not email or '@' not in email:
-                continue
-                
-            html_content = f"""
-            <html>
-            <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.6; background-color: #f1f5f9; padding: 20px;">
-                <div style="max-width: 600px; margin: auto; background-color: #ffffff; padding: 30px; border-radius: 16px; border: 1px solid #e2e8f0;">
-                    <div style="text-align: center; margin-bottom: 25px;">
-                        <h2 style="color: #0f766e; margin: 0;">GUAMC Notice Board</h2>
-                        <p style="color: #64748b; font-size: 14px;">Official Announcement</p>
-                    </div>
-                    <p>Dear <strong>{name}</strong>,</p>
-                    <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin: 20px 0; border: 1px solid #cbd5e1;">
-                        <p style="white-space: pre-wrap; margin: 0;">{notice_body}</p>
-                    </div>
-                    <p>Best regards,<br><strong>GUAMC Administration</strong></p>
-                </div>
-            </body>
-            </html>
-            """
-            
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = notice_subject
-            msg["From"] = f"GUAMC Administration <{SENDER_EMAIL}>"
-            msg["To"] = email
-            msg.attach(MIMEText(html_content, "html"))
-
-            try:
-                with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-                    server.starttls()
-                    server.login(SENDER_EMAIL, SENDER_PASSWORD)
-                    server.sendmail(SENDER_EMAIL, email, msg.as_string())
-                sent_count += 1
-            except Exception as e:
-                print(f"Failed: {e}")
-
-        return f"<h3>Successfully sent notice to {sent_count} students!</h3><br><a href='/admin/send-notice'>Send Another Notice</a>"
-
-    return """<div style="max-width: 500px; margin: 50px auto; font-family: Arial; padding: 25px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;"><h2 style="color: #0f766e; margin-top: 0;">Send Broadcast Notice to All Students</h2><form method="POST"><label style="font-weight: bold;">Subject:</label><br><input type="text" name="subject" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required><br><label style="font-weight: bold;">Notice Message:</label><br><textarea name="body" rows="6" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required></textarea><br><button type="submit" style="background: #0f766e; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send Notice to All</button></form></div>"""
-
