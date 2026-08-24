@@ -3,6 +3,7 @@ import csv
 import re
 import urllib.request
 import ssl
+import traceback
 from datetime import datetime, date
 from flask import Flask, render_template, redirect, url_for, request, flash, Response, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -41,7 +42,6 @@ if db_url and db_url.startswith("postgres://"):
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url or ('sqlite:///' + os.path.join(basedir, 'portal_master_v14_permanent.db'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 16 MB Max Upload Size Limit
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -146,16 +146,6 @@ def init_default_departments():
             db.session.add(Department(course='BAMS', name=name, order=i))
         for i, name in enumerate(bums_depts, 1):
             db.session.add(Department(course='BUMS', name=name, order=i))
-        db.session.commit()
-    else:
-        for i, name in enumerate(bams_depts, 1):
-            d = Department.query.filter_by(course='BAMS', order=i).first()
-            if d:
-                d.name = name
-        for i, name in enumerate(bums_depts, 1):
-            d = Department.query.filter_by(course='BUMS', order=i).first()
-            if d:
-                d.name = name
         db.session.commit()
 
 def init_default_nav():
@@ -280,9 +270,6 @@ with app.app_context():
         sync_students_csv()
         init_default_departments()
         init_default_nav()
-        
-        Student.query.filter_by(total_classes=None).update({Student.attendance: None})
-        DepartmentPerformance.query.filter_by(attendance_rate=85.0).update({DepartmentPerformance.attendance_rate: None})
         db.session.commit()
     except Exception as ex:
         print("Startup Error:", ex)
@@ -369,7 +356,7 @@ def login():
                 return render_template('login.html')
 
             if not student.is_approved:
-                flash('⚠️ Access Restricted! Your account is pending Administrator verification. Please wait until Admin approves your registration.', 'warning')
+                flash('⚠️ Access Restricted! Your account is pending Administrator verification.', 'warning')
                 return render_template('login.html')
 
             if check_password_hash(student.password_hash, password) or password == 'guamc123':
@@ -424,7 +411,7 @@ def signup():
 
             existing = Student.query.filter(db.func.lower(Student.email) == email).first()
             if existing:
-                flash('This email is already registered! Please login or wait for Admin approval.', 'warning')
+                flash('This email is already registered!', 'warning')
                 return redirect(url_for('login'))
 
             photo_path = None
@@ -444,9 +431,6 @@ def signup():
                         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                         f.save(filepath)
                         photo_path = url_for('static', filename=f'uploads/{unique_filename}')
-                else:
-                    flash('Invalid photo format! Only JPG and PNG (Max: 500 KB) allowed.', 'warning')
-                    return render_template('signup.html')
 
             new_student = Student(
                 batch=batch,
@@ -547,41 +531,45 @@ def admin_panel():
                     flash("Failed to update attendance.", "danger")
         return redirect(url_for('admin_panel'))
 
-    search_q = request.args.get('q', '').strip()
-    course_filter = request.args.get('course', 'ALL')
-    
-    pending_students = Student.query.filter_by(is_approved=False).order_by(Student.id.desc()).all()
+    try:
+        search_q = request.args.get('q', '').strip()
+        course_filter = request.args.get('course', 'ALL')
+        
+        pending_students = Student.query.filter_by(is_approved=False).order_by(Student.id.desc()).all()
 
-    query = Student.query.filter_by(is_approved=True)
-    if course_filter in ['BUMS', 'BAMS']:
-        query = query.filter(Student.course == course_filter)
-    if search_q:
-        query = query.filter(
-            (Student.name_english.ilike(f'%{search_q}%')) |
-            (Student.email.ilike(f'%{search_q}%')) |
-            (Student.roll_no.ilike(f'%{search_q}%')) |
-            (Student.unique_id.ilike(f'%{search_q}%'))
-        )
-    
-    approved_students = query.order_by(Student.course, Student.roll_no).all()
-    departments = Department.query.order_by(Department.course, Department.order).all() if 'Department' in globals() else []
-    folders = FileFolder.query.all() if 'FileFolder' in globals() else []
-    files = AcademicFile.query.order_by(AcademicFile.id.desc()).all() if 'AcademicFile' in globals() else []
-    nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all() if 'NavigationLink' in globals() else []
-    notices = Notice.query.order_by(Notice.id.desc()).all() if 'Notice' in globals() else []
-    posts = Post.query.order_by(Post.id.desc()).all() if 'Post' in globals() else []
-    
-    return render_template('admin.html',
-                           students=approved_students,
-                           pending_students=pending_students,
-                           departments=departments,
-                           folders=folders,
-                           files=files,
-                           nav_links=nav_links,
-                           notices=notices,
-                           posts=posts,
-                           search_q=search_q,
-                           course_filter=course_filter)
+        query = Student.query.filter_by(is_approved=True)
+        if course_filter in ['BUMS', 'BAMS']:
+            query = query.filter(Student.course == course_filter)
+        if search_q:
+            query = query.filter(
+                (Student.name_english.ilike(f'%{search_q}%')) |
+                (Student.email.ilike(f'%{search_q}%')) |
+                (Student.roll_no.ilike(f'%{search_q}%')) |
+                (Student.unique_id.ilike(f'%{search_q}%'))
+            )
+        
+        approved_students = query.order_by(Student.course, Student.roll_no).all()
+        departments = Department.query.order_by(Department.course, Department.order).all() if 'Department' in globals() else []
+        folders = FileFolder.query.all() if 'FileFolder' in globals() else []
+        files = AcademicFile.query.order_by(AcademicFile.id.desc()).all() if 'AcademicFile' in globals() else []
+        nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all() if 'NavigationLink' in globals() else []
+        notices = Notice.query.order_by(Notice.id.desc()).all() if 'Notice' in globals() else []
+        posts = Post.query.order_by(Post.id.desc()).all() if 'Post' in globals() else []
+        
+        return render_template('admin.html',
+                               students=approved_students,
+                               pending_students=pending_students,
+                               departments=departments,
+                               folders=folders,
+                               files=files,
+                               nav_links=nav_links,
+                               notices=notices,
+                               posts=posts,
+                               search_q=search_q,
+                               course_filter=course_filter)
+    except Exception as e:
+        err_details = traceback.format_exc()
+        return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
 # ==================== DOSSIER API ====================
 
@@ -921,8 +909,81 @@ def admin_edit_student(id):
     student.contact_number = request.form.get('contact_number', student.contact_number).strip()
     student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
     
+    new_custom_pass = request.form.get('custom_password', '').strip()
+    if new_custom_pass:
+        student.password_hash = generate_password_hash(new_custom_pass)
+    
+    raw_att = request.form.get('attendance', '')
+    student.attendance = float(raw_att) if raw_att != '' else None
+    
     db.session.commit()
     flash(f"Updated profile for {student.name_english}!", "success")
+    return redirect(url_for('admin_panel'))
+
+# টেমপ্লেটের সাথে সামঞ্জস্যপূর্ণ রাউট নামের রূপান্তর (BuildError সমাধান)
+@app.route('/admin/student/reset-password/<int:id>', methods=['POST'])
+@app.route('/admin/student/reset_password/<int:id>', methods=['POST'])
+@login_required
+def admin_reset_password(id):
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
+    student = Student.query.get_or_404(id)
+    student.password_hash = generate_password_hash('guamc123')
+    db.session.commit()
+    flash(f"Password reset to default 'guamc123' for {student.name_english}", "success")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/student/move/<int:id>', methods=['POST'])
+@login_required
+def admin_move_student(id):
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
+    student = Student.query.get_or_404(id)
+    target_course = request.form.get('target_course', '').upper()
+    if target_course in ['BUMS', 'BAMS']:
+        old_course = student.course
+        student.course = target_course
+        student.unique_id = generate_diu_id(student.batch, target_course, student.roll_no)
+        db.session.commit()
+        flash(f"Moved {student.name_english} from {old_course} to {target_course}!", "success")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/student/copy/<int:id>', methods=['POST'])
+@login_required
+def admin_copy_student(id):
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
+    src = Student.query.get_or_404(id)
+    clone_roll = f"{int(src.roll_no)+50 if src.roll_no.isdigit() else '99'}".zfill(2)
+    clone_email = f"copy_{src.id}_{src.email}"
+    clone = Student(
+        email=clone_email,
+        name_english=f"{src.name_english} (Copy)",
+        name_bangla=src.name_bangla,
+        father_name=src.father_name,
+        father_occupation=src.father_occupation,
+        mother_name=src.mother_name,
+        mother_occupation=src.mother_occupation,
+        course=src.course,
+        batch=src.batch,
+        roll_no=clone_roll,
+        class_roll=clone_roll,
+        session=src.session,
+        unique_id=generate_diu_id(src.batch, src.course, clone_roll),
+        blood_group=src.blood_group,
+        contact_number=src.contact_number,
+        emergency_medical_contact=src.emergency_medical_contact,
+        guardian_contact=src.guardian_contact,
+        present_address=src.present_address,
+        permanent_address=src.permanent_address,
+        attendance=src.attendance,
+        is_approved=True,
+        photo=src.photo,
+        password_hash=src.password_hash or generate_password_hash('guamc123')
+    )
+    db.session.add(clone)
+    db.session.commit()
+    flash(f"Cloned copy created for {src.name_english}!", "success")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/delete/<int:id>', methods=['POST'])
@@ -958,6 +1019,17 @@ def admin_save_department():
     else:
         db.session.add(Department(name=name, course=course, order=order))
     db.session.commit()
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/department/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_department(id):
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
+    dept = Department.query.get_or_404(id)
+    db.session.delete(dept)
+    db.session.commit()
+    flash("Department removed.", "warning")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/folder/add', methods=['POST'])
@@ -1005,6 +1077,45 @@ def admin_delete_file(id):
     f = AcademicFile.query.get_or_404(id)
     db.session.delete(f)
     db.session.commit()
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/navigation/save', methods=['POST'])
+@login_required
+def admin_save_nav_link():
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
+    link_id = request.form.get('link_id')
+    title = request.form.get('title', '').strip()
+    url_val = request.form.get('endpoint_or_url', '').strip()
+    icon = request.form.get('icon', '🔗').strip()
+    order = int(request.form.get('order', 0))
+    is_ext = True if request.form.get('is_external') == 'on' else False
+
+    if link_id:
+        link = NavigationLink.query.get(link_id)
+        if link:
+            link.title = title
+            link.endpoint_or_url = url_val
+            link.icon = icon
+            link.order = order
+            link.is_external = is_ext
+            flash(f"Nav item '{title}' updated!", "success")
+    else:
+        new_link = NavigationLink(title=title, endpoint_or_url=url_val, icon=icon, order=order, is_external=is_ext)
+        db.session.add(new_link)
+        flash(f"Nav item '{title}' added!", "success")
+    db.session.commit()
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/navigation/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_nav_link(id):
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
+    link = NavigationLink.query.get_or_404(id)
+    db.session.delete(link)
+    db.session.commit()
+    flash("Nav item removed.", "info")
     return redirect(url_for('admin_panel'))
 
 # ==================== GENERAL & USER PROFILE ROUTES ====================
