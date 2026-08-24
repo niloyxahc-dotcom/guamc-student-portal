@@ -1324,7 +1324,7 @@ def send_custom_notice():
 
     return """<div style="max-width: 500px; margin: 50px auto; font-family: Arial; padding: 25px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;"><h2 style="color: #0f766e; margin-top: 0;">Send Broadcast Notice to All Students</h2><form method="POST"><label style="font-weight: bold;">Subject:</label><br><input type="text" name="subject" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required><br><label style="font-weight: bold;">Notice Message:</label><br><textarea name="body" rows="6" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required></textarea><br><button type="submit" style="background: #0f766e; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send Notice to All</button></form></div>"""
 
-    import csv
+   import csv
 
 @app.route('/admin/secret-sync-now')
 def secret_sync_now():
@@ -1332,30 +1332,37 @@ def secret_sync_now():
     if not os.path.exists(csv_file):
         return f"File {csv_file} not found on server!"
         
-    try:
-        # পুরানো ডামি ডেটা মুছে ফ্রেশ করা
-        Student.query.delete()
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
+    added_count = 0
+    updated_count = 0
 
-    count = 0
     with open(csv_file, mode='r', encoding='utf-8-sig') as f:
         reader = csv.DictReader(f)
         for row in reader:
-            roll = row.get('roll') or row.get('Roll') or row.get('ROLL')
-            if not roll:
+            roll_val = row.get('roll') or row.get('Roll') or row.get('ROLL')
+            if not roll_val:
                 continue
             
-            student = Student(roll=str(roll).strip().zfill(2) if str(roll).strip().isdigit() else str(roll).strip())
+            roll_str = str(roll_val).strip().zfill(2) if str(roll_val).strip().isdigit() else str(roll_val).strip()
             
+            # ডেটাবেসে স্টুডেন্ট আগে থেকেই আছে কি না দেখা
+            student = Student.query.filter_by(roll=roll_str).first()
+            
+            if not student:
+                # নতুন স্টুডেন্ট তৈরি
+                student = Student(roll=roll_str)
+                db.session.add(student)
+                added_count += 1
+            else:
+                updated_count += 1
+
+            # শুধু খালি ফিল্ডগুলো পূরণ করা, যেন সাইন আপে দেওয়া পাসওয়ার্ড/ডেটা ওভাররাইট না হয়
             for key, val in row.items():
                 attr = key.strip().lower()
                 if hasattr(student, attr) and val:
-                    setattr(student, attr, val.strip())
-            
-            db.session.add(student)
-            count += 1
+                    # যদি স্টুডেন্টের ফিল্ডে আগে থেকেই মান থাকে (যেমন পাসওয়ার্ড বা আপডেটেড ফোন), তা অক্ষত রাখা
+                    current_val = getattr(student, attr, None)
+                    if not current_val:
+                        setattr(student, attr, val.strip())
 
     db.session.commit()
-    return f"<h1>Success!</h1><p>Successfully synced {count} real students into Supabase database.</p><a href='/admin'>Go to Admin</a>"
+    return f"<h1>Sync Completed Safely!</h1><p>New added: {added_count}, Existing preserved/updated: {updated_count}</p><a href='/admin'>Go to Admin</a>"
