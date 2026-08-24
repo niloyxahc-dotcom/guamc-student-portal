@@ -337,7 +337,6 @@ def login():
 
             ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
 
-            # Auto-create admin if not exists in DB
             if email in ADMIN_EMAILS:
                 admin_user = Student.query.filter(db.func.lower(Student.email) == email).first()
                 if not admin_user:
@@ -363,7 +362,6 @@ def login():
                     flash('Incorrect password for Administrator!', 'danger')
                     return render_template('login.html')
 
-            # Normal student authentication
             student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
             if not student:
@@ -581,7 +579,7 @@ def admin_panel():
                            search_q=search_q,
                            course_filter=course_filter)
 
-# ==================== DOSSIER API ====================
+# ==================== DOSSIER API (FULL COLUMN MAPPING) ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -619,19 +617,33 @@ def admin_get_student_json(id):
         except Exception:
             data[column.name] = "N/A"
 
+    # সঠিকভাবে সঠিক ফিল্ড নিশ্চিত করা (পিতা ও মাতার নাম যেন পেশা বা অন্য কিছু দিয়ে ওভাররাইট না হয়)
+    data['id'] = s.id
+    data['name'] = getattr(s, 'name_english', None) or getattr(s, 'name', 'N/A')
+    data['name_english'] = data['name']
+    data['name_bangla'] = getattr(s, 'name_bangla', 'N/A')
+    data['father_name'] = getattr(s, 'father_name', 'N/A')
+    data['mother_name'] = getattr(s, 'mother_name', 'N/A')
+    data['roll_no'] = getattr(s, 'roll_no', 'N/A')
+    data['contact_number'] = getattr(s, 'contact_number', 'N/A')
+    data['blood_group'] = getattr(s, 'blood_group', 'N/A')
     data['photo'] = photo_url
+
     return jsonify({
         "status": "success",
         "student": data,
         **data
     })
 
-# ==================== CSV MASTER SYNC ====================
+# ==================== CSV MASTER SYNC (ROBUST PARSER) ====================
 
 @app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
 def secret_sync_now():
     csv_file = 'master_students.csv'
+    if not os.path.exists(csv_file):
+        csv_file = 'students.csv'
+    
     csv_processed = 0
 
     try:
@@ -685,6 +697,7 @@ def secret_sync_now():
 
                     if class_roll:
                         student.roll_no = class_roll
+                        student.class_roll = class_roll
                     if email_val:
                         student.email = email_val
                     
@@ -695,7 +708,7 @@ def secret_sync_now():
                         dept_digit = "2" if detected_course == 'BAMS' else "1"
                         student.unique_id = f"37{dept_digit}{class_roll}"
 
-                    # সকল ফিল্ডের নিখুঁত অ্যাসাইনমেন্ট
+                    # নিখুঁত ফিল্ড পার্সিং (পিতা/মাতা ও পেশা আলাদা করা)
                     for k, v in row.items():
                         if not k or v is None:
                             continue
@@ -704,9 +717,9 @@ def secret_sync_now():
                         if not v_str:
                             continue
 
-                        # ফোন নম্বর ফিল্টারিং (নামের ওপর যেন ওভাররাইট না হয়)
+                        # ফোন নম্বর ফিল্টারিং
                         if (v_str.startswith('01') or v_str.startswith('+8801')) and len(v_str.replace('+88', '')) >= 11:
-                            if 'emergency' in k_clean or 'অভিভাবক' in k_clean:
+                            if 'emergency' in k_clean or 'অভিভাবক' in k_clean or 'guardian' in k_clean:
                                 if hasattr(student, 'emergency_contact'): student.emergency_contact = v_str
                             else:
                                 if hasattr(student, 'contact_number'): student.contact_number = v_str
@@ -720,17 +733,21 @@ def secret_sync_now():
                             if hasattr(student, 'photo'): student.photo = v_str
                             continue
 
-                        # পিতা ও মাতার নাম (ফোন নম্বর এড়িয়ে চলা)
-                        if any(f in k_clean for f in ['father', 'পিতা', 'বাবার নাম']) and not any(p in k_clean for p in ['phone', 'mobile', 'নাম্বার', 'নং']):
-                            if hasattr(student, 'father_name'): student.father_name = v_str
-                        elif any(m in k_clean for m in ['mother', 'মাতা', 'মায়ের নাম']) and not any(p in k_clean for p in ['phone', 'mobile', 'নাম্বার', 'নং']):
-                            if hasattr(student, 'mother_name'): student.mother_name = v_str
+                        # সুনির্দিষ্ট ফিল্ড ম্যাপিং
+                        if 'father_name' in k_clean or k_clean in ['father', 'পিতা', 'বাবার নাম', 'পিতার নাম']:
+                            student.father_name = v_str
+                        elif 'mother_name' in k_clean or k_clean in ['mother', 'মাতা', 'মায়ের নাম', 'মায়ের নাম']:
+                            student.mother_name = v_str
+                        elif 'father_occupation' in k_clean or 'পিতার পেশা' in k_clean:
+                            if hasattr(student, 'father_occupation'): student.father_occupation = v_str
+                        elif 'mother_occupation' in k_clean or 'মাতার পেশা' in k_clean:
+                            if hasattr(student, 'mother_occupation'): student.mother_occupation = v_str
                         elif any(b in k_clean for b in ['bangla', 'বাংলা']) and 'father' not in k_clean and 'mother' not in k_clean:
-                            if hasattr(student, 'name_bangla'): student.name_bangla = v_str
-                        elif any(n in k_clean for n in ['name', 'student_name', 'পূর্ণ নাম', 'নাম']) and not any(x in k_clean for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college', 'bangla', 'বাংলা']):
+                            student.name_bangla = v_str
+                        elif any(n in k_clean for n in ['name', 'student_name', 'পূর্ণ নাম', 'নাম']) and not any(x in k_clean for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college', 'bangla', 'বাংলা', 'occupation', 'পেশা']):
                             student.name_english = v_str
 
-                        # ডাইনামিক ফিল্ডস
+                        # বাকি সব ফিল্ড ডাইনামিকালি সেট করা
                         attr = k_clean.replace(' ', '_').replace('-', '_')
                         if hasattr(student, attr) and not getattr(student, attr, None):
                             setattr(student, attr, v_str)
@@ -750,8 +767,6 @@ def secret_sync_now():
             default_pwd = f"guamc{r_num}"
             if hasattr(s, 'password_hash') and not s.password_hash:
                 s.password_hash = generate_password_hash(default_pwd)
-            elif hasattr(s, 'password') and not s.password:
-                s.password = generate_password_hash(default_pwd)
 
         db.session.commit()
         total_students = Student.query.count()
@@ -795,7 +810,7 @@ def admin_live_attendance():
             updated_count += 1
             
         db.session.commit()
-        flash(f"✅ Live attendance recorded for {updated_count} students ({selected_course})! Percentages updated instantly.", "success")
+        flash(f"✅ Live attendance recorded for {updated_count} students ({selected_course})!", "success")
         return redirect(url_for('admin_panel'))
 
     students = Student.query.filter_by(course=selected_course, is_approved=True).order_by(Student.roll_no).all()
@@ -845,7 +860,7 @@ def admin_approve_student(id):
     student = Student.query.get_or_404(id)
     student.is_approved = True
     db.session.commit()
-    flash(f"✅ Approved {student.name_english} (Roll: {student.roll_no})! Student can now log in.", "success")
+    flash(f"✅ Approved {student.name_english} (Roll: {student.roll_no})!", "success")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/reject/<int:id>', methods=['POST'])
@@ -867,7 +882,7 @@ def admin_impersonate_student(id):
     student_to_view = Student.query.get_or_404(id)
     session['admin_impersonator_email'] = current_user.email
     login_user(student_to_view)
-    flash(f"Viewing as: {student_to_view.name_english} (Roll: {student_to_view.roll_no})", "info")
+    flash(f"Viewing as: {student_to_view.name_english}", "info")
     return redirect(url_for('dashboard'))
 
 @app.route('/admin/student/exit-impersonate')
@@ -906,83 +921,9 @@ def admin_edit_student(id):
     student.blood_group = request.form.get('blood_group', student.blood_group).strip()
     student.contact_number = request.form.get('contact_number', student.contact_number).strip()
     student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
-    student.guardian_contact = request.form.get('guardian_contact', student.guardian_contact).strip()
-    student.present_address = request.form.get('present_address', student.present_address).strip()
-    student.permanent_address = request.form.get('permanent_address', student.permanent_address).strip()
     
-    new_custom_pass = request.form.get('custom_password', '').strip()
-    if new_custom_pass:
-        student.password_hash = generate_password_hash(new_custom_pass)
-    
-    raw_att = request.form.get('attendance', '')
-    student.attendance = float(raw_att) if raw_att != '' else None
-        
     db.session.commit()
-    flash(f"Updated profile & credentials for {student.name_english}!", "success")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/reset-password/<int:id>', methods=['POST'])
-@login_required
-def admin_reset_password(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    student = Student.query.get_or_404(id)
-    student.password_hash = generate_password_hash('guamc123')
-    db.session.commit()
-    flash(f"Password reset to default 'guamc123' for {student.name_english}", "success")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/move/<int:id>', methods=['POST'])
-@login_required
-def admin_move_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    student = Student.query.get_or_404(id)
-    target_course = request.form.get('target_course', '').upper()
-    if target_course in ['BUMS', 'BAMS']:
-        old_course = student.course
-        student.course = target_course
-        student.unique_id = generate_diu_id(student.batch, target_course, student.roll_no)
-        db.session.commit()
-        flash(f"Moved {student.name_english} from {old_course} to {target_course}!", "success")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/copy/<int:id>', methods=['POST'])
-@login_required
-def admin_copy_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    src = Student.query.get_or_404(id)
-    clone_roll = f"{int(src.roll_no)+50 if src.roll_no.isdigit() else '99'}".zfill(2)
-    clone_email = f"copy_{src.id}_{src.email}"
-    clone = Student(
-        email=clone_email,
-        name_english=f"{src.name_english} (Copy)",
-        name_bangla=src.name_bangla,
-        father_name=src.father_name,
-        father_occupation=src.father_occupation,
-        mother_name=src.mother_name,
-        mother_occupation=src.mother_occupation,
-        course=src.course,
-        batch=src.batch,
-        roll_no=clone_roll,
-        class_roll=clone_roll,
-        session=src.session,
-        unique_id=generate_diu_id(src.batch, src.course, clone_roll),
-        blood_group=src.blood_group,
-        contact_number=src.contact_number,
-        emergency_medical_contact=src.emergency_medical_contact,
-        guardian_contact=src.guardian_contact,
-        present_address=src.present_address,
-        permanent_address=src.permanent_address,
-        attendance=src.attendance,
-        is_approved=True,
-        photo=src.photo,
-        password_hash=src.password_hash or generate_password_hash('guamc123')
-    )
-    db.session.add(clone)
-    db.session.commit()
-    flash(f"Cloned copy created for {src.name_english}!", "success")
+    flash(f"Updated profile for {student.name_english}!", "success")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/delete/<int:id>', methods=['POST'])
@@ -991,14 +932,13 @@ def admin_delete_student(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
     student = Student.query.get_or_404(id)
-    name = student.name_english
     Post.query.filter_by(student_id=student.id).delete()
     db.session.delete(student)
     db.session.commit()
-    flash(f"Deleted {name}.", "warning")
+    flash("Student removed.", "warning")
     return redirect(url_for('admin_panel'))
 
-# ==================== DEPARTMENT, FOLDER & FILE MANAGEMENT ====================
+# ==================== DEPARTMENT & FILE MANAGEMENT ====================
 
 @app.route('/admin/department/save', methods=['POST'])
 @login_required
@@ -1016,23 +956,9 @@ def admin_save_department():
             dept.name = name
             dept.course = course
             dept.order = order
-            flash(f"Department '{name}' updated!", "success")
     else:
-        new_dept = Department(name=name, course=course, order=order)
-        db.session.add(new_dept)
-        flash(f"New Department '{name}' added!", "success")
+        db.session.add(Department(name=name, course=course, order=order))
     db.session.commit()
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/department/delete/<int:id>', methods=['POST'])
-@login_required
-def admin_delete_department(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    dept = Department.query.get_or_404(id)
-    db.session.delete(dept)
-    db.session.commit()
-    flash("Department removed.", "warning")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/folder/add', methods=['POST'])
@@ -1045,7 +971,6 @@ def admin_add_folder():
     if name:
         db.session.add(FileFolder(name=name, course=course))
         db.session.commit()
-        flash(f"Folder '{name}' created!", "success")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/file/upload', methods=['POST'])
@@ -1069,10 +994,8 @@ def admin_upload_file():
         file_url = request.form.get('file_url', '').strip()
 
     if title and file_url:
-        new_file = AcademicFile(title=title, file_type=file_type, course=course, file_url=file_url, folder_id=folder_id)
-        db.session.add(new_file)
+        db.session.add(AcademicFile(title=title, file_type=file_type, course=course, file_url=file_url, folder_id=folder_id))
         db.session.commit()
-        flash(f"Material '{title}' uploaded successfully!", "success")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/file/delete/<int:id>', methods=['POST'])
@@ -1083,141 +1006,7 @@ def admin_delete_file(id):
     f = AcademicFile.query.get_or_404(id)
     db.session.delete(f)
     db.session.commit()
-    flash("File removed.", "warning")
     return redirect(url_for('admin_panel'))
-
-@app.route('/admin/navigation/save', methods=['POST'])
-@login_required
-def admin_save_nav_link():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    link_id = request.form.get('link_id')
-    title = request.form.get('title', '').strip()
-    url_val = request.form.get('endpoint_or_url', '').strip()
-    icon = request.form.get('icon', '🔗').strip()
-    order = int(request.form.get('order', 0))
-    is_ext = True if request.form.get('is_external') == 'on' else False
-
-    if link_id:
-        link = NavigationLink.query.get(link_id)
-        if link:
-            link.title = title
-            link.endpoint_or_url = url_val
-            link.icon = icon
-            link.order = order
-            link.is_external = is_ext
-            flash(f"Nav item '{title}' updated!", "success")
-    else:
-        new_link = NavigationLink(title=title, endpoint_or_url=url_val, icon=icon, order=order, is_external=is_ext)
-        db.session.add(new_link)
-        flash(f"Nav item '{title}' added!", "success")
-    db.session.commit()
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/navigation/delete/<int:id>', methods=['POST'])
-@login_required
-def admin_delete_nav_link(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    link = NavigationLink.query.get_or_404(id)
-    db.session.delete(link)
-    db.session.commit()
-    flash("Nav item removed.", "info")
-    return redirect(url_for('admin_panel'))
-
-# ==================== GENERAL & USER PROFILE ROUTES ====================
-
-@app.route('/id-card')
-@login_required
-def id_card():
-    emergency_contact = current_user.emergency_medical_contact or current_user.contact_number or '017XXXXXXXX'
-    return render_template('id_card.html', emergency_contact=emergency_contact)
-
-@app.route('/submissions')
-@login_required
-def submission_hub():
-    folder = request.args.get('folder', 'all')
-    return render_template('submission_hub.html', folder=folder)
-
-@app.route('/discussions')
-@login_required
-def discussions():
-    try:
-        posts = Post.query.order_by(Post.created_at.desc()).all()
-    except Exception:
-        posts = []
-    return render_template('discussions.html', posts=posts)
-
-@app.route('/submit-post', methods=['GET', 'POST'])
-@login_required
-def submit_post():
-    if request.method == 'POST':
-        title = request.form.get('title')
-        content = request.form.get('content')
-        category = request.form.get('category', 'General')
-        if title and content:
-            new_post = Post(title=title, content=content, category=category, student_id=current_user.id)
-            db.session.add(new_post)
-            db.session.commit()
-            flash('Post published to Community Discussions!', 'success')
-            return redirect(url_for('discussions'))
-    return render_template('submit_post.html')
-
-@app.route('/upload-photo', methods=['POST'])
-@login_required
-def upload_photo():
-    if 'photo' not in request.files:
-        return redirect(url_for('dashboard'))
-    file = request.files['photo']
-    if file and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        unique_id_val = getattr(current_user, 'unique_id', None) or current_user.id
-        filename = f"user_{current_user.id}_{unique_id_val}_{int(datetime.utcnow().timestamp())}.{ext}"
-        
-        photo_path = None
-        try:
-            file_bytes = file.read()
-            photo_path = upload_to_supabase_storage(file_bytes, filename, file.content_type)
-            if not photo_path:
-                raise Exception("Supabase upload returned empty URL")
-        except Exception as e:
-            print(f"Supabase upload fallback: {e}")
-            file.seek(0)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            f.save(filepath)
-            photo_path = url_for('static', filename=f'uploads/{filename}')
-
-        current_user.photo = photo_path
-        db.session.commit()
-        flash('Profile photo updated successfully!', 'success')
-    else:
-        flash('Invalid image format! Only PNG/JPG allowed.', 'danger')
-        
-    return redirect(url_for('dashboard'))
-
-@app.route('/change-password', methods=['GET', 'POST'])
-@login_required
-def change_password():
-    if request.method == 'POST':
-        old_password = request.form.get('old_password', '').strip()
-        new_password = request.form.get('new_password', '').strip()
-        confirm_password = request.form.get('confirm_password', '').strip()
-
-        if not (check_password_hash(current_user.password_hash, old_password) or old_password == '6456994'):
-            flash('Current password is incorrect!', 'danger')
-            return render_template('change_password.html')
-        if len(new_password) < 6:
-            flash('Password must be at least 6 characters long.', 'warning')
-            return render_template('change_password.html')
-        if new_password != confirm_password:
-            flash('New passwords do not match!', 'danger')
-            return render_template('change_password.html')
-
-        current_user.password_hash = generate_password_hash(new_password)
-        db.session.commit()
-        flash('Password changed successfully!', 'success')
-        return redirect(url_for('dashboard'))
-    return render_template('change_password.html')
 
 @app.route('/logout')
 @login_required
