@@ -1324,45 +1324,71 @@ def send_custom_notice():
 
     return """<div style="max-width: 500px; margin: 50px auto; font-family: Arial; padding: 25px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;"><h2 style="color: #0f766e; margin-top: 0;">Send Broadcast Notice to All Students</h2><form method="POST"><label style="font-weight: bold;">Subject:</label><br><input type="text" name="subject" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required><br><label style="font-weight: bold;">Notice Message:</label><br><textarea name="body" rows="6" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required></textarea><br><button type="submit" style="background: #0f766e; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send Notice to All</button></form></div>"""
 
-   import csv
+
+import csv
+import os
 
 @app.route('/admin/secret-sync-now')
 def secret_sync_now():
     csv_file = 'master_students.csv'
     if not os.path.exists(csv_file):
-        return f"File {csv_file} not found on server!"
+        files_present = os.listdir('.')
+        return f"<h3>File Error:</h3> <p>{csv_file} not found!</p><p>Files present: {files_present}</p>"
         
     added_count = 0
     updated_count = 0
 
-    with open(csv_file, mode='r', encoding='utf-8-sig') as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            roll_val = row.get('roll') or row.get('Roll') or row.get('ROLL')
-            if not roll_val:
-                continue
-            
-            roll_str = str(roll_val).strip().zfill(2) if str(roll_val).strip().isdigit() else str(roll_val).strip()
-            
-            # ডেটাবেসে স্টুডেন্ট আগে থেকেই আছে কি না দেখা
-            student = Student.query.filter_by(roll=roll_str).first()
-            
-            if not student:
-                # নতুন স্টুডেন্ট তৈরি
-                student = Student(roll=roll_str)
-                db.session.add(student)
-                added_count += 1
-            else:
-                updated_count += 1
+    try:
+        with open(csv_file, mode='r', encoding='utf-8-sig') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                roll_val = None
+                for k, v in row.items():
+                    if k and 'roll' in k.lower():
+                        roll_val = v
+                        break
+                
+                if not roll_val:
+                    continue
 
-            # শুধু খালি ফিল্ডগুলো পূরণ করা, যেন সাইন আপে দেওয়া পাসওয়ার্ড/ডেটা ওভাররাইট না হয়
-            for key, val in row.items():
-                attr = key.strip().lower()
-                if hasattr(student, attr) and val:
-                    # যদি স্টুডেন্টের ফিল্ডে আগে থেকেই মান থাকে (যেমন পাসওয়ার্ড বা আপডেটেড ফোন), তা অক্ষত রাখা
-                    current_val = getattr(student, attr, None)
-                    if not current_val:
-                        setattr(student, attr, val.strip())
+                roll_str = str(roll_val).strip()
+                if roll_str.isdigit():
+                    roll_str = roll_str.zfill(2)
 
-    db.session.commit()
-    return f"<h1>Sync Completed Safely!</h1><p>New added: {added_count}, Existing preserved/updated: {updated_count}</p><a href='/admin'>Go to Admin</a>"
+                student = Student.query.filter_by(roll=roll_str).first()
+                if not student:
+                    student = Student(roll=roll_str)
+                    db.session.add(student)
+                    added_count += 1
+                else:
+                    updated_count += 1
+
+                for col_name, val in row.items():
+                    if not col_name or not val:
+                        continue
+                    clean_col = col_name.strip().lower().replace(' ', '_')
+                    
+                    if 'name' in clean_col and 'bangla' not in clean_col:
+                        if hasattr(student, 'name_english'): student.name_english = val.strip()
+                        if hasattr(student, 'name'): student.name = val.strip()
+                    elif 'bangla' in clean_col:
+                        if hasattr(student, 'name_bangla'): student.name_bangla = val.strip()
+                    elif 'email' in clean_col:
+                        if hasattr(student, 'personal_email'): student.personal_email = val.strip()
+                        if hasattr(student, 'email'): student.email = val.strip()
+                    elif 'phone' in clean_col or 'contact' in clean_col or 'mobile' in clean_col:
+                        if hasattr(student, 'contact_no'): student.contact_no = val.strip()
+                        if hasattr(student, 'phone'): student.phone = val.strip()
+                    elif 'blood' in clean_col:
+                        if hasattr(student, 'blood_group'): student.blood_group = val.strip()
+                    elif 'course' in clean_col:
+                        if hasattr(student, 'course'): student.course = val.strip()
+                    elif 'session' in clean_col:
+                        if hasattr(student, 'session'): student.session = val.strip()
+
+            db.session.commit()
+            return f"<h2>Sync Successful!</h2><p><b>Added New:</b> {added_count}</p><p><b>Preserved/Updated:</b> {updated_count}</p><br><a href='/admin'>Go to Admin Portal</a>"
+            
+    except Exception as e:
+        db.session.rollback()
+        return f"<h3>Database Error:</h3> <p>{str(e)}</p>"
