@@ -1099,11 +1099,12 @@ import csv
 import os
 
 # ==========================================================
-# ১. Dossier API (প্রোফাইল লোড ও ড্রাইভ ছবি প্রিভিউ ফিক্স)
+# ১. Dossier API (প্রোফাইল ডাটা ও গুগল ড্রাইভ ছবি প্রিভিউ ফিক্স)
 # ==========================================================
 @app.route('/admin/get_student/<int:student_id>')
 @app.route('/api/student/<int:student_id>')
 @app.route('/admin/student/<int:student_id>')
+@app.route('/admin/student_details/<int:student_id>')
 def get_student_details_api(student_id):
     student = Student.query.get_or_404(student_id)
     data = {}
@@ -1116,6 +1117,7 @@ def get_student_details_api(student_id):
         else:
             data[column.name] = str(val)
 
+    # গুগল ড্রাইভ ফটোর সরাসরি প্রিভিউ লিংক তৈরি
     photo_url = data.get('photo', '')
     if photo_url and 'drive.google.com' in photo_url:
         file_id = None
@@ -1130,7 +1132,7 @@ def get_student_details_api(student_id):
 
 
 # ==========================================================
-# ২. CSV + সাইন আপ করা সব ২১ জনের অটো-এপ্রুভাল সিঙ্ক
+# ২. ক্লাস রোল, ইউনিক আইডি এবং সব ২১ জনের পারফেক্ট সিঙ্ক রুট
 # ==========================================================
 @app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
@@ -1152,15 +1154,34 @@ def secret_sync_now():
                     if not row or not any(row.values()):
                         continue
 
-                    raw_email = next((str(v).strip() for k, v in row.items() if k and 'email' in k.lower() and v), None)
-                    raw_roll = next((str(v).strip() for k, v in row.items() if k and any(x in k.lower() for x in ['roll', 'class_roll']) and v), None)
+                    # ১. সঠিক ক্লাস রোল ও ইউনিক আইডি শনাক্তকরণ
+                    class_roll = None
+                    unique_id_val = None
+                    email_val = None
 
+                    for k, v in row.items():
+                        if not k or not v:
+                            continue
+                        k_low = k.lower().replace(' ', '_').replace('-', '_')
+                        v_str = str(v).strip()
+
+                        if 'email' in k_low:
+                            email_val = v_str
+                        elif 'unique' in k_low or 'student_id' in k_low or 'id_no' in k_low:
+                            unique_id_val = v_str
+                        elif 'class_roll' in k_low or 'college_roll' in k_low or k_low == 'roll':
+                            # ক্লাস রোল সাধারণত ছোট সংখ্যা (যেমন ১-৫০)
+                            if v_str.isdigit() and len(v_str) <= 3:
+                                class_roll = v_str.zfill(2)
+                        elif not class_roll and any(x in k_low for x in ['roll_no', 'roll']) and len(v_str) <= 3:
+                            class_roll = v_str.zfill(2)
+
+                    # ২. স্টুডেন্ট ম্যাচিং (ইমেইল বা ক্লাস রোল দিয়ে)
                     student = None
-                    if raw_email:
-                        student = Student.query.filter_by(email=raw_email).first()
-                    if not student and raw_roll:
-                        formatted_roll = raw_roll.zfill(2) if raw_roll.isdigit() else raw_roll
-                        student = Student.query.filter_by(roll_no=formatted_roll).first()
+                    if email_val:
+                        student = Student.query.filter_by(email=email_val).first()
+                    if not student and class_roll:
+                        student = Student.query.filter_by(roll_no=class_roll).first()
 
                     if not student:
                         student = Student()
@@ -1168,19 +1189,19 @@ def secret_sync_now():
 
                     student.is_approved = True
 
+                    if class_roll:
+                        student.roll_no = class_roll
+                    if unique_id_val and hasattr(student, 'unique_id'):
+                        student.unique_id = unique_id_val
+
+                    # ৩. অন্যান্য তথ্য অ্যাসাইন
                     for col_name, val in row.items():
                         if not col_name or val is None or str(val).strip() == '':
                             continue
-                        
                         v_str = str(val).strip()
                         c_clean = col_name.strip().lower().replace(' ', '_')
 
-                        if c_clean == 'id':
-                            if hasattr(student, 'unique_id') and not student.unique_id:
-                                student.unique_id = v_str
-                            continue
-
-                        if hasattr(student, c_clean):
+                        if hasattr(student, c_clean) and not getattr(student, c_clean, None):
                             setattr(student, c_clean, v_str)
 
                         if 'name' in c_clean and 'bangla' not in c_clean and hasattr(student, 'name_english'):
@@ -1196,23 +1217,21 @@ def secret_sync_now():
                         elif 'photo' in c_clean and hasattr(student, 'photo'):
                             student.photo = v_str
 
-                    if hasattr(student, 'roll_no') and raw_roll:
-                        student.roll_no = raw_roll.zfill(2) if raw_roll.isdigit() else raw_roll
-
                     csv_count += 1
 
-        # সাইন আপ করা শিক্ষার্থীসহ সবাইকে অ্যাপ্রুভ করা
+        # সকল শিক্ষার্থীকে মূল ড্যাশবোর্ডে অ্যাপ্রুভ রাখা
         all_students = Student.query.all()
         for s in all_students:
             s.is_approved = True
 
         db.session.commit()
         total_students = Student.query.count()
-        return f"<h2>All Students Live & Ready!</h2><p><b>From CSV:</b> {csv_count}</p><p><b>Total Approved on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Portal</a>"
+        return f"<h2>All Students Live & Ready!</h2><p><b>Processed:</b> {csv_count}</p><p><b>Total Approved on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Portal</a>"
 
     except Exception as e:
         db.session.rollback()
         return f"<h3>Error:</h3> <p>{str(e)}</p>"
+        
 @app.after_request
 def add_cache_control(response):
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
