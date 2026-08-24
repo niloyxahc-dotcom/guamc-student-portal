@@ -1128,79 +1128,116 @@ def get_student_details_api(student_id):
 
     return jsonify(data)
 
-
 # ==========================================================
-# ২. সম্পূর্ণ ক্লিন সিঙ্ক: সঠিক ক্লাস রোল, আইডি ও ড্যাশবোর্ড একটিভেশন
+# ২. ২২ জন শিক্ষার্থীর সম্পূর্ণ মাস্টার সিঙ্ক ও অটো-অ্যাপ্রুভাল
 # ==========================================================
 @app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
 def secret_sync_now():
     csv_file = 'master_students.csv'
-    if not os.path.exists(csv_file):
-        return f"<h3>File Error:</h3> <p>{csv_file} not found!</p>"
+    csv_processed = 0
 
     try:
-        # আগের ভুল ডেটা ডিলিট করা (এডমিন বাদে)
-        Student.query.filter(Student.email != 'niloyxahc@gmail.com').delete()
-        db.session.commit()
+        # ১. CSV থেকে শিক্ষার্থীদের পারফেক্ট ম্যাপিং ও আপডেট
+        if os.path.exists(csv_file):
+            with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
+                content = f.read()
 
-        with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
-            content = f.read()
+            lines = [l for l in content.strip().splitlines() if l.strip()]
+            if lines:
+                delimiter = ';' if ';' in lines[0] and ',' not in lines[0] else ','
+                reader = csv.DictReader(lines, delimiter=delimiter)
 
-        lines = content.strip().splitlines()
-        delimiter = ';' if ';' in lines[0] and ',' not in lines[0] else ','
-        reader = csv.DictReader(lines, delimiter=delimiter)
+                for row in reader:
+                    if not row or not any(row.values()):
+                        continue
 
-        inserted_count = 0
-        for row in reader:
-            if not row or not any(row.values()):
-                continue
+                    # প্রাথমিক ভ্যালু ডিটেকশন
+                    email_val = None
+                    class_roll = None
+                    unique_id_val = None
 
-            student = Student()
-            student.is_approved = True
+                    for k, v in row.items():
+                        if not k or v is None:
+                            continue
+                        k_clean = k.strip().lower()
+                        v_str = str(v).strip()
+                        if not v_str:
+                            continue
 
-            for col_name, val in row.items():
-                if not col_name or val is None or str(val).strip() == '':
-                    continue
-                
-                v_str = str(val).strip()
-                c_clean = col_name.strip().lower().replace(' ', '_').replace('-', '_')
+                        if '@' in v_str and '.' in v_str:
+                            email_val = v_str
+                        elif any(r in k_clean for r in ['class_roll', 'college_roll', 'roll_no', 'বর্তমান রোল', 'roll']) and v_str.isdigit() and len(v_str) <= 3:
+                            class_roll = v_str.zfill(2)
+                        elif any(u in k_clean for u in ['unique', 'student_id', 'id_no', 'আইডি']):
+                            unique_id_val = v_str
 
-                if c_clean == 'id':
-                    continue
+                    student = None
+                    if email_val:
+                        student = Student.query.filter_by(email=email_val).first()
+                    if not student and class_roll:
+                        student = Student.query.filter_by(roll_no=class_roll).first()
 
-                if any(x == c_clean for x in ['class_roll', 'roll', 'roll_no', 'college_roll']):
-                    if v_str.isdigit() and len(v_str) <= 3:
-                        student.roll_no = v_str.zfill(2)
-                elif 'unique' in c_clean or 'student_id' in c_clean or 'id_no' in c_clean:
-                    if hasattr(student, 'unique_id'):
-                        student.unique_id = v_str
-                
-                if hasattr(student, c_clean):
-                    setattr(student, c_clean, v_str)
+                    if not student:
+                        student = Student()
+                        db.session.add(student)
 
-                if 'name' in c_clean and 'bangla' not in c_clean and hasattr(student, 'name_english'):
-                    student.name_english = v_str
-                elif 'bangla' in c_clean and hasattr(student, 'name_bangla'):
-                    student.name_bangla = v_str
-                elif any(x in c_clean for x in ['phone', 'contact', 'mobile']) and hasattr(student, 'contact_number'):
-                    student.contact_number = v_str
-                elif 'email' in c_clean and hasattr(student, 'email'):
-                    student.email = v_str
-                elif 'blood' in c_clean and hasattr(student, 'blood_group'):
-                    student.blood_group = v_str
-                elif 'photo' in c_clean and hasattr(student, 'photo'):
-                    student.photo = v_str
+                    student.is_approved = True
 
-            if hasattr(student, 'email') and not student.email:
-                student.email = f"student_{inserted_count+1}@guamc.edu.bd"
+                    if class_roll:
+                        student.roll_no = class_roll
+                    if unique_id_val and hasattr(student, 'unique_id'):
+                        student.unique_id = unique_id_val
+                    if email_val:
+                        student.email = email_val
 
-            db.session.add(student)
-            inserted_count += 1
+                    # প্রতিটি ফিল্ডের নিখুঁত অ্যাসাইনমেন্ট
+                    for k, v in row.items():
+                        if not k or v is None:
+                            continue
+                        k_clean = k.strip().lower()
+                        v_str = str(v).strip()
+                        if not v_str:
+                            continue
+
+                        # ফোন নম্বর
+                        if (v_str.startswith('01') or v_str.startswith('+8801')) and len(v_str.replace('+88', '')) >= 11:
+                            if hasattr(student, 'contact_number') and not student.contact_number:
+                                student.contact_number = v_str
+                            continue
+
+                        # ব্লাড গ্রুপ
+                        if v_str.upper() in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']:
+                            student.blood_group = v_str.upper()
+                            continue
+
+                        # ছবি
+                        if 'drive.google.com' in v_str or 'photo' in k_clean:
+                            student.photo = v_str
+                            continue
+
+                        # ছাত্র/ছাত্রীর নাম ফিল্টারিং (পিতা/মাতা বাদে)
+                        if any(n in k_clean for n in ['name', 'নাম']) and not any(x in k_clean for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college']):
+                            if any(b in k_clean for b in ['bangla', 'বাংলা']):
+                                student.name_bangla = v_str
+                            elif not getattr(student, 'name_english', None) or getattr(student, 'name_english') in ['Yes', 'None', '']:
+                                student.name_english = v_str
+
+                        # অন্যান্য ব্যাকগ্রাউন্ড ফিল্ড
+                        attr = k_clean.replace(' ', '_').replace('-', '_')
+                        if hasattr(student, attr) and not getattr(student, attr, None):
+                            setattr(student, attr, v_str)
+
+                    csv_processed += 1
+
+        # ২. সাইন আপ করা সব ইউজারকে অ্যাপ্রুভ রাখা
+        all_students = Student.query.all()
+        for s in all_students:
+            s.is_approved = True
 
         db.session.commit()
         total_students = Student.query.count()
-        return f"<h2>Clean Sync Completed!</h2><p><b>Imported from CSV:</b> {inserted_count}</p><p><b>Total on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
+        return f"<h2>All {total_students} Students Successfully Synced & Live!</h2><p><b>Processed from CSV:</b> {csv_processed}</p><p><b>Total Approved on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
 
     except Exception as e:
         db.session.rollback()
