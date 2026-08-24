@@ -1095,21 +1095,25 @@ def logout():
 
 import csv
 import os
-from flask import jsonify, render_template
+from flask import jsonify
 
 # ==========================================================
-# ১. সার্বজনীন Dossier API (HTML মডাল এবং JSON উভয় সাপোর্ট)
+# ১. সার্বজনীন Dossier API (সব রুট অ্যালিয়াস ও JSON ডাটা সাপোর্ট)
 # ==========================================================
 @app.route('/admin/get_student/<student_id>')
-@app.route('/api/student/<student_id>')
-@app.route('/admin/student/<student_id>')
+@app.route('/admin/get_student_details/<student_id>')
 @app.route('/admin/student_details/<student_id>')
+@app.route('/admin/student_dossier/<student_id>')
+@app.route('/admin/student/<student_id>')
 @app.route('/admin/dossier/<student_id>')
+@app.route('/api/student/<student_id>')
+@app.route('/api/student_details/<student_id>')
 def get_student_details_api(student_id):
     try:
         student = None
         s_str = str(student_id).strip()
         
+        # ১. আইডি অথবা রোল দিয়ে খোঁজা
         if s_str.isdigit():
             student = Student.query.get(int(s_str))
         
@@ -1124,6 +1128,7 @@ def get_student_details_api(student_id):
         if not student:
             return jsonify({"error": "Student not found", "status": "error"}), 404
 
+        # ২. সব ফিল্ড নিরাপদ স্ট্রিংয়ে রূপান্তর
         data = {}
         for column in student.__table__.columns:
             try:
@@ -1137,7 +1142,7 @@ def get_student_details_api(student_id):
             except Exception:
                 data[column.name] = "N/A"
 
-        # গুগল ড্রাইভ ফটোর ভিউয়েবল লিংক
+        # ৩. গুগল ড্রাইভ ফটোর সরাসরি প্রিভিউ লিংক
         photo_url = data.get('photo', '')
         if photo_url and 'drive.google.com' in photo_url:
             file_id = None
@@ -1148,13 +1153,18 @@ def get_student_details_api(student_id):
             if file_id:
                 data['photo'] = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
 
-        # ফ্রন্টএন্ডের জন্য সার্বজনীন ফিল্ড ম্যাপিং
+        # ফ্রন্টএন্ড যাতে কোনো ফিল্ড মিস না করে
         data['name'] = data.get('name_english') or data.get('name') or "N/A"
+        data['name_bangla'] = data.get('name_bangla') or "N/A"
+        data['father_name'] = data.get('father_name') or "N/A"
+        data['mother_name'] = data.get('mother_name') or "N/A"
         data['roll'] = data.get('roll_no') or data.get('roll') or "N/A"
+        data['roll_no'] = data.get('roll_no') or data.get('roll') or "N/A"
         data['phone'] = data.get('contact_number') or data.get('phone') or "N/A"
+        data['contact_number'] = data.get('contact_number') or data.get('phone') or "N/A"
         data['course'] = data.get('course') or "BUMS"
+        data['unique_id'] = data.get('unique_id') or f"GUAMC-{data['course']}-37-{data['roll']}"
 
-        # ফ্রন্টএন্ড যদি data.student খোঁজে তার ব্যাকআপ
         return jsonify({
             "status": "success",
             "student": data,
@@ -1166,7 +1176,7 @@ def get_student_details_api(student_id):
 
 
 # ==========================================================
-# ২. BUMS/BAMS কোর্স বিভাজন ও ২২ জনের চূড়ান্ত সিঙ্ক
+# ২. ২২ জনের মাস্টার সিঙ্ক + অটো ইউনিক আইডি জেনারেটর + কোর্স বিভাজন
 # ==========================================================
 @app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
@@ -1191,7 +1201,7 @@ def secret_sync_now():
                     email_val = None
                     class_roll = None
                     unique_id_val = None
-                    detected_course = None
+                    detected_course = 'BUMS'
 
                     for k, v in row.items():
                         if not k or v is None:
@@ -1208,7 +1218,6 @@ def secret_sync_now():
                         elif any(u in k_clean for u in ['unique', 'student_id', 'id_no', 'আইডি']):
                             unique_id_val = v_str
                         
-                        # কোর্স শনাক্তকরণ (BAMS বনাম BUMS)
                         if any(c in k_clean for c in ['course', 'dept', 'department', 'বিভাগ', 'কোর্স']):
                             if 'ayurved' in v_str.lower() or 'bams' in v_str.lower():
                                 detected_course = 'BAMS'
@@ -1229,16 +1238,21 @@ def secret_sync_now():
 
                     if class_roll:
                         student.roll_no = class_roll
-                    if unique_id_val and hasattr(student, 'unique_id'):
-                        student.unique_id = unique_id_val
                     if email_val:
                         student.email = email_val
                     
                     # কোর্স সেট করা
                     if hasattr(student, 'course'):
-                        student.course = detected_course if detected_course else 'BUMS'
+                        student.course = detected_course
 
-                    # ফোন, ব্লাড গ্রুপ, ছবি ও অন্যান্য ফিল্ড
+                    # ইউনিক আইডি সেট বা অটো-জেনারেট
+                    if hasattr(student, 'unique_id'):
+                        if unique_id_val:
+                            student.unique_id = unique_id_val
+                        elif class_roll:
+                            student.unique_id = f"GUAMC-{detected_course}-37-{class_roll}"
+
+                    # ফোন, রক্ত, ছবি ও অভিভাবকের নাম
                     for k, v in row.items():
                         if not k or v is None:
                             continue
@@ -1257,7 +1271,6 @@ def secret_sync_now():
                             if hasattr(student, 'photo'):
                                 student.photo = v_str
 
-                        # নাম ফিল্টারিং
                         if any(f in k_clean for f in ['father', 'পিতা', 'বাবার নাম']):
                             if hasattr(student, 'father_name'):
                                 student.father_name = v_str
@@ -1276,13 +1289,18 @@ def secret_sync_now():
 
                     csv_processed += 1
 
+        # সকল শিক্ষার্থীকে অ্যাপ্রুভ করা ও মিসিং ইউনিক আইডি পূরণ করা
         all_students = Student.query.all()
-        for s in all_students:
+        for idx, s in enumerate(all_students, start=1):
             s.is_approved = True
+            if hasattr(s, 'unique_id') and not s.unique_id:
+                c_name = getattr(s, 'course', 'BUMS') or 'BUMS'
+                r_num = getattr(s, 'roll_no', str(idx).zfill(2)) or str(idx).zfill(2)
+                s.unique_id = f"GUAMC-{c_name}-37-{r_num}"
 
         db.session.commit()
         total_students = Student.query.count()
-        return f"<h2>All {total_students} Students Corrected (BUMS/BAMS Separated)!</h2><p><b>Processed:</b> {csv_processed}</p><p><b>Total Approved:</b> {total_students}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
+        return f"<h2>All {total_students} Students Synced! Unique IDs & Dossier Live.</h2><p><b>From CSV:</b> {csv_processed}</p><p><b>Total Approved on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
 
     except Exception as e:
         db.session.rollback()
