@@ -215,7 +215,7 @@ def sync_students_csv():
                                 raw_course = 'BAMS'
                             else:
                                 raw_course = 'BUMS'
-                        elif ("father" in k_l or "পিতা" in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l):
+                        elif ("father" in k_l or "পিতা" in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l or 'পেশা' in k_l):
                             raw_father_name = v_s
                         elif 'bangla' in k_l or 'বাংলা' in k_l:
                             raw_ban_name = v_s
@@ -547,39 +547,46 @@ def admin_panel():
                     flash("Failed to update attendance.", "danger")
         return redirect(url_for('admin_panel'))
 
-    search_q = request.args.get('q', '').strip()
-    course_filter = request.args.get('course', 'ALL')
-    
-    pending_students = Student.query.filter_by(is_approved=False).order_by(Student.id.desc()).all()
+    try:
+        search_q = request.args.get('q', '').strip()
+        course_filter = request.args.get('course', 'ALL')
+        
+        pending_students = Student.query.filter_by(is_approved=False).order_by(Student.id.desc()).all()
 
-    query = Student.query.filter_by(is_approved=True)
-    if course_filter in ['BUMS', 'BAMS']:
-        query = query.filter(Student.course == course_filter)
-    if search_q:
-        query = query.filter(
-            (Student.name_english.ilike(f'%{search_q}%')) |
-            (Student.email.ilike(f'%{search_q}%')) |
-            (Student.roll_no.ilike(f'%{search_q}%')) |
-            (Student.unique_id.ilike(f'%{search_q}%'))
-        )
-    
-    approved_students = query.order_by(Student.course, Student.roll_no).all()
-    departments = Department.query.order_by(Department.course, Department.order).all()
-    folders = FileFolder.query.all()
-    files = AcademicFile.query.order_by(AcademicFile.id.desc()).all()
-    nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all()
-    
-    return render_template('admin.html',
-                           students=approved_students,
-                           pending_students=pending_students,
-                           departments=departments,
-                           folders=folders,
-                           files=files,
-                           nav_links=nav_links,
-                           search_q=search_q,
-                           course_filter=course_filter)
+        query = Student.query.filter_by(is_approved=True)
+        if course_filter in ['BUMS', 'BAMS']:
+            query = query.filter(Student.course == course_filter)
+        if search_q:
+            query = query.filter(
+                (Student.name_english.ilike(f'%{search_q}%')) |
+                (Student.email.ilike(f'%{search_q}%')) |
+                (Student.roll_no.ilike(f'%{search_q}%')) |
+                (Student.unique_id.ilike(f'%{search_q}%'))
+            )
+        
+        approved_students = query.order_by(Student.course, Student.roll_no).all()
+        departments = Department.query.order_by(Department.course, Department.order).all() if 'Department' in globals() else []
+        folders = FileFolder.query.all() if 'FileFolder' in globals() else []
+        files = AcademicFile.query.order_by(AcademicFile.id.desc()).all() if 'AcademicFile' in globals() else []
+        nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all() if 'NavigationLink' in globals() else []
+        notices = Notice.query.order_by(Notice.id.desc()).all() if 'Notice' in globals() else []
+        posts = Post.query.order_by(Post.id.desc()).all() if 'Post' in globals() else []
+        
+        return render_template('admin.html',
+                               students=approved_students,
+                               pending_students=pending_students,
+                               departments=departments,
+                               folders=folders,
+                               files=files,
+                               nav_links=nav_links,
+                               notices=notices,
+                               posts=posts,
+                               search_q=search_q,
+                               course_filter=course_filter)
+    except Exception as e:
+        return f"<h3>Admin Panel Error:</h3><p>{str(e)}</p>", 500
 
-# ==================== DOSSIER API (FULL COLUMN MAPPING) ====================
+# ==================== DOSSIER API ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -617,7 +624,6 @@ def admin_get_student_json(id):
         except Exception:
             data[column.name] = "N/A"
 
-    # সঠিকভাবে সঠিক ফিল্ড নিশ্চিত করা (পিতা ও মাতার নাম যেন পেশা বা অন্য কিছু দিয়ে ওভাররাইট না হয়)
     data['id'] = s.id
     data['name'] = getattr(s, 'name_english', None) or getattr(s, 'name', 'N/A')
     data['name_english'] = data['name']
@@ -635,7 +641,7 @@ def admin_get_student_json(id):
         **data
     })
 
-# ==================== CSV MASTER SYNC (ROBUST PARSER) ====================
+# ==================== CSV MASTER SYNC ====================
 
 @app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
@@ -708,7 +714,6 @@ def secret_sync_now():
                         dept_digit = "2" if detected_course == 'BAMS' else "1"
                         student.unique_id = f"37{dept_digit}{class_roll}"
 
-                    # নিখুঁত ফিল্ড পার্সিং (পিতা/মাতা ও পেশা আলাদা করা)
                     for k, v in row.items():
                         if not k or v is None:
                             continue
@@ -717,7 +722,6 @@ def secret_sync_now():
                         if not v_str:
                             continue
 
-                        # ফোন নম্বর ফিল্টারিং
                         if (v_str.startswith('01') or v_str.startswith('+8801')) and len(v_str.replace('+88', '')) >= 11:
                             if 'emergency' in k_clean or 'অভিভাবক' in k_clean or 'guardian' in k_clean:
                                 if hasattr(student, 'emergency_contact'): student.emergency_contact = v_str
@@ -733,7 +737,6 @@ def secret_sync_now():
                             if hasattr(student, 'photo'): student.photo = v_str
                             continue
 
-                        # সুনির্দিষ্ট ফিল্ড ম্যাপিং
                         if 'father_name' in k_clean or k_clean in ['father', 'পিতা', 'বাবার নাম', 'পিতার নাম']:
                             student.father_name = v_str
                         elif 'mother_name' in k_clean or k_clean in ['mother', 'মাতা', 'মায়ের নাম', 'মায়ের নাম']:
@@ -747,7 +750,6 @@ def secret_sync_now():
                         elif any(n in k_clean for n in ['name', 'student_name', 'পূর্ণ নাম', 'নাম']) and not any(x in k_clean for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college', 'bangla', 'বাংলা', 'occupation', 'পেশা']):
                             student.name_english = v_str
 
-                        # বাকি সব ফিল্ড ডাইনামিকালি সেট করা
                         attr = k_clean.replace(' ', '_').replace('-', '_')
                         if hasattr(student, attr) and not getattr(student, attr, None):
                             setattr(student, attr, v_str)
@@ -938,7 +940,7 @@ def admin_delete_student(id):
     flash("Student removed.", "warning")
     return redirect(url_for('admin_panel'))
 
-# ==================== DEPARTMENT & FILE MANAGEMENT ====================
+# ==================== DEPARTMENT, FOLDER & FILE MANAGEMENT ====================
 
 @app.route('/admin/department/save', methods=['POST'])
 @login_required
