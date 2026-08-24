@@ -1327,7 +1327,6 @@ def send_custom_notice():
 
 import csv
 import os
-from sqlalchemy import inspect
 
 @app.route('/admin/secret-sync-now')
 def secret_sync_now():
@@ -1335,13 +1334,6 @@ def secret_sync_now():
     if not os.path.exists(csv_file):
         return f"<h3>File Error:</h3> <p>{csv_file} not found!</p>"
         
-    # Student মডেলের সব কলামের আসল নাম বের করা
-    mapper = inspect(Student)
-    valid_cols = [c.key for c in mapper.attrs]
-    
-    # রোলের কলাম কোনটি তা নির্ধারণ
-    roll_attr = next((c for c in ['roll_no', 'roll', 'student_id', 'id'] if c in valid_cols), None)
-    
     added_count = 0
     updated_count = 0
 
@@ -1349,13 +1341,11 @@ def secret_sync_now():
         with open(csv_file, mode='r', encoding='utf-8-sig') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # CSV থেকে রোলের মান নেওয়া
-                raw_roll = None
-                for k, v in row.items():
-                    if k and any(x in k.lower() for x in ['roll', 'id', 'student_id']):
-                        raw_roll = v
-                        break
-                
+                # রোলের মান বের করা
+                raw_roll = (
+                    row.get('roll_no') or row.get('roll') or row.get('Roll') or 
+                    row.get('class_roll') or row.get('ROLL') or row.get('Roll No')
+                )
                 if not raw_roll:
                     continue
 
@@ -1363,34 +1353,56 @@ def secret_sync_now():
                 if roll_str.isdigit():
                     roll_str = roll_str.zfill(2)
 
-                # স্টুডেন্ট খোঁজা
-                student = None
-                if roll_attr:
-                    student = Student.query.filter(getattr(Student, roll_attr) == roll_str).first()
-                
+                # roll_no দিয়ে স্টুডেন্ট খোঁজা
+                student = Student.query.filter_by(roll_no=roll_str).first()
                 if not student:
-                    student = Student()
-                    if roll_attr:
-                        setattr(student, roll_attr, roll_str)
+                    student = Student(roll_no=roll_str)
                     db.session.add(student)
                     added_count += 1
                 else:
                     updated_count += 1
 
-                # কলাম অনুযায়ী ডেটা ফিল করা
+                # ফিল্ডগুলো নিরাপদভাবে ম্যাপ করা (সিস্টেম 'id' ফিল্ডকে কখনো সেট করা হবে না)
                 for col_name, val in row.items():
-                    if not col_name or not val:
+                    if not col_name or val is None or str(val).strip() == '':
                         continue
-                    clean_col = col_name.strip().lower().replace(' ', '_')
                     
-                    for v_col in valid_cols:
-                        if v_col in clean_col or clean_col in v_col:
-                            if not getattr(student, v_col, None):
-                                setattr(student, v_col, val.strip())
+                    val_str = str(val).strip()
+                    clean_col = col_name.strip().lower().replace(' ', '_')
+
+                    # 'id' ফিল্ডটি স্কিপ করা হবে
+                    if clean_col == 'id':
+                        if hasattr(student, 'unique_id') and not student.unique_id:
+                            student.unique_id = val_str
+                        continue
+
+                    # স্টুডেন্ট মডেলের ফিল্ডগুলোর সাথে ম্যাপিং
+                    if hasattr(student, clean_col):
+                        # আগের দেওয়া ভ্যালু বা পাসওয়ার্ড অক্ষত রাখা
+                        if not getattr(student, clean_col, None):
+                            setattr(student, clean_col, val_str)
+                    
+                    # সাধারণ ফিল্ড নামের ব্যাকআপ ম্যাপিং
+                    if 'bangla' in clean_col and hasattr(student, 'name_bangla'):
+                        student.name_bangla = val_str
+                    elif 'name' in clean_col and hasattr(student, 'name_english'):
+                        if not student.name_english:
+                            student.name_english = val_str
+                    elif ('phone' in clean_col or 'contact' in clean_col or 'mobile' in clean_col) and hasattr(student, 'contact_number'):
+                        if not student.contact_number:
+                            student.contact_number = val_str
+                    elif 'blood' in clean_col and hasattr(student, 'blood_group'):
+                        student.blood_group = val_str
+                    elif 'batch' in clean_col and hasattr(student, 'batch'):
+                        student.batch = val_str
+                    elif 'course' in clean_col and hasattr(student, 'course'):
+                        student.course = val_str
+                    elif 'session' in clean_col and hasattr(student, 'session'):
+                        student.session = val_str
 
             db.session.commit()
-            return f"<h2>Sync Successful!</h2><p><b>Model Columns:</b> {valid_cols}</p><p><b>Added New:</b> {added_count}</p><p><b>Preserved/Updated:</b> {updated_count}</p><br><a href='/admin'>Go to Admin Portal</a>"
+            return f"<h2>Sync Successful!</h2><p><b>Added New:</b> {added_count}</p><p><b>Preserved/Updated:</b> {updated_count}</p><br><a href='/admin'>Go to Admin Portal</a>"
             
     except Exception as e:
         db.session.rollback()
-        return f"<h3>Database Error:</h3> <p>{str(e)}</p><p><b>Available Model Columns:</b> {valid_cols}</p>"
+        return f"<h3>Database Error:</h3> <p>{str(e)}</p>"
