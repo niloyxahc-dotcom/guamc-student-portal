@@ -464,71 +464,62 @@ function openEditModal(id, nameEng, nameBan, father, email, course, roll, blood,
 }
 
 function viewStudentDetails(id) {
-    const contentBox = document.getElementById('dossier-content');
-    const modal = document.getElementById('modal-dossier');
+    const modal = document.getElementById('modal-dossier') || document.getElementById('studentDetailsModal');
+    const contentBox = document.getElementById('dossier-content') || document.getElementById('studentDetailsContent');
     
-    // ১. আগের ডাটা ক্লিয়ার করে লোডিং মেসেজ দেওয়া
-    contentBox.innerHTML = '<div class="text-center py-6 text-slate-500 font-medium">তথ্য লোড হচ্ছে...</div>';
-    modal.classList.remove('hidden');
+    if (modal) {
+        modal.classList.remove('hidden');
+    }
+    
+    if (contentBox) {
+        contentBox.innerHTML = '<div class="text-center py-6 text-slate-500 font-medium">তথ্য লোড হচ্ছে...</div>';
+    }
 
-    // ২. টাইমস্ট্যাম্প (?t=...) যোগ করে ব্রাউজার ক্যাশ সম্পূর্ণ বাইপাস করা
-    fetch(`/admin/student-details/${id}?t=${new Date().getTime()}`, {
-        headers: { 'Cache-Control': 'no-cache' }
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (!data || data.error) {
-            contentBox.innerHTML = '<div class="text-center py-6 text-rose-500">কোনো তথ্য পাওয়া যায়নি!</div>';
-            return;
-        }
+    // ব্যাকএন্ডের সঠিক রুট কল
+    fetch(`/admin/student-detail_${id}?t=${new Date().getTime()}`)
+        .then(res => {
+            if (!res.ok) throw new Error("HTTP " + res.status);
+            return res.json();
+        })
+        .then(data => {
+            const s = data.student || data;
+            
+            let photoUrl = s.photo && s.photo !== 'N/A' ? s.photo : '';
+            if (photoUrl.includes('drive.google.com')) {
+                let fileId = '';
+                if (photoUrl.includes('id=')) fileId = photoUrl.split('id=')[1].split('&')[0];
+                else if (photoUrl.includes('/d/')) fileId = photoUrl.split('/d/')[1].split('/')[0];
+                if (fileId) photoUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w500`;
+            }
 
-        const getVal = (val, suffix = '') => (val && val !== 'undefined' && val !== 'null') ? `${val}${suffix}` : 'N/A';
-
-        let html = `
-            <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-2xl border border-slate-200">
-                <img src="${data.photo || '/static/images/default-avatar.png'}" class="w-12 h-12 rounded-full object-cover border border-slate-300" onerror="this.src='/static/images/default-avatar.png'">
-                <div>
-                    <h4 class="font-bold text-slate-800 text-sm">${getVal(data.name_english || data.name)} (${getVal(data.name_bangla)})</h4>
-                    <p class="text-xs text-slate-500">${getVal(data.course)} • Batch: ${getVal(data.batch)} • Roll: ${getVal(data.roll)} • ID: ${getVal(data.unique_id)}</p>
+            let html = `
+                <div class="space-y-4 text-left">
+                    <div class="flex flex-col items-center justify-center border-b pb-4">
+                        ${photoUrl ? `<img src="${photoUrl}" class="w-24 h-24 rounded-full object-cover border-2 border-emerald-500 shadow-sm mb-2" onerror="this.style.display='none'">` : ''}
+                        <h3 class="text-lg font-bold text-gray-800">${s.name_english || s.name || 'N/A'}</h3>
+                        <p class="text-xs text-gray-500 font-mono">ID: ${s.unique_id || 'N/A'} | Dept: ${s.course || 'BUMS'}</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div class="p-2 bg-gray-50 rounded"><strong>রোল:</strong> ${s.roll_no || s.roll || 'N/A'}</div>
+                        <div class="p-2 bg-gray-50 rounded"><strong>বাংলা নাম:</strong> ${s.name_bangla || 'N/A'}</div>
+                        <div class="p-2 bg-gray-50 rounded"><strong>পিতার নাম:</strong> ${s.father_name || 'N/A'}</div>
+                        <div class="p-2 bg-gray-50 rounded"><strong>মাতার নাম:</strong> ${s.mother_name || 'N/A'}</div>
+                        <div class="p-2 bg-gray-50 rounded col-span-2"><strong>ইমেইল:</strong> ${s.email || 'N/A'}</div>
+                        <div class="p-2 bg-gray-50 rounded"><strong>ফোন:</strong> ${s.contact_number || s.phone || 'N/A'}</div>
+                        <div class="p-2 bg-gray-50 rounded"><strong>ব্লাড গ্রুপ:</strong> ${s.blood_group || 'N/A'}</div>
+                    </div>
                 </div>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 text-xs pt-1">
-                <div><span class="text-slate-400">Gender / Marital:</span> ${getVal(data.gender)} / ${getVal(data.marital_status)}</div>
-                <div><span class="text-slate-400">DOB / NID:</span> ${getVal(data.dob)} / ${getVal(data.nid_birth_cert)}</div>
-                <div><span class="text-slate-400">Father:</span> ${getVal(data.father_name)} (${getVal(data.father_occupation)})</div>
-                <div><span class="text-slate-400">Mother:</span> ${getVal(data.mother_name)} (${getVal(data.mother_occupation)})</div>
-                <div><span class="text-slate-400">Student Phone:</span> ${getVal(data.phone)}</div>
-                <div><span class="text-slate-400">Guardian Phone:</span> ${getVal(data.guardian_contact)}</div>
-                <div><span class="text-slate-400">Emergency Contact:</span> ${getVal(data.emergency_medical_contact)}</div>
-                <div><span class="text-slate-400">Blood / Height / Wt:</span> ${getVal(data.blood_group)} | ${getVal(data.height)} | ${getVal(data.weight, 'kg')}</div>
-            </div>
-
-            <div class="bg-amber-50 p-3 rounded-2xl border border-amber-200 space-y-1">
-                <h5 class="font-black text-amber-900">Support & Aid (Confidential)</h5>
-                <p><strong>Monthly Income:</strong> ${getVal(data.family_income, ' BDT')} (Members: ${getVal(data.family_members)})</p>
-                <p><strong>Need Aid:</strong> ${getVal(data.need_financial_aid)} | <strong>Personal Income:</strong> ${getVal(data.has_personal_income)} (${getVal(data.personal_income_details)})</p>
-            </div>
-
-            <div class="bg-blue-50 p-3 rounded-2xl border border-blue-200 space-y-1">
-                <h5 class="font-black text-blue-900">Educational Background</h5>
-                <p><strong>HSC:</strong> ${getVal(data.hsc_background)}</p>
-                <p><strong>SSC:</strong> ${getVal(data.ssc_background)}</p>
-            </div>
-
-            <div class="bg-purple-50 p-3 rounded-2xl border border-purple-200 space-y-1">
-                <h5 class="font-black text-purple-900">Health & Activities</h5>
-                <p><strong>Chronic / Allergy / Med:</strong> ${getVal(data.chronic_illness)} | ${getVal(data.known_allergies)} | ${getVal(data.regular_medication)}</p>
-                <p><strong>Library / Hall:</strong> ${getVal(data.library_member)} / ${getVal(data.hall_resident)}</p>
-                <p><strong>Clubs & Activities:</strong> ${getVal(data.club_interests)} (${getVal(data.co_curricular_activities)})</p>
-            </div>
-        `;
-        contentBox.innerHTML = html;
-    })
-    .catch(err => {
-        console.error("Dossier Fetch Error:", err);
-        contentBox.innerHTML = '<div class="text-center py-6 text-rose-500">ডেটা লোড করতে সমস্যা হয়েছে।</div>';
-    });
+            `;
+            if (contentBox) {
+                contentBox.innerHTML = html;
+            }
+        })
+        .catch(err => {
+            console.error("Dossier Fetch Error:", err);
+            if (contentBox) {
+                contentBox.innerHTML = '<div class="text-center py-6 text-rose-500 font-medium">ডেটা লোড করতে সমস্যা হয়েছে।</div>';
+            }
+        });
 }
 </script>
 {% endblock %}
