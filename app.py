@@ -1097,39 +1097,72 @@ import csv
 import os
 from flask import jsonify
 
+import csv
+import os
+from flask import jsonify
+
 # ==========================================================
-# ১. Dossier API (প্রোফাইল ডাটা ও গুগল ড্রাইভ ছবি প্রিভিউ ফিক্স)
+# ১. ফেইল-সেফ Dossier API (আইডি/রোল দিয়ে ছবিসহ ডাটা লোড)
 # ==========================================================
-@app.route('/admin/get_student/<int:student_id>')
-@app.route('/api/student/<int:student_id>')
-@app.route('/admin/student/<int:student_id>')
-@app.route('/admin/student_details/<int:student_id>')
+@app.route('/admin/get_student/<student_id>')
+@app.route('/api/student/<student_id>')
+@app.route('/admin/student/<student_id>')
+@app.route('/admin/student_details/<student_id>')
+@app.route('/admin/dossier/<student_id>')
 def get_student_details_api(student_id):
-    student = Student.query.get_or_404(student_id)
-    data = {}
-    for column in student.__table__.columns:
-        val = getattr(student, column.name)
-        if val is None:
-            data[column.name] = "N/A"
-        elif hasattr(val, 'strftime'):
-            data[column.name] = val.strftime('%Y-%m-%d')
-        else:
-            data[column.name] = str(val)
+    try:
+        student = None
+        if str(student_id).isdigit():
+            student = Student.query.get(int(student_id))
+        
+        if not student:
+            s_str = str(student_id).strip()
+            student = Student.query.filter(
+                (Student.roll_no == s_str) | 
+                (Student.roll_no == s_str.zfill(2)) | 
+                (Student.unique_id == s_str) |
+                (Student.email == s_str)
+            ).first()
 
-    photo_url = data.get('photo', '')
-    if photo_url and 'drive.google.com' in photo_url:
-        file_id = None
-        if 'id=' in photo_url:
-            file_id = photo_url.split('id=')[-1].split('&')[0]
-        elif '/d/' in photo_url:
-            file_id = photo_url.split('/d/')[1].split('/')[0]
-        if file_id:
-            data['photo'] = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
 
-    return jsonify(data)
+        data = {}
+        for column in student.__table__.columns:
+            try:
+                val = getattr(student, column.name)
+                if val is None:
+                    data[column.name] = "N/A"
+                elif hasattr(val, 'strftime'):
+                    data[column.name] = val.strftime('%Y-%m-%d')
+                else:
+                    data[column.name] = str(val)
+            except Exception:
+                data[column.name] = "N/A"
+
+        # গুগল ড্রাইভ ছবির থাম্বনেইল
+        photo_url = data.get('photo', '')
+        if photo_url and 'drive.google.com' in photo_url:
+            file_id = None
+            if 'id=' in photo_url:
+                file_id = photo_url.split('id=')[-1].split('&')[0]
+            elif '/d/' in photo_url:
+                file_id = photo_url.split('/d/')[1].split('/')[0]
+            if file_id:
+                data['photo'] = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
+
+        data['name'] = data.get('name_english') or data.get('name') or "N/A"
+        data['roll'] = data.get('roll_no') or data.get('roll') or "N/A"
+        data['phone'] = data.get('contact_number') or data.get('phone') or "N/A"
+
+        return jsonify(data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # ==========================================================
-# ২. ২২ জন শিক্ষার্থীর সম্পূর্ণ মাস্টার সিঙ্ক ও অটো-অ্যাপ্রুভাল
+# ২. ২২ জনের মাস্টার সিঙ্ক (আসল নাম, সঠিক রোল ও সবার অ্যাপ্রুভাল)
 # ==========================================================
 @app.route('/admin/secret-sync-now')
 @app.route('/admin/run-dossier-sync')
@@ -1138,7 +1171,6 @@ def secret_sync_now():
     csv_processed = 0
 
     try:
-        # ১. CSV থেকে শিক্ষার্থীদের পারফেক্ট ম্যাপিং ও আপডেট
         if os.path.exists(csv_file):
             with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
                 content = f.read()
@@ -1152,7 +1184,7 @@ def secret_sync_now():
                     if not row or not any(row.values()):
                         continue
 
-                    # প্রাথমিক ভ্যালু ডিটেকশন
+                    # ইমেইল ও রোল খোঁজা
                     email_val = None
                     class_roll = None
                     unique_id_val = None
@@ -1191,7 +1223,7 @@ def secret_sync_now():
                     if email_val:
                         student.email = email_val
 
-                    # প্রতিটি ফিল্ডের নিখুঁত অ্যাসাইনমেন্ট
+                    # ফোন, ব্লাড গ্রুপ ও ছবি
                     for k, v in row.items():
                         if not k or v is None:
                             continue
@@ -1200,44 +1232,47 @@ def secret_sync_now():
                         if not v_str:
                             continue
 
-                        # ফোন নম্বর
                         if (v_str.startswith('01') or v_str.startswith('+8801')) and len(v_str.replace('+88', '')) >= 11:
-                            if hasattr(student, 'contact_number') and not student.contact_number:
+                            if hasattr(student, 'contact_number'):
                                 student.contact_number = v_str
+                        elif v_str.upper() in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']:
+                            if hasattr(student, 'blood_group'):
+                                student.blood_group = v_str.upper()
+                        elif 'drive.google.com' in v_str or 'photo' in k_clean:
+                            if hasattr(student, 'photo'):
+                                student.photo = v_str
+
+                    # পিতার নাম বাদ দিয়ে শুধু ছাত্রের আসল নাম নেওয়া
+                    for k, v in row.items():
+                        if not k or v is None:
+                            continue
+                        k_clean = k.strip().lower()
+                        v_str = str(v).strip()
+                        if not v_str:
                             continue
 
-                        # ব্লাড গ্রুপ
-                        if v_str.upper() in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']:
-                            student.blood_group = v_str.upper()
-                            continue
-
-                        # ছবি
-                        if 'drive.google.com' in v_str or 'photo' in k_clean:
-                            student.photo = v_str
-                            continue
-
-                        # ছাত্র/ছাত্রীর নাম ফিল্টারিং (পিতা/মাতা বাদে)
-                        if any(n in k_clean for n in ['name', 'নাম']) and not any(x in k_clean for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college']):
-                            if any(b in k_clean for b in ['bangla', 'বাংলা']):
+                        if any(f in k_clean for f in ['father', 'পিতা', 'বাবার নাম']):
+                            if hasattr(student, 'father_name'):
+                                student.father_name = v_str
+                        elif any(m in k_clean for m in ['mother', 'মাতা', 'মায়ের নাম']):
+                            if hasattr(student, 'mother_name'):
+                                student.mother_name = v_str
+                        elif any(b in k_clean for b in ['bangla', 'বাংলা']) and 'father' not in k_clean and 'mother' not in k_clean:
+                            if hasattr(student, 'name_bangla'):
                                 student.name_bangla = v_str
-                            elif not getattr(student, 'name_english', None) or getattr(student, 'name_english') in ['Yes', 'None', '']:
-                                student.name_english = v_str
-
-                        # অন্যান্য ব্যাকগ্রাউন্ড ফিল্ড
-                        attr = k_clean.replace(' ', '_').replace('-', '_')
-                        if hasattr(student, attr) and not getattr(student, attr, None):
-                            setattr(student, attr, v_str)
+                        elif any(n in k_clean for n in ['name', 'student_name', 'পূর্ণ নাম', 'নাম']) and not any(x in k_clean for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college', 'bangla', 'বাংলা']):
+                            student.name_english = v_str
 
                     csv_processed += 1
 
-        # ২. সাইন আপ করা সব ইউজারকে অ্যাপ্রুভ রাখা
+        # ওয়েবসাইট থেকে সাইন আপ করা বাকিদের সহ সবাইকে অ্যাপ্রুভ রাখা
         all_students = Student.query.all()
         for s in all_students:
             s.is_approved = True
 
         db.session.commit()
         total_students = Student.query.count()
-        return f"<h2>All {total_students} Students Successfully Synced & Live!</h2><p><b>Processed from CSV:</b> {csv_processed}</p><p><b>Total Approved on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
+        return f"<h2>All {total_students} Students Approved & Live!</h2><p><b>From CSV:</b> {csv_processed}</p><p><b>Total on Dashboard:</b> {total_students}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
 
     except Exception as e:
         db.session.rollback()
