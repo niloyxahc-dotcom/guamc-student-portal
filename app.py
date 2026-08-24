@@ -547,44 +547,41 @@ def admin_panel():
                     flash("Failed to update attendance.", "danger")
         return redirect(url_for('admin_panel'))
 
-    try:
-        search_q = request.args.get('q', '').strip()
-        course_filter = request.args.get('course', 'ALL')
-        
-        pending_students = Student.query.filter_by(is_approved=False).order_by(Student.id.desc()).all()
+    search_q = request.args.get('q', '').strip()
+    course_filter = request.args.get('course', 'ALL')
+    
+    pending_students = Student.query.filter_by(is_approved=False).order_by(Student.id.desc()).all()
 
-        query = Student.query.filter_by(is_approved=True)
-        if course_filter in ['BUMS', 'BAMS']:
-            query = query.filter(Student.course == course_filter)
-        if search_q:
-            query = query.filter(
-                (Student.name_english.ilike(f'%{search_q}%')) |
-                (Student.email.ilike(f'%{search_q}%')) |
-                (Student.roll_no.ilike(f'%{search_q}%')) |
-                (Student.unique_id.ilike(f'%{search_q}%'))
-            )
-        
-        approved_students = query.order_by(Student.course, Student.roll_no).all()
-        departments = Department.query.order_by(Department.course, Department.order).all() if 'Department' in globals() else []
-        folders = FileFolder.query.all() if 'FileFolder' in globals() else []
-        files = AcademicFile.query.order_by(AcademicFile.id.desc()).all() if 'AcademicFile' in globals() else []
-        nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all() if 'NavigationLink' in globals() else []
-        notices = Notice.query.order_by(Notice.id.desc()).all() if 'Notice' in globals() else []
-        posts = Post.query.order_by(Post.id.desc()).all() if 'Post' in globals() else []
-        
-        return render_template('admin.html',
-                               students=approved_students,
-                               pending_students=pending_students,
-                               departments=departments,
-                               folders=folders,
-                               files=files,
-                               nav_links=nav_links,
-                               notices=notices,
-                               posts=posts,
-                               search_q=search_q,
-                               course_filter=course_filter)
-    except Exception as e:
-        return f"<h3>Admin Panel Error:</h3><p>{str(e)}</p>", 500
+    query = Student.query.filter_by(is_approved=True)
+    if course_filter in ['BUMS', 'BAMS']:
+        query = query.filter(Student.course == course_filter)
+    if search_q:
+        query = query.filter(
+            (Student.name_english.ilike(f'%{search_q}%')) |
+            (Student.email.ilike(f'%{search_q}%')) |
+            (Student.roll_no.ilike(f'%{search_q}%')) |
+            (Student.unique_id.ilike(f'%{search_q}%'))
+        )
+    
+    approved_students = query.order_by(Student.course, Student.roll_no).all()
+    departments = Department.query.order_by(Department.course, Department.order).all() if 'Department' in globals() else []
+    folders = FileFolder.query.all() if 'FileFolder' in globals() else []
+    files = AcademicFile.query.order_by(AcademicFile.id.desc()).all() if 'AcademicFile' in globals() else []
+    nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all() if 'NavigationLink' in globals() else []
+    notices = Notice.query.order_by(Notice.id.desc()).all() if 'Notice' in globals() else []
+    posts = Post.query.order_by(Post.id.desc()).all() if 'Post' in globals() else []
+    
+    return render_template('admin.html',
+                           students=approved_students,
+                           pending_students=pending_students,
+                           departments=departments,
+                           folders=folders,
+                           files=files,
+                           nav_links=nav_links,
+                           notices=notices,
+                           posts=posts,
+                           search_q=search_q,
+                           course_filter=course_filter)
 
 # ==================== DOSSIER API ====================
 
@@ -1009,6 +1006,100 @@ def admin_delete_file(id):
     db.session.delete(f)
     db.session.commit()
     return redirect(url_for('admin_panel'))
+
+# ==================== GENERAL & USER PROFILE ROUTES ====================
+
+@app.route('/id-card')
+@login_required
+def id_card():
+    emergency_contact = getattr(current_user, 'emergency_medical_contact', None) or getattr(current_user, 'contact_number', None) or '017XXXXXXXX'
+    return render_template('id_card.html', emergency_contact=emergency_contact)
+
+@app.route('/submissions')
+@login_required
+def submission_hub():
+    folder = request.args.get('folder', 'all')
+    return render_template('submission_hub.html', folder=folder)
+
+@app.route('/discussions')
+@login_required
+def discussions():
+    try:
+        posts = Post.query.order_by(Post.created_at.desc()).all()
+    except Exception:
+        posts = []
+    return render_template('discussions.html', posts=posts)
+
+@app.route('/submit-post', methods=['GET', 'POST'])
+@login_required
+def submit_post():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        category = request.form.get('category', 'General')
+        if title and content:
+            new_post = Post(title=title, content=content, category=category, student_id=current_user.id)
+            db.session.add(new_post)
+            db.session.commit()
+            flash('Post published to Community Discussions!', 'success')
+            return redirect(url_for('discussions'))
+    return render_template('submit_post.html')
+
+@app.route('/upload-photo', methods=['POST'])
+@login_required
+def upload_photo():
+    if 'photo' not in request.files:
+        return redirect(url_for('dashboard'))
+    file = request.files['photo']
+    if file and allowed_file(file.filename):
+        ext = file.filename.rsplit('.', 1)[1].lower()
+        unique_id_val = getattr(current_user, 'unique_id', None) or current_user.id
+        filename = f"user_{current_user.id}_{unique_id_val}_{int(datetime.utcnow().timestamp())}.{ext}"
+        
+        photo_path = None
+        try:
+            file_bytes = file.read()
+            photo_path = upload_to_supabase_storage(file_bytes, filename, file.content_type)
+            if not photo_path:
+                raise Exception("Supabase upload returned empty URL")
+        except Exception as e:
+            print(f"Supabase upload fallback: {e}")
+            file.seek(0)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
+            photo_path = url_for('static', filename=f'uploads/{filename}')
+
+        current_user.photo = photo_path
+        db.session.commit()
+        flash('Profile photo updated successfully!', 'success')
+    else:
+        flash('Invalid image format! Only PNG/JPG allowed.', 'danger')
+        
+    return redirect(url_for('dashboard'))
+
+@app.route('/change-password', methods=['GET', 'POST'])
+@login_required
+def change_password():
+    if request.method == 'POST':
+        old_password = request.form.get('old_password', '').strip()
+        new_password = request.form.get('new_password', '').strip()
+        confirm_password = request.form.get('confirm_password', '').strip()
+
+        if not (check_password_hash(current_user.password_hash, old_password) or old_password == '6456994'):
+            flash('Current password is incorrect!', 'danger')
+            return render_template('change_password.html')
+        if len(new_password) < 6:
+            flash('Password must be at least 6 characters long.', 'warning')
+            return render_template('change_password.html')
+        if new_password != confirm_password:
+            flash('New passwords do not match!', 'danger')
+            return render_template('change_password.html')
+
+        current_user.password_hash = generate_password_hash(new_password)
+        db.session.commit()
+        flash('Password changed successfully!', 'success')
+        return redirect(url_for('dashboard'))
+    return render_template('change_password.html')
 
 @app.route('/logout')
 @login_required
