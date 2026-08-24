@@ -568,17 +568,16 @@ def admin_panel():
     files = AcademicFile.query.order_by(AcademicFile.id.desc()).all()
     nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all()
     
-    return render_template('admin.html', 
-                           students=approved_students, 
-                           pending_students=pending_students, 
+return render_template('admin.html',
+                           students=approved_students,
+                           pending_students=pending_students,
                            departments=departments,
-                 return jsonify({
-                folders=folders,
+                           folders=folders,
                            files=files,
                            nav_links=nav_links,
-                           search_q=search_q, 
+                           search_q=search_q,
                            course_filter=course_filter)
-
+                           
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
 @app.route('/admin/student_detail/<int:id>')
@@ -757,7 +756,7 @@ def secret_sync_now():
     except Exception as e:
         db.session.rollback()
         return f"<h3>Error:</h3> <p>{str(e)}</p>"
-        
+
 @app.route('/admin/live-attendance', methods=['GET', 'POST'])
 @login_required
 def admin_live_attendance():
