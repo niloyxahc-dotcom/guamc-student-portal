@@ -1336,7 +1336,6 @@ def secret_sync_now():
 
     added_count = 0
     updated_count = 0
-    raw_preview = []
 
     try:
         with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
@@ -1345,26 +1344,23 @@ def secret_sync_now():
         if not content.strip():
             return "<h3>Error:</h3> <p>master_students.csv is empty!</p>"
 
-        # ডিলিমিটার ডিটেক্ট করা (, নাকি ;)
         first_line = content.strip().split('\n')[0]
         delimiter = ';' if ';' in first_line and ',' not in first_line else ','
         
         lines = content.strip().splitlines()
         reader = csv.DictReader(lines, delimiter=delimiter)
-        headers = reader.fieldnames or []
 
         for row in reader:
             if not row:
                 continue
             
-            # কোনো না কোনো ফিল্ড থেকে রোল নম্বর খুঁজে বের করা
+            # ১. রোল নম্বর বের করা
             roll_val = None
             for k, v in row.items():
                 if k and any(x in k.lower() for x in ['roll', 'id', 'student_id', 'class_roll']) and v:
                     roll_val = v
                     break
             
-            # রোল না পেলে প্রথম কলামের মানকে রোল হিসেবে ধরা
             if not roll_val:
                 vals = [v for v in row.values() if v]
                 if vals:
@@ -1385,22 +1381,29 @@ def secret_sync_now():
             else:
                 updated_count += 1
 
+            # ২. প্রতিটি ফিল্ড নিশ্চিতভাবে ম্যাপ করা
             for col_name, val in row.items():
-                if not col_name or not val or str(val).strip() == '':
+                if not col_name or val is None or str(val).strip() == '':
                     continue
                 
                 v_str = str(val).strip()
                 c_clean = col_name.strip().lower().replace(' ', '_')
 
+                # সিস্টেম 'id' স্কিপ করা
                 if c_clean == 'id':
                     if hasattr(student, 'unique_id') and not student.unique_id:
                         student.unique_id = v_str
                     continue
 
+                # সরাসরি অ্যাট্রিবিউট থাকলে সেট করা
                 if hasattr(student, c_clean) and not getattr(student, c_clean, None):
                     setattr(student, c_clean, v_str)
+
+                # নিশ্চিত ইমেইল ম্যাপিং (সব ভ্যারিয়েন্ট হ্যান্ডেল করবে)
+                if 'email' in c_clean and hasattr(student, 'email') and not student.email:
+                    student.email = v_str
                 
-                # কমন ফিল্ড অ্যাসাইনমেন্ট
+                # নাম, ফোন ও অন্যান্য ফিল্ডের নিশ্চিত ম্যাপিং
                 if ('name' in c_clean and 'bangla' not in c_clean) and hasattr(student, 'name_english') and not student.name_english:
                     student.name_english = v_str
                 elif 'bangla' in c_clean and hasattr(student, 'name_bangla') and not student.name_bangla:
@@ -1411,7 +1414,7 @@ def secret_sync_now():
                     student.blood_group = v_str
 
         db.session.commit()
-        return f"<h2>Sync Successful!</h2><p><b>Headers:</b> {headers}</p><p><b>Added New:</b> {added_count}</p><p><b>Updated/Preserved:</b> {updated_count}</p><br><a href='/admin'>Go to Admin Portal</a>"
+        return f"<h2>Sync Successful!</h2><p><b>Added New:</b> {added_count}</p><p><b>Updated/Preserved:</b> {updated_count}</p><br><a href='/admin'>Go to Admin Portal</a>"
 
     except Exception as e:
         db.session.rollback()
