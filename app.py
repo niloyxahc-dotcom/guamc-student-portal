@@ -1323,3 +1323,39 @@ def send_custom_notice():
         return f"<h3>Successfully sent notice to {sent_count} students!</h3><br><a href='/admin/send-notice'>Send Another Notice</a>"
 
     return """<div style="max-width: 500px; margin: 50px auto; font-family: Arial; padding: 25px; border: 1px solid #cbd5e1; border-radius: 12px; background: #f8fafc;"><h2 style="color: #0f766e; margin-top: 0;">Send Broadcast Notice to All Students</h2><form method="POST"><label style="font-weight: bold;">Subject:</label><br><input type="text" name="subject" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required><br><label style="font-weight: bold;">Notice Message:</label><br><textarea name="body" rows="6" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #cbd5e1; border-radius: 6px;" required></textarea><br><button type="submit" style="background: #0f766e; color: white; padding: 12px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;">Send Notice to All</button></form></div>"""
+
+    import csv
+
+@app.route('/admin/secret-sync-now')
+def secret_sync_now():
+    csv_file = 'master_students.csv'
+    if not os.path.exists(csv_file):
+        return f"File {csv_file} not found on server!"
+        
+    try:
+        # পুরানো ডামি ডেটা মুছে ফ্রেশ করা
+        Student.query.delete()
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+
+    count = 0
+    with open(csv_file, mode='r', encoding='utf-8-sig') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            roll = row.get('roll') or row.get('Roll') or row.get('ROLL')
+            if not roll:
+                continue
+            
+            student = Student(roll=str(roll).strip().zfill(2) if str(roll).strip().isdigit() else str(roll).strip())
+            
+            for key, val in row.items():
+                attr = key.strip().lower()
+                if hasattr(student, attr) and val:
+                    setattr(student, attr, val.strip())
+            
+            db.session.add(student)
+            count += 1
+
+    db.session.commit()
+    return f"<h1>Success!</h1><p>Successfully synced {count} real students into Supabase database.</p><a href='/admin'>Go to Admin</a>"
