@@ -458,7 +458,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== DOSSIER API ====================
+# ==================== DOSSIER API (EXACT CSV / DB COLUMNS) ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -483,19 +483,6 @@ def admin_get_student_json(id):
         if file_id:
             photo_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
 
-    data = {}
-    for column in s.__table__.columns:
-        try:
-            val = getattr(s, column.name)
-            if val is None:
-                data[column.name] = "N/A"
-            elif hasattr(val, 'strftime'):
-                data[column.name] = val.strftime('%Y-%m-%d')
-            else:
-                data[column.name] = str(val)
-        except Exception:
-            data[column.name] = "N/A"
-
     raw_occ = getattr(s, 'income_source_details', '') or ''
     f_occ = getattr(s, 'father_occupation', None)
     m_occ = getattr(s, 'mother_occupation', None)
@@ -512,6 +499,21 @@ def admin_get_student_json(id):
         else:
             m_occ = "N/A"
 
+    data = {}
+    for column in s.__table__.columns:
+        try:
+            val = getattr(s, column.name)
+            if val is None or str(val).strip() == '':
+                data[column.name] = "N/A"
+            elif hasattr(val, 'strftime'):
+                data[column.name] = val.strftime('%Y-%m-%d')
+            else:
+                data[column.name] = str(val).strip()
+        except Exception:
+            data[column.name] = "N/A"
+
+    data.pop('password_hash', None)
+
     data['id'] = s.id
     data['name'] = getattr(s, 'name_english', None) or getattr(s, 'name', 'N/A')
     data['name_english'] = data['name']
@@ -522,7 +524,7 @@ def admin_get_student_json(id):
     data['mother_occupation'] = m_occ or 'N/A'
     data['income_source_details'] = raw_occ or 'N/A'
     data['roll_no'] = getattr(s, 'roll_no', 'N/A')
-    data['session'] = getattr(s, 'session', '2023-24')
+    data['session'] = getattr(s, 'session', 'N/A')
     data['batch'] = getattr(s, 'batch', '37th')
     data['contact_number'] = getattr(s, 'contact_number', 'N/A')
     data['guardian_contact'] = getattr(s, 'guardian_contact', None) or getattr(s, 'emergency_medical_contact', 'N/A')
@@ -538,6 +540,7 @@ def admin_get_student_json(id):
     return jsonify({
         "status": "success",
         "student": data,
+        "dossier_data": data,
         **data
     })
 

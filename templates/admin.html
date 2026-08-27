@@ -204,17 +204,17 @@
 
 </div>
 
-<!-- MODAL: FULL COMPREHENSIVE DOSSIER -->
+<!-- MODAL: FULL COMPREHENSIVE DYNAMIC DOSSIER -->
 <div id="modal-dossier" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-3xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
         <div class="flex justify-between items-center pb-3 border-b border-slate-100">
             <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
-                <span>📑</span> Student Dossier &amp; Comprehensive Profile
+                <span>📑</span> Student Dossier &amp; Record
             </h3>
             <button onclick="document.getElementById('modal-dossier').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600 transition">&times;</button>
         </div>
         <div id="dossier-content" class="text-xs space-y-4">
-            <!-- Loaded dynamically via JS -->
+            <!-- Dynamically populated from CSV / Database fields -->
         </div>
     </div>
 </div>
@@ -543,7 +543,7 @@ function viewStudentDetails(id) {
     }
     
     if (contentBox) {
-        contentBox.innerHTML = '<div class="text-center py-10 text-slate-500 font-medium">ডসিয়ার তথ্য লোড হচ্ছে...</div>';
+        contentBox.innerHTML = '<div class="text-center py-10 text-slate-500 font-medium">Loading dossier details...</div>';
     }
 
     fetch(`/admin/student-detail_${id}?t=${new Date().getTime()}`)
@@ -552,9 +552,9 @@ function viewStudentDetails(id) {
             return res.json();
         })
         .then(data => {
-            const s = data.student || data;
+            const s = data.dossier_data || data.student || data;
             
-            let photoUrl = s.photo && s.photo !== 'N/A' ? s.photo : '';
+            let photoUrl = s.photo && s.photo !== 'N/A' ? s.photo : (data.photo || '');
             if (photoUrl.includes('drive.google.com')) {
                 let fileId = '';
                 if (photoUrl.includes('id=')) fileId = photoUrl.split('id=')[1].split('&')[0];
@@ -562,82 +562,34 @@ function viewStudentDetails(id) {
                 if (fileId) photoUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w500`;
             }
 
+            const ignoredKeys = ['id', 'photo', 'password_hash', 'is_approved', 'created_at', 'updated_at'];
+            
+            let cardsHtml = '';
+            for (const [key, val] of Object.entries(s)) {
+                if (ignoredKeys.includes(key)) continue;
+                if (!val || val === 'None') continue;
+
+                // কলামের নামকে সুন্দর হেডিংয়ে রূপান্তর (যেমন: father_name -> Father Name)
+                let headerTitle = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+                cardsHtml += `
+                    <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                        <span class="text-slate-400 block font-bold text-[10px] uppercase tracking-wider mb-1">${headerTitle}</span>
+                        <span class="text-slate-900 font-bold text-xs break-words">${val}</span>
+                    </div>
+                `;
+            }
+
             let html = `
                 <div class="space-y-4 text-left">
                     <div class="flex flex-col items-center justify-center border-b pb-4">
                         ${photoUrl ? `<img src="${photoUrl}" class="w-24 h-24 rounded-full object-cover border-2 border-emerald-600 shadow-md mb-2" onerror="this.style.display='none'">` : ''}
-                        <h3 class="text-lg font-black text-slate-900">${s.name_english || s.name || 'N/A'}</h3>
-                        <p class="text-xs text-slate-500 font-mono font-bold mt-0.5">ID: ${s.unique_id || 'N/A'} | Dept: <span class="text-emerald-800 font-black">${s.course || 'BUMS'}</span> | Roll: ${s.roll_no || s.class_roll || 'N/A'}</p>
+                        <h3 class="text-lg font-black text-slate-900">${s.name_english || s.name || 'Student Dossier'}</h3>
+                        <p class="text-xs text-slate-500 font-mono font-bold mt-0.5">ID: ${s.unique_id || data.unique_id || 'N/A'} | Dept: <span class="text-emerald-800 font-black">${s.course || data.course || 'BUMS'}</span> | Roll: ${s.roll_no || s.class_roll || data.roll_no || 'N/A'}</p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">বাংলা নাম</span>
-                            <span class="text-slate-900 font-black">${s.name_bangla || 'N/A'}</span>
-                        </div>
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">সেশন ও ব্যাচ</span>
-                            <span class="text-slate-900 font-black">${s.session || 'N/A'} (${s.batch || '37th'})</span>
-                        </div>
-
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">পিতার নাম</span>
-                            <span class="text-slate-900 font-black">${s.father_name || 'N/A'}</span>
-                        </div>
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">পিতার পেশা</span>
-                            <span class="text-slate-900 font-black">${s.father_occupation || 'N/A'}</span>
-                        </div>
-
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">মাতার নাম</span>
-                            <span class="text-slate-900 font-black">${s.mother_name || 'N/A'}</span>
-                        </div>
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">মাতার পেশা</span>
-                            <span class="text-slate-900 font-black">${s.mother_occupation || 'N/A'}</span>
-                        </div>
-
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">শিক্ষার্থীর ফোন</span>
-                            <span class="text-slate-900 font-black">${s.contact_number || 'N/A'}</span>
-                        </div>
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">অভিভাবকের যোগাযোগ</span>
-                            <span class="text-slate-900 font-black">${s.guardian_contact || s.emergency_medical_contact || 'N/A'}</span>
-                        </div>
-
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 sm:col-span-2">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">ইমেইল এড্রেস</span>
-                            <span class="text-slate-900 font-mono font-bold">${s.email || 'N/A'}</span>
-                        </div>
-
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">জন্ম তারিখ</span>
-                            <span class="text-slate-900 font-black">${s.date_of_birth || 'N/A'}</span>
-                        </div>
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">রক্তের গ্রুপ</span>
-                            <span class="text-rose-600 font-black text-sm">${s.blood_group || 'N/A'}</span>
-                        </div>
-
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">NID / জন্ম নিবন্ধন নম্বর</span>
-                            <span class="text-slate-900 font-mono font-bold">${s.nid_or_birth_cert || 'N/A'}</span>
-                        </div>
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">পারিবারিক আয় ও সদস্য</span>
-                            <span class="text-slate-900 font-black">${s.family_income || 'N/A'} | সদস্য: ${s.family_members || 'N/A'}</span>
-                        </div>
-
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 sm:col-span-2">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">বর্তমান ঠিকানা</span>
-                            <span class="text-slate-800 font-medium">${s.present_address || 'N/A'}</span>
-                        </div>
-                        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 sm:col-span-2">
-                            <span class="text-slate-400 block font-bold text-[10px] uppercase">স্থায়ী ঠিকানা</span>
-                            <span class="text-slate-800 font-medium">${s.permanent_address || 'N/A'}</span>
-                        </div>
+                        ${cardsHtml}
                     </div>
                 </div>
             `;
@@ -648,7 +600,7 @@ function viewStudentDetails(id) {
         .catch(err => {
             console.error("Dossier Fetch Error:", err);
             if (contentBox) {
-                contentBox.innerHTML = '<div class="text-center py-10 text-rose-500 font-medium">ডসিয়ার ডেটা লোড করতে সমস্যা হয়েছে।</div>';
+                contentBox.innerHTML = '<div class="text-center py-10 text-rose-500 font-medium">Failed to load dossier data.</div>';
             }
         });
 }
