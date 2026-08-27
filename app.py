@@ -181,7 +181,6 @@ RAW_CSV_SOURCE = """Timestamp,Email Address,Course:,Batch,Name (In English),ন�
 """
 
 def get_parsed_csv_records():
-    # প্রথমে লোকাল ফাইল চেক করবে, না পেলে ইন-মেমোরি ডেটাসেট ব্যবহার করবে
     candidates = ['students.csv', 'students_cleaned_master.csv', 'clean_master_students.csv', 'master_students.csv']
     csv_file = next((os.path.join(basedir, c) for c in candidates if os.path.exists(os.path.join(basedir, c))), None)
     if csv_file:
@@ -192,8 +191,6 @@ def get_parsed_csv_records():
                     return records
         except Exception:
             pass
-    
-    # ইন-মেমোরি পার্সিং
     return list(csv.DictReader(io.StringIO(RAW_CSV_SOURCE.strip())))
 
 # ==================== AUTHENTICATION ====================
@@ -457,7 +454,6 @@ def admin_get_student_json(id):
 
     target_row = None
     for r in all_rows:
-        # রোল ও কোর্স বা ইমেইল দিয়ে নিখুঁত ম্যাচিং
         r_roll_raw = r.get('Class roll:', '') or r.get('Admission Roll No.', '') or ''
         r_roll = re.sub(r'\D', '', str(r_roll_raw)).zfill(2) if r_roll_raw else ""
         r_course = str(r.get('Course:', '')).strip().upper()
@@ -467,7 +463,6 @@ def admin_get_student_json(id):
             target_row = r
             break
 
-    # ছবি লিংক
     photo_url = getattr(s, 'photo', '') or ''
     dossier_data = {}
 
@@ -477,23 +472,19 @@ def admin_get_student_json(id):
             col_name = col_header.strip()
             v = str(val).strip() if val is not None else ""
 
-            # অপ্রয়োজনীয় টাইমস্ট্যাম্প বাদ
             if col_name.lower() == 'timestamp':
                 continue
 
-            # ছবির লিংক পার্সিং
             if 'Upload Recent Passport Size Photo' in col_name or 'drive.google.com' in v or 'googleusercontent.com' in v:
                 d_id = extract_drive_id(v)
                 if d_id:
                     photo_url = f"https://drive.google.com/thumbnail?id={d_id}&sz=w600"
                 continue
 
-            # ফাঁকা না থাকলে হুবহু কলামের হেডার সহ ডসিয়ারে যাবে
             if v and v.lower() not in ['', 'none', 'null', 'nan']:
                 dossier_data[col_name] = v
 
     if not dossier_data:
-        # ফলব্যাক: ডাটাবেস রেকর্ড
         for c in s.__table__.columns:
             if c.name in ['id', 'photo', 'password_hash', 'is_approved', 'created_at', 'updated_at']: continue
             val = getattr(s, c.name, None)
@@ -652,11 +643,6 @@ def admin_edit_student(id):
     student.blood_group = request.form.get('blood_group', student.blood_group).strip()
     student.contact_number = request.form.get('contact_number', student.contact_number).strip()
     student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
-    
-    f_occ = request.form.get('father_occupation', '').strip()
-    m_occ = request.form.get('mother_occupation', '').strip()
-    if hasattr(student, 'income_source_details') and (f_occ or m_occ):
-        student.income_source_details = f"Father: {f_occ} | Mother: {m_occ}"
     
     new_custom_pass = request.form.get('custom_password', '').strip()
     if new_custom_pass:
