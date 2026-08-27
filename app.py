@@ -40,7 +40,6 @@ if db_url and db_url.startswith("postgres://"):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = db_url or ('sqlite:///' + os.path.join(basedir, 'portal_master_v14_permanent.db'))
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024 
 
 UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
@@ -89,14 +88,11 @@ def extract_drive_id(val):
         return ""
     val = str(val).strip()
     m1 = re.search(r'id=([a-zA-Z0-9_-]{20,})', val)
-    if m1:
-        return m1.group(1)
+    if m1: return m1.group(1)
     m2 = re.search(r'/d/([a-zA-Z0-9_-]{20,})', val)
-    if m2:
-        return m2.group(1)
+    if m2: return m2.group(1)
     m3 = re.search(r'open\?id=([a-zA-Z0-9_-]{20,})', val)
-    if m3:
-        return m3.group(1)
+    if m3: return m3.group(1)
     return ""
 
 def format_bd_phone(raw_val):
@@ -176,7 +172,6 @@ def user_avatar(user_id):
         if student and student.photo:
             if student.photo.startswith('/static/'):
                 return redirect(student.photo)
-            
             drive_id = extract_drive_id(student.photo)
             if drive_id:
                 ctx = ssl.create_default_context()
@@ -192,7 +187,6 @@ def user_avatar(user_id):
                                 return Response(data, mimetype="image/jpeg")
                     except Exception:
                         continue
-
         name = student.name_english if (student and student.name_english) else 'Student'
         return redirect(f"https://ui-avatars.com/api/?name={name}&background=093829&color=fff&size=256&bold=true")
     except Exception:
@@ -286,9 +280,6 @@ def signup():
             mother_occupation = request.form.get('mother_occupation', '').strip()
             date_of_birth = request.form.get('date_of_birth', '').strip()
             nid_or_birth_cert = request.form.get('nid_or_birth_cert', '').strip()
-
-            family_income = request.form.get('family_income', '').strip()
-            family_members = request.form.get('family_members', '').strip()
             guardian_contact = request.form.get('guardian_contact', '').strip()
             present_address = request.form.get('present_address', '').strip()
             permanent_address = request.form.get('permanent_address', '').strip()
@@ -467,7 +458,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== DOSSIER API ====================
+# ==================== DOSSIER API (সম্পূর্ণ ঠিক করা) ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -505,23 +496,44 @@ def admin_get_student_json(id):
         except Exception:
             data[column.name] = "N/A"
 
-    occ = getattr(s, 'income_source_details', 'N/A') or 'N/A'
+    # পেশা আলাদা করার স্মার্ট পার্সার
+    raw_occ = getattr(s, 'income_source_details', '') or ''
+    f_occ = getattr(s, 'father_occupation', None)
+    m_occ = getattr(s, 'mother_occupation', None)
+
+    if not f_occ or f_occ == 'N/A' or 'Father:' in str(f_occ):
+        if 'Father:' in raw_occ:
+            f_occ = raw_occ.split('Father:')[1].split('|')[0].strip()
+        else:
+            f_occ = raw_occ or "N/A"
+
+    if not m_occ or m_occ == 'N/A' or 'Mother:' in str(m_occ):
+        if 'Mother:' in raw_occ:
+            m_occ = raw_occ.split('Mother:')[1].split('|')[0].strip()
+        else:
+            m_occ = "N/A"
+
     data['id'] = s.id
     data['name'] = getattr(s, 'name_english', None) or getattr(s, 'name', 'N/A')
     data['name_english'] = data['name']
-    data['name_bangla'] = getattr(s, 'name_bangla', 'N/A')
-    data['father_name'] = getattr(s, 'father_name', 'N/A')
-    data['mother_name'] = getattr(s, 'mother_name', 'N/A')
-    data['father_occupation'] = occ
-    data['mother_occupation'] = occ
-    data['income_source_details'] = occ
+    data['name_bangla'] = getattr(s, 'name_bangla', 'N/A') or 'N/A'
+    data['father_name'] = getattr(s, 'father_name', 'N/A') or 'N/A'
+    data['mother_name'] = getattr(s, 'mother_name', 'N/A') or 'N/A'
+    data['father_occupation'] = f_occ or 'N/A'
+    data['mother_occupation'] = m_occ or 'N/A'
+    data['income_source_details'] = raw_occ or 'N/A'
     data['roll_no'] = getattr(s, 'roll_no', 'N/A')
+    data['session'] = getattr(s, 'session', '2023-24')
+    data['batch'] = getattr(s, 'batch', '37th')
     data['contact_number'] = getattr(s, 'contact_number', 'N/A')
     data['guardian_contact'] = getattr(s, 'guardian_contact', None) or getattr(s, 'emergency_medical_contact', 'N/A')
-    data['blood_group'] = getattr(s, 'blood_group', 'N/A')
+    data['family_income'] = getattr(s, 'family_income', 'N/A')
+    data['family_members'] = getattr(s, 'family_members', 'N/A')
     data['present_address'] = getattr(s, 'present_address', 'N/A')
     data['permanent_address'] = getattr(s, 'permanent_address', 'N/A')
+    data['nid_or_birth_cert'] = getattr(s, 'nid_or_birth_cert', 'N/A')
     data['date_of_birth'] = getattr(s, 'date_of_birth', 'N/A')
+    data['blood_group'] = getattr(s, 'blood_group', 'N/A')
     data['photo'] = photo_url
 
     return jsonify({
@@ -553,14 +565,11 @@ def admin_live_attendance():
             rec = AttendanceRecord(student_id=st.id, date=session_date, subject=subject_name, status=status)
             db.session.add(rec)
             
-            if st.total_classes is None:
-                st.total_classes = 0
-            if st.attended_classes is None:
-                st.attended_classes = 0
+            if st.total_classes is None: st.total_classes = 0
+            if st.attended_classes is None: st.attended_classes = 0
             
             st.total_classes += 1
-            if status == 'P':
-                st.attended_classes += 1
+            if status == 'P': st.attended_classes += 1
             
             st.attendance = round((st.attended_classes / st.total_classes) * 100, 1) if st.total_classes > 0 else None
             updated_count += 1
@@ -602,10 +611,7 @@ def admin_student_performance(student_id):
             db.session.rollback()
             flash(f"Failed to update performance: {str(e)}", "danger")
 
-    perf_map = {}
-    for p in student.performances:
-        perf_map[p.department_id] = p
-
+    perf_map = {p.department_id: p for p in student.performances}
     return render_template('student_performance.html', student=student, departments=depts, perf_map=perf_map)
 
 # ==================== STUDENT ACTIONS ====================
@@ -704,57 +710,6 @@ def admin_reset_password(id):
     student.password_hash = generate_password_hash('guamc123')
     db.session.commit()
     flash(f"Password reset to default 'guamc123' for {student.name_english}", "success")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/move/<int:id>', methods=['POST'])
-@login_required
-def admin_move_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    student = Student.query.get_or_404(id)
-    target_course = request.form.get('target_course', '').upper()
-    if target_course in ['BUMS', 'BAMS']:
-        old_course = student.course
-        student.course = target_course
-        student.unique_id = generate_diu_id(student.batch, target_course, student.roll_no)
-        db.session.commit()
-        flash(f"Moved {student.name_english} from {old_course} to {target_course}!", "success")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/copy/<int:id>', methods=['POST'])
-@login_required
-def admin_copy_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    src = Student.query.get_or_404(id)
-    clone_roll = f"{int(src.roll_no)+50 if src.roll_no.isdigit() else '99'}".zfill(2)
-    clone_email = f"copy_{src.id}_{src.email}"
-    clone = Student(
-        email=clone_email,
-        name_english=f"{src.name_english} (Copy)",
-        name_bangla=src.name_bangla,
-        father_name=src.father_name,
-        mother_name=src.mother_name,
-        course=src.course,
-        batch=src.batch,
-        roll_no=clone_roll,
-        class_roll=clone_roll,
-        session=src.session,
-        unique_id=generate_diu_id(src.batch, src.course, clone_roll),
-        blood_group=src.blood_group,
-        contact_number=src.contact_number,
-        emergency_medical_contact=src.emergency_medical_contact,
-        guardian_contact=src.guardian_contact,
-        present_address=src.present_address,
-        permanent_address=src.permanent_address,
-        attendance=src.attendance,
-        is_approved=True,
-        photo=src.photo,
-        password_hash=src.password_hash or generate_password_hash('guamc123')
-    )
-    db.session.add(clone)
-    db.session.commit()
-    flash(f"Cloned copy created for {src.name_english}!", "success")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/delete/<int:id>', methods=['POST'])
@@ -947,9 +902,9 @@ def upload_photo():
         except Exception as e:
             print(f"Supabase upload fallback: {e}")
             file.seek(0)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
-            photo_path = url_for('static', filename=f'uploads/{unique_filename}')
+            photo_path = url_for('static', filename=f'uploads/{filename}')
 
         current_user.photo = photo_path
         db.session.commit()
@@ -989,51 +944,42 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+# ==================== DIRECT LIVE FIX ROUTE ====================
 
-    @app.route('/admin/super-fix-dossier-2026')
+@app.route('/admin/super-fix-dossier-2026')
 def super_fix_dossier_direct():
     OCC_WORDS = ['farmer', 'farming', 'agriculture', 'housewife', 'house wife', 'homemaker', 'business', 'businessman', 'service', 'job', 'govt', 'doctor', 'teacher', 'driver', 'worker', 'ব্যবসায়ী', 'কৃষি', 'গৃহিনী', 'গৃহিণী', 'চাকুরীজীবী']
 
     def is_occupation(text):
         if not text: return False
-        t = str(text).lower().strip()
-        return any(w in t for w in OCC_WORDS)
+        return any(w in str(text).lower().strip() for w in OCC_WORDS)
 
-    # সব স্টুডেন্টদের ডেটাবেস থেকে রিড করে সরাসরি সোয়াপ ও ফিক্স করা
     students = Student.query.all()
     count = 0
-
     for s in students:
-        # পিতার নাম ও পেশা সোয়াপ
         f_name = s.father_name or ''
         m_name = s.mother_name or ''
-        
-        f_occ = ""
-        m_occ = ""
+        f_occ, m_occ = "", ""
 
-        # যদি পিতার নামের ঘরে পেশা থাকে
         if is_occupation(f_name):
             f_occ = f_name
-            s.father_name = "N/A" # অথবা খালি রাখতে পারেন
+            s.father_name = ""
 
-        # যদি মাতার নামের ঘরে পেশা থাকে
         if is_occupation(m_name):
             m_occ = m_name
-            s.mother_name = "N/A"
+            s.mother_name = ""
 
-        # ডসিয়ার প্রদর্শনের জন্য income_source_details ও কলামগুলোতে সেট করা
-        details_list = []
-        if f_occ: details_list.append(f"Father: {f_occ}")
-        if m_occ: details_list.append(f"Mother: {m_occ}")
-        
-        combined = " | ".join(details_list)
-        if hasattr(s, 'income_source_details'):
-            s.income_source_details = combined
+        occ_list = []
+        if f_occ: occ_list.append(f"Father: {f_occ}")
+        if m_occ: occ_list.append(f"Mother: {m_occ}")
 
+        if hasattr(s, 'income_source_details') and occ_list:
+            s.income_source_details = " | ".join(occ_list)
         count += 1
 
     db.session.commit()
-    return f"<h1 style='color:green;'> Successfully Fixed and Swapped {count} Students in Live Database!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
+    return f"<h1 style='color:green;'>Successfully Fixed and Swapped {count} Students in Live Database!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
