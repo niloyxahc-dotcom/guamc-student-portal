@@ -458,7 +458,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== DOSSIER API (সম্পূর্ণ ঠিক করা) ====================
+# ==================== DOSSIER API ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -496,7 +496,6 @@ def admin_get_student_json(id):
         except Exception:
             data[column.name] = "N/A"
 
-    # পেশা আলাদা করার স্মার্ট পার্সার
     raw_occ = getattr(s, 'income_source_details', '') or ''
     f_occ = getattr(s, 'father_occupation', None)
     m_occ = getattr(s, 'mother_occupation', None)
@@ -614,7 +613,7 @@ def admin_student_performance(student_id):
     perf_map = {p.department_id: p for p in student.performances}
     return render_template('student_performance.html', student=student, departments=depts, perf_map=perf_map)
 
-# ==================== STUDENT ACTIONS ====================
+# ==================== STUDENT ACTIONS (MOVE, COPY, EDIT, APPROVE, DELETE) ====================
 
 @app.route('/admin/student/approve/<int:id>', methods=['POST'])
 @login_required
@@ -698,6 +697,57 @@ def admin_edit_student(id):
     
     db.session.commit()
     flash(f"Updated profile for {student.name_english}!", "success")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/student/move/<int:id>', methods=['POST'])
+@login_required
+def admin_move_student(id):
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
+    student = Student.query.get_or_404(id)
+    target_course = request.form.get('target_course', '').upper()
+    if target_course in ['BUMS', 'BAMS']:
+        old_course = student.course
+        student.course = target_course
+        student.unique_id = generate_diu_id(student.batch, target_course, student.roll_no)
+        db.session.commit()
+        flash(f"Moved {student.name_english} from {old_course} to {target_course}!", "success")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/student/copy/<int:id>', methods=['POST'])
+@login_required
+def admin_copy_student(id):
+    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        return redirect(url_for('dashboard'))
+    src = Student.query.get_or_404(id)
+    clone_roll = f"{int(src.roll_no)+50 if src.roll_no.isdigit() else '99'}".zfill(2)
+    clone_email = f"copy_{src.id}_{src.email}"
+    clone = Student(
+        email=clone_email,
+        name_english=f"{src.name_english} (Copy)",
+        name_bangla=src.name_bangla,
+        father_name=src.father_name,
+        mother_name=src.mother_name,
+        course=src.course,
+        batch=src.batch,
+        roll_no=clone_roll,
+        class_roll=clone_roll,
+        session=src.session,
+        unique_id=generate_diu_id(src.batch, src.course, clone_roll),
+        blood_group=src.blood_group,
+        contact_number=src.contact_number,
+        emergency_medical_contact=src.emergency_medical_contact,
+        guardian_contact=src.guardian_contact,
+        present_address=src.present_address,
+        permanent_address=src.permanent_address,
+        attendance=src.attendance,
+        is_approved=True,
+        photo=src.photo,
+        password_hash=src.password_hash or generate_password_hash('guamc123')
+    )
+    db.session.add(clone)
+    db.session.commit()
+    flash(f"Cloned copy created for {src.name_english}!", "success")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/reset-password/<int:id>', methods=['POST'])
@@ -943,42 +993,6 @@ def change_password():
 def logout():
     logout_user()
     return redirect(url_for('login'))
-
-# ==================== DIRECT LIVE FIX ROUTE ====================
-
-@app.route('/admin/super-fix-dossier-2026')
-def super_fix_dossier_direct():
-    OCC_WORDS = ['farmer', 'farming', 'agriculture', 'housewife', 'house wife', 'homemaker', 'business', 'businessman', 'service', 'job', 'govt', 'doctor', 'teacher', 'driver', 'worker', 'ব্যবসায়ী', 'কৃষি', 'গৃহিনী', 'গৃহিণী', 'চাকুরীজীবী']
-
-    def is_occupation(text):
-        if not text: return False
-        return any(w in str(text).lower().strip() for w in OCC_WORDS)
-
-    students = Student.query.all()
-    count = 0
-    for s in students:
-        f_name = s.father_name or ''
-        m_name = s.mother_name or ''
-        f_occ, m_occ = "", ""
-
-        if is_occupation(f_name):
-            f_occ = f_name
-            s.father_name = ""
-
-        if is_occupation(m_name):
-            m_occ = m_name
-            s.mother_name = ""
-
-        occ_list = []
-        if f_occ: occ_list.append(f"Father: {f_occ}")
-        if m_occ: occ_list.append(f"Mother: {m_occ}")
-
-        if hasattr(s, 'income_source_details') and occ_list:
-            s.income_source_details = " | ".join(occ_list)
-        count += 1
-
-    db.session.commit()
-    return f"<h1 style='color:green;'>Successfully Fixed and Swapped {count} Students in Live Database!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
