@@ -157,6 +157,40 @@ with app.app_context():
     except Exception as ex:
         print("Startup Error:", ex)
 
+# CSV ডেটা ক্যাশ
+CSV_STUDENT_MAP = {}
+def load_csv_data():
+    global CSV_STUDENT_MAP
+    candidates = ['students_cleaned_master.csv', 'clean_master_students.csv', 'master_students.csv', 'students.csv']
+    csv_file = next((os.path.join(basedir, c) for c in candidates if os.path.exists(os.path.join(basedir, c))), None)
+    if not csv_file:
+        return
+    try:
+        with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
+            reader = list(csv.DictReader(f))
+            for row in reader:
+                # কী পরিষ্কার করে রোল ও ইমেইল দিয়ে ম্যাপ করা
+                email = ""
+                roll = ""
+                for k, v in row.items():
+                    if not k: continue
+                    clean_k = re.sub(r'[^a-zA-Z0-9]', '', k).lower()
+                    if 'email' in clean_k:
+                        email = str(v).strip().lower()
+                    if 'roll' in clean_k:
+                        digits = re.sub(r'\D', '', str(v))
+                        if digits: roll = digits.zfill(2)
+
+                if roll:
+                    CSV_STUDENT_MAP[f"roll_{roll}"] = row
+                    CSV_STUDENT_MAP[f"roll_{str(int(roll))}"] = row
+                if email:
+                    CSV_STUDENT_MAP[f"email_{email}"] = row
+    except Exception as e:
+        print("Error reading CSV:", e)
+
+load_csv_data()
+
 @app.route('/avatar/<int:user_id>')
 def user_avatar(user_id):
     try:
@@ -449,7 +483,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== DOSSIER API (ONLY POPULATED REAL VALUES) ====================
+# ==================== DOSSIER API (EXACT CSV COLUMNS DIRECT RENDER) ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -474,61 +508,35 @@ def admin_get_student_json(id):
         if file_id:
             photo_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
 
-    raw_occ = getattr(s, 'income_source_details', '') or ''
-    f_occ = getattr(s, 'father_occupation', '') or ''
-    m_occ = getattr(s, 'mother_occupation', '') or ''
+    # ১. CSV থেকে শিক্ষার্থীর অরিজিনাল কলাম ও ডেটা ম্যাচ করা
+    roll_key1 = f"roll_{str(s.roll_no).zfill(2)}"
+    roll_key2 = f"roll_{str(int(s.roll_no))}" if str(s.roll_no).isdigit() else ""
+    email_key = f"email_{(s.email or '').strip().lower()}"
 
-    if (not f_occ or f_occ == 'N/A') and 'Father:' in raw_occ:
-        f_occ = raw_occ.split('Father:')[1].split('|')[0].strip()
+    csv_row = CSV_STUDENT_MAP.get(roll_key1) or CSV_STUDENT_MAP.get(roll_key2) or CSV_STUDENT_MAP.get(email_key) or {}
 
-    if (not m_occ or m_occ == 'N/A') and 'Mother:' in raw_occ:
-        m_occ = raw_occ.split('Mother:')[1].split('|')[0].strip()
-
-    # শুধুমাত্র যেসব ফিল্ডে অর্থপূর্ণ ডেটা রয়েছে তা ফিল্টার করা
     dossier_data = {}
     
-    # অগ্রাধিকার ভিত্তিক ফিল্ড ম্যাপিং
-    field_mappings = [
-        ('Name (Bangla)', getattr(s, 'name_bangla', '')),
-        ('Name (English)', getattr(s, 'name_english', '')),
-        ('Roll No', getattr(s, 'roll_no', '')),
-        ('Course', getattr(s, 'course', '')),
-        ('Batch', getattr(s, 'batch', '')),
-        ('Session', getattr(s, 'session', '')),
-        ('Father Name', getattr(s, 'father_name', '')),
-        ('Father Occupation', f_occ),
-        ('Mother Name', getattr(s, 'mother_name', '')),
-        ('Mother Occupation', m_occ),
-        ('Contact Number', getattr(s, 'contact_number', '')),
-        ('Guardian Contact', getattr(s, 'guardian_contact', '') or getattr(s, 'emergency_medical_contact', '')),
-        ('Email', getattr(s, 'email', '')),
-        ('Blood Group', getattr(s, 'blood_group', '')),
-        ('Date of Birth', getattr(s, 'date_of_birth', '')),
-        ('NID or Birth Cert', getattr(s, 'nid_or_birth_cert', '')),
-        ('Gender', getattr(s, 'gender', '')),
-        ('Marital Status', getattr(s, 'marital_status', '')),
-        ('SSC Background', getattr(s, 'ssc_background', '')),
-        ('HSC Background', getattr(s, 'hsc_background', '')),
-        ('Family Income', getattr(s, 'family_income', '')),
-        ('Family Members', getattr(s, 'family_members', '')),
-        ('Present Address', getattr(s, 'present_address', '')),
-        ('Permanent Address', getattr(s, 'permanent_address', '')),
-    ]
-
-    for label, val in field_mappings:
-        if val and str(val).strip() not in ['', 'None', 'N/A', 'null']:
-            dossier_data[label] = str(val).strip()
-
-    # মডেলের বাকি অন্যান্য অতিরিক্ত ফিল্ড যদি ডেটা থাকে
-    for col in s.__table__.columns:
-        cname = col.name
-        if cname in ['id', 'photo', 'password_hash', 'is_approved', 'created_at', 'updated_at', 'attendance', 'total_classes', 'attended_classes', 'income_source_details']:
-            continue
-        v = getattr(s, cname, None)
-        if v and str(v).strip() not in ['', 'None', 'N/A', 'null']:
-            fmt_key = cname.replace('_', ' ').title()
-            if fmt_key not in dossier_data:
-                dossier_data[fmt_key] = str(v).strip()
+    if csv_row:
+        # CSV-র প্রতিটি কলাম হুবহু নেওয়া (ফাঁকা না হলে)
+        for col_name, val in csv_row.items():
+            if not col_name: continue
+            clean_val = str(val).strip()
+            # অপ্রয়োজনীয়/ফাঁকা তথ্য বাদ
+            if clean_val and clean_val.lower() not in ['', 'none', 'n/a', 'null', 'nan']:
+                # ড্রাইভ ছবি লিংক ডসিয়ার কার্ডে দেখানোর প্রয়োজন নেই
+                if 'drive.google.com' in clean_val or 'googleusercontent.com' in clean_val:
+                    continue
+                dossier_data[col_name.strip()] = clean_val
+    else:
+        # ফলব্যাক: ডাটাবেস থেকে রিড করা
+        for col in s.__table__.columns:
+            cname = col.name
+            if cname in ['id', 'photo', 'password_hash', 'is_approved', 'created_at', 'updated_at']:
+                continue
+            v = getattr(s, cname, None)
+            if v and str(v).strip() not in ['', 'None', 'N/A', 'null']:
+                dossier_data[cname.replace('_', ' ').title()] = str(v).strip()
 
     return jsonify({
         "status": "success",
