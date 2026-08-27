@@ -204,17 +204,17 @@
 
 </div>
 
-<!-- MODAL: EXACT CSV DYNAMIC DOSSIER -->
+<!-- MODAL: SECTIONAL COMPREHENSIVE DOSSIER -->
 <div id="modal-dossier" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-4xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-4xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-5">
         <div class="flex justify-between items-center pb-3 border-b border-slate-100">
             <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
-                <span>📑</span> Student Dossier (Official Record)
+                <span>📑</span> Student Dossier &amp; Detailed Master Record
             </h3>
             <button onclick="document.getElementById('modal-dossier').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600 transition">&times;</button>
         </div>
-        <div id="dossier-content" class="text-xs space-y-4">
-            <!-- Dynamically populated from CSV / Database fields -->
+        <div id="dossier-content" class="text-xs space-y-6">
+            <!-- Dynamically populated into Sections via JS -->
         </div>
     </div>
 </div>
@@ -534,33 +534,104 @@ function openEditModal(id, nameEng, nameBan, father, fatherOcc, mother, motherOc
     document.getElementById('modal-edit-student').classList.remove('hidden');
 }
 
+// সেকশন অনুযায়ী ক্যাটাগরি ম্যাপিং
+const SECTIONS = [
+    {
+        title: "👤 Personal Profile (ব্যক্তিগত তথ্য)",
+        keys: ["Name (In English)", "নাম (বাংলায়)", "Course:", "Batch", "Class roll:", "Admission Roll No.", "Merit", "Registration/Serial No.", "NID/Birth Reg. No", "Gender?", "Marital status?", "Date of birth", "Your contact number:", "Email Address"]
+    },
+    {
+        title: "👨‍👩‍👧 Family & Financial Information (পারিবারিক ও আর্থিক তথ্য)",
+        keys: ["Father's Name", "Father's occupation:", "Father's contact number", "Mother's Name", "Mother's occupation:", "Mother's contact number:", "Family's monthly income (in Taka)", "Member of family (in Number)?", "Do you need any financial aid for educational support?", "Do you have any source of income (e.g., tuition)?", "If yes, please specify:"]
+    },
+    {
+        title: "🎓 Academic Records (শিক্ষা ও পরীক্ষার তথ্য)",
+        keys: ["HSC background", "SSC background"]
+    },
+    {
+        title: "📍 Address & Local Guardian (ঠিকানা ও স্থানীয় অভিভাবক)",
+        keys: ["Present address:", "Your Permanent address:", "Local Guardian's Name? (In Dhaka)", "Local Guardian's address:", "Local guardian's contact number?", "Resident of Hall?"]
+    },
+    {
+        title: "🩺 Health & Medical Profile (স্বাস্থ্য ও জরুরি তথ্য)",
+        keys: ["Blood group?", "Height (in feet & inches)", "Weight in kg?", "Do you wear eyeglasses / contact lenses?", "Any chronic illness or major health conditions? (Write 'None' if NA)", "Known Allergies (if any):  খাবার বা ওষুধে কোনো অ্যালার্জি আছে কি না (যেমন: Penicillin, Dust, Food allergies)।", "Emergency Medical Contact Number:  অসুস্থতার মতো জরুরি মুহূর্তে দ্রুত যোগাযোগের জন্য নম্বর।", "Regular Medication:  নিয়মিত কোনো প্রেসক্রিপশন ওষুধ সেবন করতে হয় কি না (যেমন: Inhaler, Insulin ইত্যাদি)।", "Identification Mark (ঐচ্ছিক):"]
+    },
+    {
+        title: "🎯 Extracurricular & Preferences (সহশিক্ষা ও অন্যান্য)",
+        keys: ["Any co-curricular activities?", "Do you want to join any of the following club?", "Are you a member of College Library?", "Do you need one to one mental support from a Counselor?"]
+    }
+];
+
 function viewStudentDetails(id) {
     const modal = document.getElementById('modal-dossier');
     const contentBox = document.getElementById('dossier-content');
     
     if (modal) modal.classList.remove('hidden');
-    if (contentBox) contentBox.innerHTML = '<div class="text-center py-10 text-slate-500 font-bold">Loading full official record...</div>';
+    if (contentBox) contentBox.innerHTML = '<div class="text-center py-10 text-slate-500 font-bold">Loading sectional official dossier...</div>';
 
     fetch(`/admin/student-detail_${id}?nocache=${new Date().getTime()}`)
         .then(res => res.json())
         .then(data => {
             const dossier = data.dossier_data || {};
             let photoUrl = data.photo || '';
+            let renderedKeys = new Set();
 
-            let cardsHtml = '';
-            for (const [colName, val] of Object.entries(dossier)) {
-                if (!val || String(val).trim() === '' || val === 'null' || val === 'None') continue;
+            let sectionsHtml = '';
 
-                cardsHtml += `
-                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col justify-start">
-                        <span class="text-slate-500 block font-bold text-[11px] mb-1 leading-snug">${colName}</span>
-                        <span class="text-slate-950 font-bold text-xs whitespace-pre-line break-words leading-relaxed">${val}</span>
+            // ১. নির্দিষ্ট সেকশনগুলোতে ভাগ করে রেন্ডার করা
+            SECTIONS.forEach(sec => {
+                let cards = '';
+                sec.keys.forEach(k => {
+                    let matchingKey = Object.keys(dossier).find(dk => dk.trim().toLowerCase() === k.trim().toLowerCase());
+                    if (matchingKey && dossier[matchingKey] && String(dossier[matchingKey]).trim() !== '' && dossier[matchingKey] !== 'null') {
+                        renderedKeys.add(matchingKey);
+                        cards += `
+                            <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col justify-start">
+                                <span class="text-slate-500 block font-bold text-[11px] mb-1 leading-snug">${matchingKey}</span>
+                                <span class="text-slate-950 font-bold text-xs whitespace-pre-line break-words leading-relaxed">${dossier[matchingKey]}</span>
+                            </div>
+                        `;
+                    }
+                });
+
+                if (cards) {
+                    sectionsHtml += `
+                        <div class="space-y-2">
+                            <h4 class="text-xs uppercase tracking-wider font-black text-emerald-900 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 inline-block">${sec.title}</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                                ${cards}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            // ২. বাকি অন্য কোনো ফিল্ড থাকলে তা "Other Details" এ দেখানো
+            let remainingCards = '';
+            for (const [k, v] of Object.entries(dossier)) {
+                if (!renderedKeys.has(k) && v && String(v).trim() !== '' && v !== 'null') {
+                    remainingCards += `
+                        <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col justify-start">
+                            <span class="text-slate-500 block font-bold text-[11px] mb-1 leading-snug">${k}</span>
+                            <span class="text-slate-950 font-bold text-xs whitespace-pre-line break-words leading-relaxed">${v}</span>
+                        </div>
+                    `;
+                }
+            }
+
+            if (remainingCards) {
+                sectionsHtml += `
+                    <div class="space-y-2">
+                        <h4 class="text-xs uppercase tracking-wider font-black text-slate-800 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-200 inline-block">📌 Additional Information (অন্যান্য তথ্য)</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                            ${remainingCards}
+                        </div>
                     </div>
                 `;
             }
 
             let html = `
-                <div class="space-y-4 text-left">
+                <div class="space-y-5 text-left">
                     <div class="flex flex-col items-center justify-center border-b pb-4">
                         ${photoUrl ? `<img src="${photoUrl}" class="w-24 h-24 rounded-full object-cover border-2 border-emerald-600 shadow-md mb-2">` : ''}
                         <h3 class="text-lg font-black text-slate-900">${data.name_english || 'Student Dossier'}</h3>
@@ -568,8 +639,8 @@ function viewStudentDetails(id) {
                         <p class="text-xs text-slate-500 font-mono font-bold mt-1">ID: ${data.unique_id || 'N/A'} | Course: <span class="text-emerald-800 font-black">${data.course || 'BUMS'}</span> | Roll: ${data.roll_no || 'N/A'}</p>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                        ${cardsHtml}
+                    <div class="space-y-5">
+                        ${sectionsHtml}
                     </div>
                 </div>
             `;
