@@ -992,3 +992,48 @@ def logout():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+
+    @app.route('/admin/super-fix-dossier-2026')
+def super_fix_dossier_direct():
+    OCC_WORDS = ['farmer', 'farming', 'agriculture', 'housewife', 'house wife', 'homemaker', 'business', 'businessman', 'service', 'job', 'govt', 'doctor', 'teacher', 'driver', 'worker', 'ব্যবসায়ী', 'কৃষি', 'গৃহিনী', 'গৃহিণী', 'চাকুরীজীবী']
+
+    def is_occupation(text):
+        if not text: return False
+        t = str(text).lower().strip()
+        return any(w in t for w in OCC_WORDS)
+
+    # সব স্টুডেন্টদের ডেটাবেস থেকে রিড করে সরাসরি সোয়াপ ও ফিক্স করা
+    students = Student.query.all()
+    count = 0
+
+    for s in students:
+        # পিতার নাম ও পেশা সোয়াপ
+        f_name = s.father_name or ''
+        m_name = s.mother_name or ''
+        
+        f_occ = ""
+        m_occ = ""
+
+        # যদি পিতার নামের ঘরে পেশা থাকে
+        if is_occupation(f_name):
+            f_occ = f_name
+            s.father_name = "N/A" # অথবা খালি রাখতে পারেন
+
+        # যদি মাতার নামের ঘরে পেশা থাকে
+        if is_occupation(m_name):
+            m_occ = m_name
+            s.mother_name = "N/A"
+
+        # ডসিয়ার প্রদর্শনের জন্য income_source_details ও কলামগুলোতে সেট করা
+        details_list = []
+        if f_occ: details_list.append(f"Father: {f_occ}")
+        if m_occ: details_list.append(f"Mother: {m_occ}")
+        
+        combined = " | ".join(details_list)
+        if hasattr(s, 'income_source_details'):
+            s.income_source_details = combined
+
+        count += 1
+
+    db.session.commit()
+    return f"<h1 style='color:green;'> Successfully Fixed and Swapped {count} Students in Live Database!</h1><p><a href='/admin'>Go to Admin Panel</a></p>"
