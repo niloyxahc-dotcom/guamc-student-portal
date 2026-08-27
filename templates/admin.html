@@ -538,38 +538,23 @@ function viewStudentDetails(id) {
     const modal = document.getElementById('modal-dossier');
     const contentBox = document.getElementById('dossier-content');
     
-    if (modal) {
-        modal.classList.remove('hidden');
-    }
-    
-    if (contentBox) {
-        contentBox.innerHTML = '<div class="text-center py-10 text-slate-500 font-medium">Loading dossier details from CSV record...</div>';
-    }
+    if (modal) modal.classList.remove('hidden');
+    if (contentBox) contentBox.innerHTML = '<div class="text-center py-10 text-slate-500 font-bold">Loading full official record...</div>';
 
-    fetch(`/admin/student-detail_${id}?t=${new Date().getTime()}`)
-        .then(res => {
-            if (!res.ok) throw new Error("HTTP " + res.status);
-            return res.json();
-        })
+    fetch(`/admin/student-detail_${id}?nocache=${new Date().getTime()}`)
+        .then(res => res.json())
         .then(data => {
             const dossier = data.dossier_data || {};
-            
             let photoUrl = data.photo || '';
-            if (photoUrl.includes('drive.google.com')) {
-                let fileId = '';
-                if (photoUrl.includes('id=')) fileId = photoUrl.split('id=')[1].split('&')[0];
-                else if (photoUrl.includes('/d/')) fileId = photoUrl.split('/d/')[1].split('/')[0];
-                if (fileId) photoUrl = `https://drive.google.com/thumbnail?id=${fileId}&sz=w500`;
-            }
 
             let cardsHtml = '';
-            for (const [key, val] of Object.entries(dossier)) {
-                if (!val || val === 'None' || val === 'null' || String(val).trim() === '') continue;
+            for (const [colName, val] of Object.entries(dossier)) {
+                if (!val || String(val).trim() === '' || val === 'null' || val === 'None') continue;
 
                 cardsHtml += `
-                    <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-between">
-                        <span class="text-slate-500 block font-bold text-[11px] mb-1">${key}</span>
-                        <span class="text-slate-900 font-bold text-xs whitespace-pre-line break-words leading-relaxed">${val}</span>
+                    <div class="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 flex flex-col justify-start">
+                        <span class="text-slate-500 block font-bold text-[11px] mb-1 leading-snug">${colName}</span>
+                        <span class="text-slate-950 font-bold text-xs whitespace-pre-line break-words leading-relaxed">${val}</span>
                     </div>
                 `;
             }
@@ -577,10 +562,10 @@ function viewStudentDetails(id) {
             let html = `
                 <div class="space-y-4 text-left">
                     <div class="flex flex-col items-center justify-center border-b pb-4">
-                        ${photoUrl ? `<img src="${photoUrl}" class="w-24 h-24 rounded-full object-cover border-2 border-emerald-600 shadow-md mb-2" onerror="this.style.display='none'">` : ''}
+                        ${photoUrl ? `<img src="${photoUrl}" class="w-24 h-24 rounded-full object-cover border-2 border-emerald-600 shadow-md mb-2">` : ''}
                         <h3 class="text-lg font-black text-slate-900">${data.name_english || 'Student Dossier'}</h3>
-                        ${data.name_bangla ? `<p class="text-sm font-black text-emerald-800 mb-1">${data.name_bangla}</p>` : ''}
-                        <p class="text-xs text-slate-500 font-mono font-bold mt-0.5">ID: ${data.unique_id || 'N/A'} | Dept: <span class="text-emerald-800 font-black">${data.course || 'BUMS'}</span> | Roll: ${data.roll_no || 'N/A'}</p>
+                        ${data.name_bangla ? `<p class="text-sm font-black text-emerald-800">${data.name_bangla}</p>` : ''}
+                        <p class="text-xs text-slate-500 font-mono font-bold mt-1">ID: ${data.unique_id || 'N/A'} | Course: <span class="text-emerald-800 font-black">${data.course || 'BUMS'}</span> | Roll: ${data.roll_no || 'N/A'}</p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
@@ -588,15 +573,10 @@ function viewStudentDetails(id) {
                     </div>
                 </div>
             `;
-            if (contentBox) {
-                contentBox.innerHTML = html;
-            }
+            if (contentBox) contentBox.innerHTML = html;
         })
         .catch(err => {
-            console.error("Dossier Fetch Error:", err);
-            if (contentBox) {
-                contentBox.innerHTML = '<div class="text-center py-10 text-rose-500 font-medium">Failed to load dossier data.</div>';
-            }
+            if (contentBox) contentBox.innerHTML = '<div class="text-center py-10 text-rose-500 font-bold">Failed to load dossier.</div>';
         });
 }
 </script>
