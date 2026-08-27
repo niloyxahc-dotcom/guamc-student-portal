@@ -10,7 +10,6 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-import uuid
 import requests
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jtrcajaqybqzzoznsruz.supabase.co")
@@ -161,113 +160,9 @@ def init_default_nav():
             db.session.add(NavigationLink(title=title, endpoint_or_url=endpoint, icon=icon, order=order, is_external=is_ext))
         db.session.commit()
 
-def sync_students_csv():
-    csv_path = os.path.join(basedir, 'students.csv')
-    if not os.path.exists(csv_path):
-        return
-    try:
-        with open(csv_path, mode='r', encoding='utf-8-sig') as f:
-            reader = csv.DictReader(f)
-            for r in reader:
-                try:
-                    em = ""
-                    for k, v in r.items():
-                        if k and 'email' in str(k).lower() and v:
-                            em = str(v).strip().lower()
-                            break
-                    if not em:
-                        continue
-
-                    student = Student.query.filter(db.func.lower(Student.email) == em).first()
-                    if not student:
-                        student = Student(email=em)
-                        db.session.add(student)
-
-                    raw_eng_name = ""
-                    raw_ban_name = ""
-                    raw_father_name = ""
-                    raw_class_roll = ""
-                    raw_course = "BUMS"
-
-                    for k, v in r.items():
-                        if not k or not v:
-                            continue
-                        k_l = str(k).lower().strip()
-                        v_s = str(v).strip()
-                        
-                        if 'roll' in k_l or 'class roll' in k_l or 'রোল' in k_l:
-                            digits = re.sub(r'\D', '', v_s)
-                            if digits:
-                                raw_class_roll = digits.zfill(2)
-                        elif 'course' in k_l or 'কোর্স' in k_l:
-                            c_val = v_s.upper()
-                            if 'BAMS' in c_val or 'AYURVEDIC' in c_val:
-                                raw_course = 'BAMS'
-                            else:
-                                raw_course = 'BUMS'
-                        elif ("father" in k_l or "পিতা" in k_l) and not ('occup' in k_l or 'contact' in k_l or 'phone' in k_l or 'number' in k_l or 'পেশা' in k_l):
-                            raw_father_name = v_s
-                        elif 'bangla' in k_l or 'বাংলা' in k_l:
-                            raw_ban_name = v_s
-                        elif ('name' in k_l or 'নাম' in k_l) and not raw_eng_name and not ('father' in k_l or 'mother' in k_l or 'guardian' in k_l):
-                            raw_eng_name = v_s
-
-                    if not raw_class_roll:
-                        raw_class_roll = "01"
-
-                    student.name_english = raw_eng_name if raw_eng_name else em.split('@')[0].title()
-                    if raw_ban_name:
-                        student.name_bangla = raw_ban_name
-                    if raw_father_name:
-                        student.father_name = raw_father_name
-                    student.course = raw_course
-                    student.batch = '37th'
-                    student.roll_no = str(raw_class_roll).zfill(2)
-                    student.class_roll = str(raw_class_roll).zfill(2)
-                    student.unique_id = generate_diu_id('37', raw_course, student.roll_no)
-                    student.is_approved = True
-
-                    st_contact = ""
-                    em_contact = ""
-                    for k, v in r.items():
-                        if not k or not v:
-                            continue
-                        k_l = str(k).lower()
-                        if ('emergency' in k_l or 'guardian' in k_l or 'father' in k_l) and ('contact' in k_l or 'phone' in k_l or 'number' in k_l):
-                            em_contact = format_bd_phone(v)
-                        elif ('contact' in k_l or 'mobile' in k_l or 'phone' in k_l) and not st_contact:
-                            st_contact = format_bd_phone(v)
-
-                    if st_contact:
-                        student.contact_number = st_contact
-                    if em_contact:
-                        student.emergency_medical_contact = em_contact
-
-                    for k, v in r.items():
-                        if k and 'blood' in str(k).lower() and v:
-                            student.blood_group = str(v).strip()
-
-                    for col_k, col_v in r.items():
-                        if col_v and ('drive.google.com' in str(col_v) or 'photo' in str(col_k).lower() or 'image' in str(col_k).lower() or 'picture' in str(col_k).lower()):
-                            student.photo = str(col_v).strip()
-                            break
-
-                    if em in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-                        student.password_hash = generate_password_hash('6456994')
-                    elif not student.password_hash:
-                        student.password_hash = generate_password_hash('guamc123')
-                    
-                    db.session.commit()
-                except Exception:
-                    db.session.rollback()
-                    continue
-    except Exception as e:
-        print("CSV Sync Exception:", e)
-
 with app.app_context():
     try:
         db.create_all()
-        sync_students_csv()
         init_default_departments()
         init_default_nav()
         db.session.commit()
@@ -436,19 +331,16 @@ def signup():
                 batch=batch,
                 course=course,
                 roll_no=roll_no,
+                class_roll=roll_no,
                 session=session_yr,
                 name_bangla=name_bangla,
                 name_english=name_english,
                 gender=gender,
                 marital_status=marital_status,
                 father_name=father_name,
-                father_occupation=father_occupation,
                 mother_name=mother_name,
-                mother_occupation=mother_occupation,
                 date_of_birth=date_of_birth,
                 nid_or_birth_cert=nid_or_birth_cert,
-                family_income=family_income,
-                family_members=family_members,
                 guardian_contact=guardian_contact,
                 present_address=present_address,
                 permanent_address=permanent_address,
@@ -456,7 +348,11 @@ def signup():
                 photo=photo_path,
                 is_approved=False
             )
-            new_student.set_password(password)
+            
+            if hasattr(new_student, 'income_source_details'):
+                new_student.income_source_details = f"Father: {father_occupation} | Mother: {mother_occupation}"
+
+            new_student.password_hash = generate_password_hash(password)
             db.session.add(new_student)
             db.session.commit()
 
@@ -609,15 +505,23 @@ def admin_get_student_json(id):
         except Exception:
             data[column.name] = "N/A"
 
+    occ = getattr(s, 'income_source_details', 'N/A') or 'N/A'
     data['id'] = s.id
     data['name'] = getattr(s, 'name_english', None) or getattr(s, 'name', 'N/A')
     data['name_english'] = data['name']
     data['name_bangla'] = getattr(s, 'name_bangla', 'N/A')
     data['father_name'] = getattr(s, 'father_name', 'N/A')
     data['mother_name'] = getattr(s, 'mother_name', 'N/A')
+    data['father_occupation'] = occ
+    data['mother_occupation'] = occ
+    data['income_source_details'] = occ
     data['roll_no'] = getattr(s, 'roll_no', 'N/A')
     data['contact_number'] = getattr(s, 'contact_number', 'N/A')
+    data['guardian_contact'] = getattr(s, 'guardian_contact', None) or getattr(s, 'emergency_medical_contact', 'N/A')
     data['blood_group'] = getattr(s, 'blood_group', 'N/A')
+    data['present_address'] = getattr(s, 'present_address', 'N/A')
+    data['permanent_address'] = getattr(s, 'permanent_address', 'N/A')
+    data['date_of_birth'] = getattr(s, 'date_of_birth', 'N/A')
     data['photo'] = photo_url
 
     return jsonify({
@@ -626,142 +530,7 @@ def admin_get_student_json(id):
         **data
     })
 
-# ==================== CSV MASTER SYNC ====================
-
-@app.route('/admin/secret-sync-now')
-@app.route('/admin/run-dossier-sync')
-def secret_sync_now():
-    csv_file = 'master_students.csv'
-    if not os.path.exists(csv_file):
-        csv_file = 'students.csv'
-    
-    csv_processed = 0
-
-    try:
-        if os.path.exists(csv_file):
-            with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
-                content = f.read()
-
-            lines = [l for l in content.strip().splitlines() if l.strip()]
-            if lines:
-                delimiter = ';' if ';' in lines[0] and ',' not in lines[0] else ','
-                reader = csv.DictReader(lines, delimiter=delimiter)
-
-                for row in reader:
-                    if not row or not any(row.values()):
-                        continue
-
-                    email_val = None
-                    class_roll = None
-                    detected_course = 'BUMS'
-
-                    for k, v in row.items():
-                        if not k or v is None:
-                            continue
-                        k_clean = k.strip().lower()
-                        v_str = str(v).strip()
-                        if not v_str:
-                            continue
-
-                        if '@' in v_str and '.' in v_str:
-                            email_val = v_str
-                        elif any(r in k_clean for r in ['class_roll', 'college_roll', 'roll_no', 'বর্তমান রোল', 'roll']) and v_str.isdigit() and len(v_str) <= 3:
-                            class_roll = v_str.zfill(2)
-                        
-                        if any(c in k_clean for c in ['course', 'dept', 'department', 'বিভাগ', 'কোর্স']):
-                            if 'ayurved' in v_str.lower() or 'bams' in v_str.lower():
-                                detected_course = 'BAMS'
-                            elif 'unani' in v_str.lower() or 'bums' in v_str.lower():
-                                detected_course = 'BUMS'
-
-                    student = None
-                    if email_val:
-                        student = Student.query.filter_by(email=email_val).first()
-                    if not student and class_roll:
-                        student = Student.query.filter_by(roll_no=class_roll).first()
-
-                    if not student:
-                        student = Student()
-                        db.session.add(student)
-
-                    student.is_approved = True
-
-                    if class_roll:
-                        student.roll_no = class_roll
-                        student.class_roll = class_roll
-                    if email_val:
-                        student.email = email_val
-                    
-                    if hasattr(student, 'course'):
-                        student.course = detected_course
-
-                    if hasattr(student, 'unique_id') and class_roll:
-                        dept_digit = "2" if detected_course == 'BAMS' else "1"
-                        student.unique_id = f"37{dept_digit}{class_roll}"
-
-                    for k, v in row.items():
-                        if not k or v is None:
-                            continue
-                        k_clean = k.strip().lower()
-                        v_str = str(v).strip()
-                        if not v_str:
-                            continue
-
-                        if (v_str.startswith('01') or v_str.startswith('+8801')) and len(v_str.replace('+88', '')) >= 11:
-                            if 'emergency' in k_clean or 'অভিভাবক' in k_clean or 'guardian' in k_clean:
-                                if hasattr(student, 'emergency_contact'): student.emergency_contact = v_str
-                            else:
-                                if hasattr(student, 'contact_number'): student.contact_number = v_str
-                            continue
-
-                        if v_str.upper() in ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']:
-                            if hasattr(student, 'blood_group'): student.blood_group = v_str.upper()
-                            continue
-
-                        if 'drive.google.com' in v_str or 'photo' in k_clean:
-                            if hasattr(student, 'photo'): student.photo = v_str
-                            continue
-
-                        if 'father_name' in k_clean or k_clean in ['father', 'পিতা', 'বাবার নাম', 'পিতার নাম']:
-                            student.father_name = v_str
-                        elif 'mother_name' in k_clean or k_clean in ['mother', 'মাতা', 'মায়ের নাম', 'মায়ের নাম']:
-                            student.mother_name = v_str
-                        elif 'father_occupation' in k_clean or 'পিতার পেশা' in k_clean:
-                            if hasattr(student, 'father_occupation'): student.father_occupation = v_str
-                        elif 'mother_occupation' in k_clean or 'মাতার পেশা' in k_clean:
-                            if hasattr(student, 'mother_occupation'): student.mother_occupation = v_str
-                        elif any(b in k_clean for b in ['bangla', 'বাংলা']) and 'father' not in k_clean and 'mother' not in k_clean:
-                            student.name_bangla = v_str
-                        elif any(n in k_clean for n in ['name', 'student_name', 'পূর্ণ নাম', 'নাম']) and not any(x in k_clean for x in ['father', 'mother', 'guardian', 'পিতা', 'মাতা', 'অভিভাবক', 'school', 'college', 'bangla', 'বাংলা', 'occupation', 'পেশা']):
-                            student.name_english = v_str
-
-                        attr = k_clean.replace(' ', '_').replace('-', '_')
-                        if hasattr(student, attr) and not getattr(student, attr, None):
-                            setattr(student, attr, v_str)
-
-                    csv_processed += 1
-
-        all_students = Student.query.all()
-        for idx, s in enumerate(all_students, start=1):
-            s.is_approved = True
-            c_name = getattr(s, 'course', 'BUMS') or 'BUMS'
-            d_code = "2" if c_name == 'BAMS' else "1"
-            r_num = getattr(s, 'roll_no', str(idx).zfill(2)) or str(idx).zfill(2)
-
-            if hasattr(s, 'unique_id'):
-                s.unique_id = f"37{d_code}{r_num}"
-
-            default_pwd = f"guamc{r_num}"
-            if hasattr(s, 'password_hash') and not s.password_hash:
-                s.password_hash = generate_password_hash(default_pwd)
-
-        db.session.commit()
-        total_students = Student.query.count()
-        return f"<h2>All {total_students} Students Cleaned & Synced!</h2><p><b>From CSV:</b> {csv_processed}</p><br><a href='/admin'>Go to Admin Dashboard</a>"
-
-    except Exception as e:
-        db.session.rollback()
-        return f"<h3>Error:</h3> <p>{str(e)}</p>"
+# ==================== LIVE ATTENDANCE & PERFORMANCE ====================
 
 @app.route('/admin/live-attendance', methods=['GET', 'POST'])
 @login_required
@@ -839,6 +608,8 @@ def admin_student_performance(student_id):
 
     return render_template('student_performance.html', student=student, departments=depts, perf_map=perf_map)
 
+# ==================== STUDENT ACTIONS ====================
+
 @app.route('/admin/student/approve/<int:id>', methods=['POST'])
 @login_required
 def admin_approve_student(id):
@@ -895,9 +666,7 @@ def admin_edit_student(id):
     student.name_english = request.form.get('name_english', student.name_english).strip()
     student.name_bangla = request.form.get('name_bangla', student.name_bangla).strip()
     student.father_name = request.form.get('father_name', student.father_name).strip()
-    student.father_occupation = request.form.get('father_occupation', student.father_occupation).strip()
     student.mother_name = request.form.get('mother_name', student.mother_name).strip()
-    student.mother_occupation = request.form.get('mother_occupation', student.mother_occupation).strip()
     student.email = request.form.get('email', student.email).strip().lower()
     student.course = request.form.get('course', student.course).strip().upper()
     student.batch = request.form.get('batch', student.batch).strip()
@@ -908,6 +677,11 @@ def admin_edit_student(id):
     student.blood_group = request.form.get('blood_group', student.blood_group).strip()
     student.contact_number = request.form.get('contact_number', student.contact_number).strip()
     student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
+    
+    f_occ = request.form.get('father_occupation', '').strip()
+    m_occ = request.form.get('mother_occupation', '').strip()
+    if hasattr(student, 'income_source_details') and (f_occ or m_occ):
+        student.income_source_details = f"Father: {f_occ} | Mother: {m_occ}"
     
     new_custom_pass = request.form.get('custom_password', '').strip()
     if new_custom_pass:
@@ -920,7 +694,6 @@ def admin_edit_student(id):
     flash(f"Updated profile for {student.name_english}!", "success")
     return redirect(url_for('admin_panel'))
 
-# টেমপ্লেটের সাথে সামঞ্জস্যপূর্ণ রাউট নামের রূপান্তর (BuildError সমাধান)
 @app.route('/admin/student/reset-password/<int:id>', methods=['POST'])
 @app.route('/admin/student/reset_password/<int:id>', methods=['POST'])
 @login_required
@@ -961,9 +734,7 @@ def admin_copy_student(id):
         name_english=f"{src.name_english} (Copy)",
         name_bangla=src.name_bangla,
         father_name=src.father_name,
-        father_occupation=src.father_occupation,
         mother_name=src.mother_name,
-        mother_occupation=src.mother_occupation,
         course=src.course,
         batch=src.batch,
         roll_no=clone_roll,
@@ -1176,9 +947,9 @@ def upload_photo():
         except Exception as e:
             print(f"Supabase upload fallback: {e}")
             file.seek(0)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
             file.save(filepath)
-            photo_path = url_for('static', filename=f'uploads/{filename}')
+            photo_path = url_for('static', filename=f'uploads/{unique_filename}')
 
         current_user.photo = photo_path
         db.session.commit()
@@ -1217,3 +988,7 @@ def change_password():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
