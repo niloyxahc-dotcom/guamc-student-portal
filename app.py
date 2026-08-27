@@ -64,7 +64,7 @@ db.init_app(app)
 
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_view = 'login'
+login_manager.login_view = 'login'
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -94,6 +94,19 @@ def extract_drive_id(val):
     m3 = re.search(r'open\?id=([a-zA-Z0-9_-]{20,})', val)
     if m3: return m3.group(1)
     return ""
+
+def format_bd_phone(raw_val):
+    if not raw_val: return ""
+    val = str(raw_val).strip()
+    if 'E+' in val or 'e+' in val:
+        try: val = str(int(float(val)))
+        except Exception: pass
+    digits = re.sub(r'\D', '', val)
+    if not digits: return ""
+    if len(digits) == 10 and digits.startswith('1'): return '0' + digits
+    if len(digits) == 11 and digits.startswith('01'): return digits
+    if len(digits) == 13 and digits.startswith('8801'): return digits[2:]
+    return val
 
 def generate_diu_id(batch, course, roll_two_digit):
     course_str = str(course).upper()
@@ -145,7 +158,7 @@ with app.app_context():
     except Exception as ex:
         print("Startup Error:", ex)
 
-# ==================== সম্পূর্ণ CSV ডেটাসেট (১৬ জন শিক্ষার্থী) ====================
+# ==================== সম্পূর্ণ CSV ডেটাসেট ====================
 RAW_CSV_SOURCE = """Timestamp,Email Address,Course:,Batch,Name (In English),নাম (বাংলায়),Upload Recent Passport Size Photo ,Merit,Admission Roll No.,Registration/Serial No.,NID/Birth Reg. No,Gender?,Marital status?,Date of birth,Class roll:,Present address:,Your contact number:,Father's Name,Father's occupation:,Mother's Name,Mother's occupation:,Father's contact number,Mother's contact number:,Family's monthly income (in Taka),Member of family (in Number)?,Do you need any financial aid for educational support?,"Do you have any source of income (e.g., tuition)?","If yes, please specify:",HSC background,SSC background,Do you need one to one mental support from a Counselor? ,Local Guardian's Name? (In Dhaka),Local Guardian's address:,Local guardian's contact number?,Your Permanent address:,Are you a member of College Library?,Resident of Hall?,Any co-curricular activities? ,Do you want to join any of the following club?,Height (in feet & inches),Weight in kg?,Do you wear eyeglasses / contact lenses?,Any chronic illness or major health conditions? (Write 'None' if NA) ,Blood group?,"Known Allergies (if any):  খাবার বা ওষুধে কোনো অ্যালার্জি আছে কি না (যেমন: Penicillin, Dust, Food allergies)। ",Emergency Medical Contact Number:  অসুস্থতার মতো জরুরি মুহূর্তে দ্রুত যোগাযোগের জন্য নম্বর। ,"Regular Medication:  নিয়মিত কোনো প্রেসক্রিপশন ওষুধ সেবন করতে হয় কি না (যেমন: Inhaler, Insulin ইত্যাদি)। ",Identification Mark (ঐচ্ছিক): 
 8/20/2026 21:55:48,surovy8182@gmail.com,BUMS,37,Surovy Mony Tusto ,সুরভী মনি তুষ্ট,https://drive.google.com/open?id=1HDe8z9AKzs3wjxLB-yauqwocgkMofLqL,102,14,32998,3772598201,Female,Single (Never married),9/10/2006,14,"Mirpur 2,Dhaka",01844963931,MD.Shahjamal,Business,MST.Suria Parvin,Housewife ,01820604654,01821245613,30000,5,No,No,,"College name: Mirpur Cantonment public school and College \nPassing year: 2024\nResult: GPA 5","School name: Shohagpur Govt S. K. Pilot model high school \nPassing year: 2022\nResult: GPA 5",No,MST: Suria Parvin,"Mirpur 2,Dhaka",01821245613,"Belkuchi, Sirajganj ",No,No,No,"Debating Club, Career & Skill development Club",5 feet 3 inch,72,No,None,O+,Dust Allergy,1821245613,None,
 8/20/2026 21:56:32,rinkytasnim013@gmail.com,BAMS,37,Umme Mishat Tasnim Rinky ,উম্মে মিশাত তাসনিম রিংকি ,https://drive.google.com/open?id=1l5rby12xGInlQqP5qwFoRRlqOpctXfiG,105,17,32542,5582942016,Female,Single (Never married),1/1/2007,17,"Mirpur 13, Dhaka",01318170729,Md. Monowarul Hoque Mridha Babur,Deceased/Late,Mst. Sufia Khatun,Home maker,01834101160,01731502264,12000,3,Yes,No,,"1. Rajshahi Govt. Women's College \n2.2024\n3. GPA 5.00","1.Sardah Govt. Pilot High School \n2. 2022\n3. GPA 5.00",Yes,Shahriar Shawn,Uttara Uttar ,01768121123,"Baneshwar, Puthia, Rajshahi ",No,Yes,Not yet,"Debating Club, Photographic Society, Cultural Club, Career & Skill development Club",5 feet 2 inch,63,yes,"Yes, Hydronephroses",A+,Yes,01731502264,"Yes, nebulizer or oxygen mask",
@@ -314,6 +327,7 @@ def signup():
                 roll_no=roll_no,
                 class_roll=roll_no,
                 session=session_yr,
+                unique_id=generate_diu_id(batch, course, roll_no),
                 name_bangla=name_bangla,
                 name_english=name_english,
                 email=email,
@@ -435,7 +449,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== DOSSIER API (EXACT CSV 100% BULLETPROOF) ====================
+# ==================== DOSSIER API (EXACT STUDENT ID & COURSE MATCHING) ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -450,18 +464,25 @@ def admin_get_student_json(id):
 
     s = Student.query.get_or_404(id)
 
-    db_roll = re.sub(r'\D', '', str(s.roll_no or '')).zfill(2)
-    db_email = str(s.email or '').strip().lower()
     db_uid = str(getattr(s, 'unique_id', '') or '').strip()
+    db_roll = re.sub(r'\D', '', str(s.roll_no or '')).zfill(2)
+    db_course = str(s.course or '').upper().strip()
+    db_email = str(s.email or '').lower().strip()
 
-    # CSV রো ম্যাচিং (ইমেইল, রোল নম্বর বা ইউনিক আইডি দিয়ে)
+    # ১. প্রথম অগ্রাধিকার: Unique Student ID অথবা (Course + Roll) ম্যাচিং
     target = None
     for row in ALL_CSV_ROWS:
-        r_email = str(row.get('Email Address', '')).strip().lower()
+        r_course = str(row.get('Course:', '')).strip().upper()
+        r_batch = str(row.get('Batch', '37')).strip()
         r_roll_raw = row.get('Class roll:', '') or row.get('Admission Roll No.', '') or ''
         r_roll = re.sub(r'\D', '', str(r_roll_raw)).zfill(2) if r_roll_raw else ""
         
-        if (db_email and r_email == db_email) or (db_roll and r_roll == db_roll):
+        c_code = "2" if "BAMS" in r_course else "1"
+        computed_uid = f"{r_batch}{c_code}{r_roll}"
+        r_email = str(row.get('Email Address', '')).strip().lower()
+
+        # নিখুঁত Student ID ম্যাচ অথবা Course + Roll ম্যাচ
+        if (db_uid and computed_uid == db_uid) or (r_course == db_course and r_roll == db_roll) or (db_email and r_email == db_email):
             target = row
             break
 
@@ -472,11 +493,10 @@ def admin_get_student_json(id):
         for k, v in target.items():
             if not k or k.strip().lower() == 'timestamp': 
                 continue
-            
             val_str = str(v).strip() if v is not None else ""
 
-            # ছবির লিংক পার্স করা
-            if 'Upload Recent Passport Size Photo' in k or 'drive.google.com' in val_str or 'googleusercontent.com' in val_str:
+            # ছবির লিংক পার্সিং
+            if 'Upload Recent Passport Size Photo' in k or 'drive.google.com' in val_str:
                 d_id = extract_drive_id(val_str)
                 if d_id:
                     photo_url = f"https://drive.google.com/thumbnail?id={d_id}&sz=w600"
@@ -484,20 +504,14 @@ def admin_get_student_json(id):
 
             if val_str != "" and val_str.lower() not in ['null', 'none', 'nan']:
                 dossier_data[k.strip()] = val_str
-    else:
-        # ফলব্যাক
-        for col in s.__table__.columns:
-            if col.name in ['id', 'photo', 'password_hash', 'is_approved', 'created_at', 'updated_at']: 
-                continue
-            val = getattr(s, col.name, None)
-            if val and str(val).strip() not in ['', 'None', 'N/A', 'null']:
-                dossier_data[col.name.replace('_', ' ').title()] = str(val).strip()
+
+    computed_id = db_uid or generate_diu_id(s.batch, s.course, s.roll_no)
 
     return jsonify({
         "status": "success",
         "name_english": target.get('Name (In English)') if target else s.name_english,
         "name_bangla": target.get('নাম (বাংলায়)') if target else s.name_bangla,
-        "unique_id": getattr(s, 'unique_id', f"371{s.roll_no}"),
+        "unique_id": computed_id,
         "course": getattr(s, 'course', 'BUMS'),
         "roll_no": getattr(s, 'roll_no', 'N/A'),
         "photo": photo_url,
