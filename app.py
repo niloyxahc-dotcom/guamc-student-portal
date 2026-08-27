@@ -84,8 +84,7 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def extract_drive_id(val):
-    if not val:
-        return ""
+    if not val: return ""
     val = str(val).strip()
     m1 = re.search(r'id=([a-zA-Z0-9_-]{20,})', val)
     if m1: return m1.group(1)
@@ -96,23 +95,16 @@ def extract_drive_id(val):
     return ""
 
 def format_bd_phone(raw_val):
-    if not raw_val:
-        return ""
+    if not raw_val: return ""
     val = str(raw_val).strip()
     if 'E+' in val or 'e+' in val:
-        try:
-            val = str(int(float(val)))
-        except Exception:
-            pass
+        try: val = str(int(float(val)))
+        except Exception: pass
     digits = re.sub(r'\D', '', val)
-    if not digits:
-        return ""
-    if len(digits) == 10 and digits.startswith('1'):
-        return '0' + digits
-    if len(digits) == 11 and digits.startswith('01'):
-        return digits
-    if len(digits) == 13 and digits.startswith('8801'):
-        return digits[2:]
+    if not digits: return ""
+    if len(digits) == 10 and digits.startswith('1'): return '0' + digits
+    if len(digits) == 11 and digits.startswith('01'): return digits
+    if len(digits) == 13 and digits.startswith('8801'): return digits[2:]
     return val
 
 def generate_diu_id(batch, course, roll_two_digit):
@@ -312,7 +304,6 @@ def signup():
                         if not photo_path:
                             raise Exception("Failed to upload to Supabase")
                     except Exception as e:
-                        print(f"Supabase upload fallback: {e}")
                         f.seek(0)
                         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                         f.save(filepath)
@@ -458,7 +449,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== DOSSIER API (EXACT CSV / DB COLUMNS) ====================
+# ==================== DOSSIER API (ONLY POPULATED REAL VALUES) ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -484,64 +475,69 @@ def admin_get_student_json(id):
             photo_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
 
     raw_occ = getattr(s, 'income_source_details', '') or ''
-    f_occ = getattr(s, 'father_occupation', None)
-    m_occ = getattr(s, 'mother_occupation', None)
+    f_occ = getattr(s, 'father_occupation', '') or ''
+    m_occ = getattr(s, 'mother_occupation', '') or ''
 
-    if not f_occ or f_occ == 'N/A' or 'Father:' in str(f_occ):
-        if 'Father:' in raw_occ:
-            f_occ = raw_occ.split('Father:')[1].split('|')[0].strip()
-        else:
-            f_occ = raw_occ or "N/A"
+    if (not f_occ or f_occ == 'N/A') and 'Father:' in raw_occ:
+        f_occ = raw_occ.split('Father:')[1].split('|')[0].strip()
 
-    if not m_occ or m_occ == 'N/A' or 'Mother:' in str(m_occ):
-        if 'Mother:' in raw_occ:
-            m_occ = raw_occ.split('Mother:')[1].split('|')[0].strip()
-        else:
-            m_occ = "N/A"
+    if (not m_occ or m_occ == 'N/A') and 'Mother:' in raw_occ:
+        m_occ = raw_occ.split('Mother:')[1].split('|')[0].strip()
 
-    data = {}
-    for column in s.__table__.columns:
-        try:
-            val = getattr(s, column.name)
-            if val is None or str(val).strip() == '':
-                data[column.name] = "N/A"
-            elif hasattr(val, 'strftime'):
-                data[column.name] = val.strftime('%Y-%m-%d')
-            else:
-                data[column.name] = str(val).strip()
-        except Exception:
-            data[column.name] = "N/A"
+    # শুধুমাত্র যেসব ফিল্ডে অর্থপূর্ণ ডেটা রয়েছে তা ফিল্টার করা
+    dossier_data = {}
+    
+    # অগ্রাধিকার ভিত্তিক ফিল্ড ম্যাপিং
+    field_mappings = [
+        ('Name (Bangla)', getattr(s, 'name_bangla', '')),
+        ('Name (English)', getattr(s, 'name_english', '')),
+        ('Roll No', getattr(s, 'roll_no', '')),
+        ('Course', getattr(s, 'course', '')),
+        ('Batch', getattr(s, 'batch', '')),
+        ('Session', getattr(s, 'session', '')),
+        ('Father Name', getattr(s, 'father_name', '')),
+        ('Father Occupation', f_occ),
+        ('Mother Name', getattr(s, 'mother_name', '')),
+        ('Mother Occupation', m_occ),
+        ('Contact Number', getattr(s, 'contact_number', '')),
+        ('Guardian Contact', getattr(s, 'guardian_contact', '') or getattr(s, 'emergency_medical_contact', '')),
+        ('Email', getattr(s, 'email', '')),
+        ('Blood Group', getattr(s, 'blood_group', '')),
+        ('Date of Birth', getattr(s, 'date_of_birth', '')),
+        ('NID or Birth Cert', getattr(s, 'nid_or_birth_cert', '')),
+        ('Gender', getattr(s, 'gender', '')),
+        ('Marital Status', getattr(s, 'marital_status', '')),
+        ('SSC Background', getattr(s, 'ssc_background', '')),
+        ('HSC Background', getattr(s, 'hsc_background', '')),
+        ('Family Income', getattr(s, 'family_income', '')),
+        ('Family Members', getattr(s, 'family_members', '')),
+        ('Present Address', getattr(s, 'present_address', '')),
+        ('Permanent Address', getattr(s, 'permanent_address', '')),
+    ]
 
-    data.pop('password_hash', None)
+    for label, val in field_mappings:
+        if val and str(val).strip() not in ['', 'None', 'N/A', 'null']:
+            dossier_data[label] = str(val).strip()
 
-    data['id'] = s.id
-    data['name'] = getattr(s, 'name_english', None) or getattr(s, 'name', 'N/A')
-    data['name_english'] = data['name']
-    data['name_bangla'] = getattr(s, 'name_bangla', 'N/A') or 'N/A'
-    data['father_name'] = getattr(s, 'father_name', 'N/A') or 'N/A'
-    data['mother_name'] = getattr(s, 'mother_name', 'N/A') or 'N/A'
-    data['father_occupation'] = f_occ or 'N/A'
-    data['mother_occupation'] = m_occ or 'N/A'
-    data['income_source_details'] = raw_occ or 'N/A'
-    data['roll_no'] = getattr(s, 'roll_no', 'N/A')
-    data['session'] = getattr(s, 'session', 'N/A')
-    data['batch'] = getattr(s, 'batch', '37th')
-    data['contact_number'] = getattr(s, 'contact_number', 'N/A')
-    data['guardian_contact'] = getattr(s, 'guardian_contact', None) or getattr(s, 'emergency_medical_contact', 'N/A')
-    data['family_income'] = getattr(s, 'family_income', 'N/A')
-    data['family_members'] = getattr(s, 'family_members', 'N/A')
-    data['present_address'] = getattr(s, 'present_address', 'N/A')
-    data['permanent_address'] = getattr(s, 'permanent_address', 'N/A')
-    data['nid_or_birth_cert'] = getattr(s, 'nid_or_birth_cert', 'N/A')
-    data['date_of_birth'] = getattr(s, 'date_of_birth', 'N/A')
-    data['blood_group'] = getattr(s, 'blood_group', 'N/A')
-    data['photo'] = photo_url
+    # মডেলের বাকি অন্যান্য অতিরিক্ত ফিল্ড যদি ডেটা থাকে
+    for col in s.__table__.columns:
+        cname = col.name
+        if cname in ['id', 'photo', 'password_hash', 'is_approved', 'created_at', 'updated_at', 'attendance', 'total_classes', 'attended_classes', 'income_source_details']:
+            continue
+        v = getattr(s, cname, None)
+        if v and str(v).strip() not in ['', 'None', 'N/A', 'null']:
+            fmt_key = cname.replace('_', ' ').title()
+            if fmt_key not in dossier_data:
+                dossier_data[fmt_key] = str(v).strip()
 
     return jsonify({
         "status": "success",
-        "student": data,
-        "dossier_data": data,
-        **data
+        "name_english": getattr(s, 'name_english', 'Student Dossier'),
+        "unique_id": getattr(s, 'unique_id', f"371{s.roll_no}"),
+        "course": getattr(s, 'course', 'BUMS'),
+        "roll_no": getattr(s, 'roll_no', 'N/A'),
+        "photo": photo_url,
+        "dossier_data": dossier_data
     })
 
 # ==================== LIVE ATTENDANCE & PERFORMANCE ====================
@@ -953,7 +949,6 @@ def upload_photo():
             if not photo_path:
                 raise Exception("Supabase upload returned empty URL")
         except Exception as e:
-            print(f"Supabase upload fallback: {e}")
             file.seek(0)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
