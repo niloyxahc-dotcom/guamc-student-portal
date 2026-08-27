@@ -94,19 +94,6 @@ def extract_drive_id(val):
     if m3: return m3.group(1)
     return ""
 
-def format_bd_phone(raw_val):
-    if not raw_val: return ""
-    val = str(raw_val).strip()
-    if 'E+' in val or 'e+' in val:
-        try: val = str(int(float(val)))
-        except Exception: pass
-    digits = re.sub(r'\D', '', val)
-    if not digits: return ""
-    if len(digits) == 10 and digits.startswith('1'): return '0' + digits
-    if len(digits) == 11 and digits.startswith('01'): return digits
-    if len(digits) == 13 and digits.startswith('8801'): return digits[2:]
-    return val
-
 def generate_diu_id(batch, course, roll_two_digit):
     course_str = str(course).upper()
     c_code = "2" if ('BAMS' in course_str or 'AYURVEDIC' in course_str) else "1"
@@ -157,11 +144,11 @@ with app.app_context():
     except Exception as ex:
         print("Startup Error:", ex)
 
-# CSV ডেটা ক্যাশ
-CSV_STUDENT_MAP = {}
-def load_csv_data():
-    global CSV_STUDENT_MAP
-    candidates = ['students_cleaned_master.csv', 'clean_master_students.csv', 'master_students.csv', 'students.csv']
+# ==================== EXACT CSV PARSER & MAPPER ====================
+CSV_MAP = {}
+def reload_csv():
+    global CSV_MAP
+    candidates = ['students.csv', 'students_cleaned_master.csv', 'clean_master_students.csv', 'master_students.csv']
     csv_file = next((os.path.join(basedir, c) for c in candidates if os.path.exists(os.path.join(basedir, c))), None)
     if not csv_file:
         return
@@ -169,27 +156,32 @@ def load_csv_data():
         with open(csv_file, mode='r', encoding='utf-8-sig', errors='ignore') as f:
             reader = list(csv.DictReader(f))
             for row in reader:
-                # কী পরিষ্কার করে রোল ও ইমেইল দিয়ে ম্যাপ করা
                 email = ""
                 roll = ""
+                course = ""
                 for k, v in row.items():
                     if not k: continue
-                    clean_k = re.sub(r'[^a-zA-Z0-9]', '', k).lower()
-                    if 'email' in clean_k:
+                    k_clean = re.sub(r'[^a-zA-Z0-9]', '', k).lower()
+                    if 'email' in k_clean:
                         email = str(v).strip().lower()
-                    if 'roll' in clean_k:
+                    if 'classroll' in k_clean or k_clean == 'roll' or k_clean == 'rollno':
                         digits = re.sub(r'\D', '', str(v))
                         if digits: roll = digits.zfill(2)
+                    if 'course' in k_clean:
+                        course = str(v).strip().upper()
 
+                if roll and course:
+                    CSV_MAP[f"{course}_{roll}"] = row
+                    CSV_MAP[f"{course}_{str(int(roll))}"] = row
                 if roll:
-                    CSV_STUDENT_MAP[f"roll_{roll}"] = row
-                    CSV_STUDENT_MAP[f"roll_{str(int(roll))}"] = row
+                    CSV_MAP[f"roll_{roll}"] = row
+                    CSV_MAP[f"roll_{str(int(roll))}"] = row
                 if email:
-                    CSV_STUDENT_MAP[f"email_{email}"] = row
+                    CSV_MAP[f"email_{email}"] = row
     except Exception as e:
-        print("Error reading CSV:", e)
+        print("CSV Load Error:", e)
 
-load_csv_data()
+reload_csv()
 
 @app.route('/avatar/<int:user_id>')
 def user_avatar(user_id):
@@ -295,20 +287,8 @@ def signup():
             batch = request.form.get('batch', '37th').strip()
             course = request.form.get('course', 'BUMS').upper()
             roll_no = request.form.get('roll_no', '01').strip().zfill(2)
-            session_yr = request.form.get('session', '').strip()
             name_bangla = request.form.get('name_bangla', '').strip()
             name_english = request.form.get('name_english', '').strip()
-            gender = request.form.get('gender', '').strip()
-            marital_status = request.form.get('marital_status', '').strip()
-            father_name = request.form.get('father_name', '').strip()
-            father_occupation = request.form.get('father_occupation', '').strip()
-            mother_name = request.form.get('mother_name', '').strip()
-            mother_occupation = request.form.get('mother_occupation', '').strip()
-            date_of_birth = request.form.get('date_of_birth', '').strip()
-            nid_or_birth_cert = request.form.get('nid_or_birth_cert', '').strip()
-            guardian_contact = request.form.get('guardian_contact', '').strip()
-            present_address = request.form.get('present_address', '').strip()
-            permanent_address = request.form.get('permanent_address', '').strip()
             email = request.form.get('email', '').strip().lower()
             password = request.form.get('password', '').strip()
             confirm_password = request.form.get('confirm_password', '').strip()
@@ -335,9 +315,7 @@ def signup():
                     try:
                         file_bytes = f.read()
                         photo_path = upload_to_supabase_storage(file_bytes, unique_filename, f.content_type)
-                        if not photo_path:
-                            raise Exception("Failed to upload to Supabase")
-                    except Exception as e:
+                    except Exception:
                         f.seek(0)
                         filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                         f.save(filepath)
@@ -348,26 +326,12 @@ def signup():
                 course=course,
                 roll_no=roll_no,
                 class_roll=roll_no,
-                session=session_yr,
                 name_bangla=name_bangla,
                 name_english=name_english,
-                gender=gender,
-                marital_status=marital_status,
-                father_name=father_name,
-                mother_name=mother_name,
-                date_of_birth=date_of_birth,
-                nid_or_birth_cert=nid_or_birth_cert,
-                guardian_contact=guardian_contact,
-                present_address=present_address,
-                permanent_address=permanent_address,
                 email=email,
                 photo=photo_path,
                 is_approved=False
             )
-            
-            if hasattr(new_student, 'income_source_details'):
-                new_student.income_source_details = f"Father: {father_occupation} | Mother: {mother_occupation}"
-
             new_student.password_hash = generate_password_hash(password)
             db.session.add(new_student)
             db.session.commit()
@@ -483,7 +447,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== DOSSIER API (EXACT CSV COLUMNS DIRECT RENDER) ====================
+# ==================== DOSSIER API (100% EXACT CSV DATA) ====================
 
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
@@ -498,38 +462,49 @@ def admin_get_student_json(id):
 
     s = Student.query.get_or_404(id)
 
+    # ফটো এক্সট্র্যাক্ট
     photo_url = getattr(s, 'photo', '') or ''
     if photo_url and 'drive.google.com' in photo_url:
-        file_id = None
-        if 'id=' in photo_url:
-            file_id = photo_url.split('id=')[-1].split('&')[0]
-        elif '/d/' in photo_url:
-            file_id = photo_url.split('/d/')[1].split('/')[0]
-        if file_id:
-            photo_url = f"https://drive.google.com/thumbnail?id={file_id}&sz=w600"
+        drive_id = extract_drive_id(photo_url)
+        if drive_id:
+            photo_url = f"https://drive.google.com/thumbnail?id={drive_id}&sz=w600"
 
-    # ১. CSV থেকে শিক্ষার্থীর অরিজিনাল কলাম ও ডেটা ম্যাচ করা
-    roll_key1 = f"roll_{str(s.roll_no).zfill(2)}"
-    roll_key2 = f"roll_{str(int(s.roll_no))}" if str(s.roll_no).isdigit() else ""
-    email_key = f"email_{(s.email or '').strip().lower()}"
+    # CSV থেকে আসল রো খোঁজা
+    roll_val = str(s.roll_no).zfill(2)
+    course_val = str(s.course).upper()
+    email_val = str(s.email or '').lower().strip()
 
-    csv_row = CSV_STUDENT_MAP.get(roll_key1) or CSV_STUDENT_MAP.get(roll_key2) or CSV_STUDENT_MAP.get(email_key) or {}
+    csv_row = (
+        CSV_MAP.get(f"{course_val}_{roll_val}") or 
+        CSV_MAP.get(f"roll_{roll_val}") or 
+        CSV_MAP.get(f"email_{email_val}") or 
+        {}
+    )
 
     dossier_data = {}
-    
+
     if csv_row:
-        # CSV-র প্রতিটি কলাম হুবহু নেওয়া (ফাঁকা না হলে)
+        # CSV-র প্রতিটি কলামের নাম ও মান হুবহু রিড করা
         for col_name, val in csv_row.items():
             if not col_name: continue
-            clean_val = str(val).strip()
-            # অপ্রয়োজনীয়/ফাঁকা তথ্য বাদ
-            if clean_val and clean_val.lower() not in ['', 'none', 'n/a', 'null', 'nan']:
-                # ড্রাইভ ছবি লিংক ডসিয়ার কার্ডে দেখানোর প্রয়োজন নেই
-                if 'drive.google.com' in clean_val or 'googleusercontent.com' in clean_val:
-                    continue
-                dossier_data[col_name.strip()] = clean_val
+            col_strip = col_name.strip()
+            val_strip = str(val).strip() if val is not None else ""
+
+            # টাইমস্ট্যাম্প বাদ
+            if col_strip.lower() == 'timestamp':
+                continue
+
+            # ছবি লিংক থেকে থাম্বনেইল নেওয়া
+            if 'drive.google.com' in val_strip or 'googleusercontent.com' in val_strip:
+                if not photo_url:
+                    d_id = extract_drive_id(val_strip)
+                    if d_id: photo_url = f"https://drive.google.com/thumbnail?id={d_id}&sz=w600"
+                continue
+
+            if val_strip and val_strip.lower() not in ['', 'none', 'null', 'nan']:
+                dossier_data[col_strip] = val_strip
     else:
-        # ফলব্যাক: ডাটাবেস থেকে রিড করা
+        # ফলব্যাক
         for col in s.__table__.columns:
             cname = col.name
             if cname in ['id', 'photo', 'password_hash', 'is_approved', 'created_at', 'updated_at']:
@@ -541,6 +516,7 @@ def admin_get_student_json(id):
     return jsonify({
         "status": "success",
         "name_english": getattr(s, 'name_english', 'Student Dossier'),
+        "name_bangla": getattr(s, 'name_bangla', ''),
         "unique_id": getattr(s, 'unique_id', f"371{s.roll_no}"),
         "course": getattr(s, 'course', 'BUMS'),
         "roll_no": getattr(s, 'roll_no', 'N/A'),
@@ -689,11 +665,6 @@ def admin_edit_student(id):
     student.blood_group = request.form.get('blood_group', student.blood_group).strip()
     student.contact_number = request.form.get('contact_number', student.contact_number).strip()
     student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
-    
-    f_occ = request.form.get('father_occupation', '').strip()
-    m_occ = request.form.get('mother_occupation', '').strip()
-    if hasattr(student, 'income_source_details') and (f_occ or m_occ):
-        student.income_source_details = f"Father: {f_occ} | Mother: {m_occ}"
     
     new_custom_pass = request.form.get('custom_password', '').strip()
     if new_custom_pass:
@@ -954,9 +925,7 @@ def upload_photo():
         try:
             file_bytes = file.read()
             photo_path = upload_to_supabase_storage(file_bytes, filename, file.content_type)
-            if not photo_path:
-                raise Exception("Supabase upload returned empty URL")
-        except Exception as e:
+        except Exception:
             file.seek(0)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)

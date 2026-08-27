@@ -204,12 +204,12 @@
 
 </div>
 
-<!-- MODAL: FULL COMPREHENSIVE DYNAMIC DOSSIER -->
+<!-- MODAL: EXACT CSV DYNAMIC DOSSIER -->
 <div id="modal-dossier" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-3xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-4xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto space-y-4">
         <div class="flex justify-between items-center pb-3 border-b border-slate-100">
             <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
-                <span>📑</span> Student Dossier &amp; Record
+                <span>📑</span> Student Dossier (Official Record)
             </h3>
             <button onclick="document.getElementById('modal-dossier').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600 transition">&times;</button>
         </div>
@@ -543,7 +543,7 @@ function viewStudentDetails(id) {
     }
     
     if (contentBox) {
-        contentBox.innerHTML = '<div class="text-center py-10 text-slate-500 font-medium">Loading dossier details...</div>';
+        contentBox.innerHTML = '<div class="text-center py-10 text-slate-500 font-medium">Loading dossier details from CSV record...</div>';
     }
 
     fetch(`/admin/student-detail_${id}?t=${new Date().getTime()}`)
@@ -564,13 +564,12 @@ function viewStudentDetails(id) {
 
             let cardsHtml = '';
             for (const [key, val] of Object.entries(dossier)) {
-                // কোনো N/A বা খালি বা নাল ফিল্ড দেখাবে না
-                if (!val || val === 'N/A' || val === 'None' || val === 'null' || String(val).trim() === '') continue;
+                if (!val || val === 'None' || val === 'null' || String(val).trim() === '') continue;
 
                 cardsHtml += `
                     <div class="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-between">
-                        <span class="text-slate-400 block font-bold text-[10px] uppercase tracking-wider mb-1">${key}</span>
-                        <span class="text-slate-900 font-bold text-xs break-words">${val}</span>
+                        <span class="text-slate-500 block font-bold text-[11px] mb-1">${key}</span>
+                        <span class="text-slate-900 font-bold text-xs whitespace-pre-line break-words leading-relaxed">${val}</span>
                     </div>
                 `;
             }
@@ -580,6 +579,7 @@ function viewStudentDetails(id) {
                     <div class="flex flex-col items-center justify-center border-b pb-4">
                         ${photoUrl ? `<img src="${photoUrl}" class="w-24 h-24 rounded-full object-cover border-2 border-emerald-600 shadow-md mb-2" onerror="this.style.display='none'">` : ''}
                         <h3 class="text-lg font-black text-slate-900">${data.name_english || 'Student Dossier'}</h3>
+                        ${data.name_bangla ? `<p class="text-sm font-black text-emerald-800 mb-1">${data.name_bangla}</p>` : ''}
                         <p class="text-xs text-slate-500 font-mono font-bold mt-0.5">ID: ${data.unique_id || 'N/A'} | Dept: <span class="text-emerald-800 font-black">${data.course || 'BUMS'}</span> | Roll: ${data.roll_no || 'N/A'}</p>
                     </div>
 
