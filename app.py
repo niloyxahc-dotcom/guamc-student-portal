@@ -321,6 +321,21 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
+@app.route('/admin/student/move/<int:id>', methods=['POST'])
+@login_required
+def admin_move_student(id):
+    try:
+        db.session.rollback()
+        student_obj = Student.query.get_or_404(id)
+        target_course = request.form.get('target_course', 'BUMS').upper()
+        student_obj.course = target_course
+        db.session.commit()
+        flash(f"Successfully moved {student_obj.name_english} to {target_course} course.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error moving student course: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
 @app.route('/admin/student/reset-password/<int:id>', methods=['POST'])
 @login_required
 def admin_reset_password(id):
