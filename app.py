@@ -144,6 +144,13 @@ def init_default_nav():
 with app.app_context():
     try:
         db.create_all()
+        # অটো কলাম ফিক্স করার জন্য সেইফ কমান্ড
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(db.text("ALTER TABLE students ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'student';"))
+        except Exception as col_err:
+            print("Column check info:", col_err)
+
         init_default_departments()
         init_default_nav()
         db.session.commit()
@@ -439,7 +446,6 @@ def login():
             # ১. স্টাফ বা প্রিন্সিপাল টেবিল চেক
             staff_member = Staff.query.filter(db.func.lower(Staff.email) == email).first()
             if staff_member and check_password_hash(staff_member.password_hash, password):
-                # স্টাফদের জন্য একটি ডামি অ্যাডমিন অ্যাকাউন্ট লগইন করিয়ে দেওয়া বা সেশন সেট করা
                 admin_dummy = Student.query.filter(db.func.lower(Student.email) == ADMIN_EMAILS[0]).first()
                 if not admin_dummy:
                     admin_dummy = Student(
