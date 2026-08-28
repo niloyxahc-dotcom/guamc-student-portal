@@ -321,6 +321,15 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
+@app.route('/admin/student/impersonate/<int:id>')
+@login_required
+def admin_impersonate_student(id):
+    student_to_view = Student.query.get_or_404(id)
+    session['admin_impersonator_email'] = current_user.email
+    login_user(student_to_view)
+    flash(f"Viewing as: {student_to_view.name_english}", "info")
+    return redirect(url_for('dashboard'))
+
 @app.route('/admin/student/<int:student_id>/performance', methods=['GET', 'POST'])
 @login_required
 def admin_student_performance(student_id):
