@@ -321,6 +321,20 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
+@app.route('/admin/student/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_student(id):
+    try:
+        db.session.rollback()
+        student_obj = Student.query.get_or_404(id)
+        db.session.delete(student_obj)
+        db.session.commit()
+        flash(f"Student {student_obj.name_english} permanently deleted.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting student: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
 @app.route('/admin/student/move/<int:id>', methods=['POST'])
 @login_required
 def admin_move_student(id):
