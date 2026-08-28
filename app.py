@@ -321,6 +321,137 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
+@app.route('/admin/folder/add', methods=['POST'])
+@login_required
+def admin_add_folder():
+    try:
+        db.session.rollback()
+        folder_name = request.form.get('folder_name', '').strip()
+        course = request.form.get('course', 'ALL').upper()
+        if folder_name:
+            new_folder = FileFolder(name=folder_name, course=course)
+            db.session.add(new_folder)
+            db.session.commit()
+            flash("Academic folder created successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error creating folder: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/file/upload', methods=['POST'])
+@login_required
+def admin_upload_file():
+    try:
+        db.session.rollback()
+        title = request.form.get('title', '').strip()
+        file_type = request.form.get('file_type', 'Item Card')
+        course = request.form.get('course', 'ALL').upper()
+        folder_id = request.form.get('folder_id')
+        folder_id = int(folder_id) if folder_id else None
+
+        file_url = request.form.get('file_url', '').strip()
+        if 'file' in request.files and request.files['file'].filename != '':
+            f = request.files['file']
+            if allowed_file(f.filename):
+                ext = f.filename.rsplit('.', 1)[1].lower()
+                filename = f"material_{int(datetime.utcnow().timestamp())}.{ext}"
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                f.save(filepath)
+                file_url = url_for('static', filename=f'uploads/{filename}')
+
+        if title and file_url:
+            new_file = AcademicFile(title=title, file_type=file_type, course=course, folder_id=folder_id, file_url=file_url)
+            db.session.add(new_file)
+            db.session.commit()
+            flash("Material uploaded successfully.", "success")
+        else:
+            flash("Title and file/link are required.", "warning")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error uploading file: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/file/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_file(id):
+    try:
+        db.session.rollback()
+        file_obj = AcademicFile.query.get_or_404(id)
+        db.session.delete(file_obj)
+        db.session.commit()
+        flash("Material deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting file: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/department/save', methods=['POST'])
+@login_required
+def admin_save_department():
+    try:
+        db.session.rollback()
+        name = request.form.get('name', '').strip()
+        course = request.form.get('course', 'BAMS').upper()
+        order = int(request.form.get('order', 1))
+        if name:
+            new_dept = Department(name=name, course=course, order=order)
+            db.session.add(new_dept)
+            db.session.commit()
+            flash("Department added successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error saving department: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/department/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_department(id):
+    try:
+        db.session.rollback()
+        dept_obj = Department.query.get_or_404(id)
+        db.session.delete(dept_obj)
+        db.session.commit()
+        flash("Department deleted successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error deleting department: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/nav/save', methods=['POST'])
+@login_required
+def admin_save_nav_link():
+    try:
+        db.session.rollback()
+        icon = request.form.get('icon', '📚').strip()
+        title = request.form.get('title', '').strip()
+        endpoint = request.form.get('endpoint_or_url', '').strip()
+        order = int(request.form.get('order', 1))
+        is_external = True if request.form.get('is_external') else False
+
+        if title and endpoint:
+            nav = NavigationLink(title=title, endpoint_or_url=endpoint, icon=icon, order=order, is_external=is_external)
+            db.session.add(nav)
+            db.session.commit()
+            flash("Navigation link added successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error saving nav link: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/nav/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_nav_link(id):
+    try:
+        db.session.rollback()
+        nav_obj = NavigationLink.query.get_or_404(id)
+        db.session.delete(nav_obj)
+        db.session.commit()
+        flash("Navigation link removed.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error removing nav link: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
 @app.route('/admin/student/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_student(id):
