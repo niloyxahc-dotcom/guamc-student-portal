@@ -5,13 +5,17 @@ import re
 import urllib.request
 import ssl
 import traceback
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 from datetime import datetime, date
 from flask import Flask, render_template, redirect, url_for, request, flash, Response, session, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
-from flask_mail import Mail, Message
 import requests
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jtrcajaqybqzzoznsruz.supabase.co")
@@ -48,17 +52,6 @@ UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'pdf', 'docx', 'jpeg'}
-
-# ==================== BULLETPROOF GMAIL SMTP CONFIG ====================
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USE_SSL'] = False
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'moderndoctorsguamc@gmail.com').strip()
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'qhofbkllykglrzrj').replace(' ', '').strip()
-app.config['MAIL_DEFAULT_SENDER'] = ('GUAMC Academic Cell', app.config['MAIL_USERNAME'])
-
-mail = Mail(app)
 
 from models import (
     db, 
@@ -448,7 +441,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== SAFE BROADCAST EMAIL ROUTE ====================
+# ==================== 100% BULLETPROOF NATIVE PYTHON SMTPLIB BROADCAST ====================
 
 @app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
 @login_required
@@ -456,16 +449,16 @@ def send_bulk_email():
     if request.method == 'GET':
         return redirect(url_for('admin_panel'))
 
+    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
+    is_admin = current_user.email and current_user.email.lower().strip() in ADMIN_EMAILS
+    is_teacher = getattr(current_user, 'role', '') == 'teacher'
+
+    if not (is_admin or is_teacher):
+        flash('Unauthorized! Administrator or Faculty privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+
     try:
-        ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
-        is_admin = current_user.email and current_user.email.lower().strip() in ADMIN_EMAILS
-        is_teacher = getattr(current_user, 'role', '') == 'teacher'
-
-        if not (is_admin or is_teacher):
-            flash('Unauthorized! Administrator or Faculty privileges required.', 'danger')
-            return redirect(url_for('dashboard'))
-
-        target_group = request.form.get('target_group', 'ALL')  # ALL, BUMS, BAMS
+        target_group = request.form.get('target_group', 'ALL')
         subject = request.form.get('subject', '').strip()
         email_body = request.form.get('message', '').strip()
 
@@ -481,10 +474,13 @@ def send_bulk_email():
         recipient_emails = list(set([s.email.strip().lower() for s in recipient_students if s.email and '@' in s.email]))
 
         if not recipient_emails:
-            flash('নির্বাচিত কোর্সে কোনো বৈধ প্রাপক পাওয়া যায়নি!', 'warning')
+            flash('নির্বাচিত কোর্সে কোনো নিবন্ধিত শিক্ষার্থী পাওয়া যায়নি!', 'warning')
             return redirect(url_for('admin_panel'))
 
-        sender_title = f"{current_user.name_english} (GUAMC Faculty)" if is_teacher else "GUAMC Administration"
+        smtp_user = os.environ.get('MAIL_USERNAME', 'moderndoctorsguamc@gmail.com').strip()
+        smtp_pass = os.environ.get('MAIL_PASSWORD', 'qhofbkllykglrzrj').replace(' ', '').strip()
+
+        sender_title = f"{current_user.name_english} (Faculty)" if is_teacher else "GUAMC Administration"
         full_message_body = (
             f"{email_body}\n\n"
             f"--------------------------------------------------\n"
@@ -493,29 +489,41 @@ def send_bulk_email():
             f"Web Portal: https://guamc-student-portal.onrender.com\n"
         )
 
-        msg = Message(
-            subject=f"[GUAMC Academic Notice] {subject}",
-            sender=(sender_title, app.config['MAIL_USERNAME']),
-            recipients=[app.config['MAIL_USERNAME']],
-            bcc=recipient_emails,
-            body=full_message_body
-        )
+        # Create MIME Message
+        msg = MIMEMultipart()
+        msg['From'] = f"{sender_title} <{smtp_user}>"
+        msg['To'] = smtp_user
+        msg['Subject'] = f"[GUAMC Notice] {subject}"
+        msg.attach(MIMEText(full_message_body, 'plain', 'utf-8'))
 
+        # File Attachment
         if 'attachment' in request.files:
             file = request.files['attachment']
             if file and file.filename != '':
-                msg.attach(
-                    filename=secure_filename(file.filename),
-                    content_type=file.content_type,
-                    data=file.read()
-                )
+                filename = secure_filename(file.filename)
+                part = MIMEBase('application', 'octet-stream')
+                part.set_payload(file.read())
+                encoders.encode_base64(part)
+                part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
+                msg.attach(part)
 
-        mail.send(msg)
+        # Direct Python SMTP with SSL context
+        context = ssl.create_default_context()
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=30)
+        server.ehlo()
+        server.starttls(context=context)
+        server.ehlo()
+        server.login(smtp_user, smtp_pass)
+        
+        # Send to all BCC
+        server.sendmail(smtp_user, [smtp_user] + recipient_emails, msg.as_string())
+        server.quit()
+
         flash(f"✅ সফলভাবে {len(recipient_emails)} জন শিক্ষার্থীর কাছে ইমেইল নোটিশ পাঠানো হয়েছে ({target_group})!", "success")
 
     except Exception as e:
-        print("Mail Sending Error:", traceback.format_exc())
-        flash(f"❌ ইমেইল পাঠাতে সমস্যা হয়েছে: {str(e)}", "danger")
+        print("SMTP Error Details:\n", traceback.format_exc())
+        flash(f"❌ ইমেইল পাঠানোর সময় ত্রুটি হয়েছে: {str(e)}", "danger")
 
     return redirect(url_for('admin_panel'))
 
