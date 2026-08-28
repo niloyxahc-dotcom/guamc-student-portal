@@ -49,12 +49,13 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'pdf', 'docx', 'jpeg'}
 
-# ==================== GMAIL SMTP CONFIGURATION ====================
+# ==================== BULLETPROOF GMAIL SMTP CONFIG ====================
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'moderndoctorsguamc@gmail.com')
-app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'qhofbkllykglrzrj')
+app.config['MAIL_USE_SSL'] = False
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'moderndoctorsguamc@gmail.com').strip()
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'qhofbkllykglrzrj').replace(' ', '').strip()
 app.config['MAIL_DEFAULT_SENDER'] = ('GUAMC Academic Cell', app.config['MAIL_USERNAME'])
 
 mail = Mail(app)
@@ -447,7 +448,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== BROADCAST EMAIL NOTICES (FIXED FOR GET/POST) ====================
+# ==================== SAFE BROADCAST EMAIL ROUTE ====================
 
 @app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
 @login_required
@@ -455,43 +456,43 @@ def send_bulk_email():
     if request.method == 'GET':
         return redirect(url_for('admin_panel'))
 
-    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
-    is_admin = current_user.email and current_user.email.lower().strip() in ADMIN_EMAILS
-    is_teacher = getattr(current_user, 'role', '') == 'teacher'
-
-    if not (is_admin or is_teacher):
-        flash('Unauthorized! Administrator or Faculty privileges required.', 'danger')
-        return redirect(url_for('dashboard'))
-
-    target_group = request.form.get('target_group', 'ALL')  # ALL, BUMS, BAMS
-    subject = request.form.get('subject', '').strip()
-    email_body = request.form.get('message', '').strip()
-
-    if not subject or not email_body:
-        flash('Subject এবং Message উভয় ফিল্ড পূরণ করা আবশ্যক!', 'warning')
-        return redirect(url_for('admin_panel'))
-
-    query = Student.query.filter_by(is_approved=True)
-    if target_group in ['BUMS', 'BAMS']:
-        query = query.filter_by(course=target_group)
-
-    recipient_students = query.all()
-    recipient_emails = list(set([s.email.strip().lower() for s in recipient_students if s.email and '@' in s.email]))
-
-    if not recipient_emails:
-        flash('নির্বাচিত কোর্সে কোনো বৈধ প্রাপক পাওয়া যায়নি!', 'warning')
-        return redirect(url_for('admin_panel'))
-
-    sender_title = f"{current_user.name_english} (GUAMC Faculty)" if is_teacher else "GUAMC Administration"
-    full_message_body = (
-        f"{email_body}\n\n"
-        f"--------------------------------------------------\n"
-        f"Official Notice from: {sender_title}\n"
-        f"Government Unani and Ayurvedic Medical College (GUAMC)\n"
-        f"Web Portal: https://guamc-student-portal.onrender.com\n"
-    )
-
     try:
+        ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
+        is_admin = current_user.email and current_user.email.lower().strip() in ADMIN_EMAILS
+        is_teacher = getattr(current_user, 'role', '') == 'teacher'
+
+        if not (is_admin or is_teacher):
+            flash('Unauthorized! Administrator or Faculty privileges required.', 'danger')
+            return redirect(url_for('dashboard'))
+
+        target_group = request.form.get('target_group', 'ALL')  # ALL, BUMS, BAMS
+        subject = request.form.get('subject', '').strip()
+        email_body = request.form.get('message', '').strip()
+
+        if not subject or not email_body:
+            flash('Subject এবং Message উভয় ফিল্ড পূরণ করা আবশ্যক!', 'warning')
+            return redirect(url_for('admin_panel'))
+
+        query = Student.query.filter_by(is_approved=True)
+        if target_group in ['BUMS', 'BAMS']:
+            query = query.filter_by(course=target_group)
+
+        recipient_students = query.all()
+        recipient_emails = list(set([s.email.strip().lower() for s in recipient_students if s.email and '@' in s.email]))
+
+        if not recipient_emails:
+            flash('নির্বাচিত কোর্সে কোনো বৈধ প্রাপক পাওয়া যায়নি!', 'warning')
+            return redirect(url_for('admin_panel'))
+
+        sender_title = f"{current_user.name_english} (GUAMC Faculty)" if is_teacher else "GUAMC Administration"
+        full_message_body = (
+            f"{email_body}\n\n"
+            f"--------------------------------------------------\n"
+            f"Official Notice from: {sender_title}\n"
+            f"Government Unani and Ayurvedic Medical College (GUAMC)\n"
+            f"Web Portal: https://guamc-student-portal.onrender.com\n"
+        )
+
         msg = Message(
             subject=f"[GUAMC Academic Notice] {subject}",
             sender=(sender_title, app.config['MAIL_USERNAME']),
@@ -511,9 +512,10 @@ def send_bulk_email():
 
         mail.send(msg)
         flash(f"✅ সফলভাবে {len(recipient_emails)} জন শিক্ষার্থীর কাছে ইমেইল নোটিশ পাঠানো হয়েছে ({target_group})!", "success")
+
     except Exception as e:
         print("Mail Sending Error:", traceback.format_exc())
-        flash(f"❌ ইমেইল পাঠাতে ব্যর্থ হয়েছে: {str(e)}", "danger")
+        flash(f"❌ ইমেইল পাঠাতে সমস্যা হয়েছে: {str(e)}", "danger")
 
     return redirect(url_for('admin_panel'))
 
