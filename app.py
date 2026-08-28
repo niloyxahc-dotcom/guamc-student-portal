@@ -11,6 +11,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from flask_mail import Mail, Message
 import requests
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jtrcajaqybqzzoznsruz.supabase.co")
@@ -47,6 +48,16 @@ UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'pdf', 'docx', 'jpeg'}
+
+# ==================== GMAIL SMTP CONFIGURATION ====================
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME', 'moderndoctorsguamc@gmail.com')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD', 'qhofbkllykglrzrj')
+app.config['MAIL_DEFAULT_SENDER'] = ('GUAMC Academic Cell', app.config['MAIL_USERNAME'])
+
+mail = Mail(app)
 
 from models import (
     db, 
@@ -94,19 +105,6 @@ def extract_drive_id(val):
     m3 = re.search(r'open\?id=([a-zA-Z0-9_-]{20,})', val)
     if m3: return m3.group(1)
     return ""
-
-def format_bd_phone(raw_val):
-    if not raw_val: return ""
-    val = str(raw_val).strip()
-    if 'E+' in val or 'e+' in val:
-        try: val = str(int(float(val)))
-        except Exception: pass
-    digits = re.sub(r'\D', '', val)
-    if not digits: return ""
-    if len(digits) == 10 and digits.startswith('1'): return '0' + digits
-    if len(digits) == 11 and digits.startswith('01'): return digits
-    if len(digits) == 13 and digits.startswith('8801'): return digits[2:]
-    return val
 
 def generate_diu_id(batch, course, roll_two_digit):
     course_str = str(course).upper()
@@ -449,6 +447,74 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
+# ==================== BROADCAST EMAIL NOTICES (ONE-CLICK TO ALL) ====================
+
+@app.route('/admin/send-bulk-email', methods=['POST'])
+@login_required
+def send_bulk_email():
+    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
+    is_admin = current_user.email and current_user.email.lower().strip() in ADMIN_EMAILS
+    is_teacher = getattr(current_user, 'role', '') == 'teacher'
+
+    if not (is_admin or is_teacher):
+        flash('Unauthorized! Administrator or Faculty privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    target_group = request.form.get('target_group', 'ALL')  # ALL, BUMS, BAMS
+    subject = request.form.get('subject', '').strip()
+    email_body = request.form.get('message', '').strip()
+
+    if not subject or not email_body:
+        flash('Subject এবং Message উভয় ফিল্ড পূরণ করা আবশ্যক!', 'warning')
+        return redirect(request.referrer or url_for('admin_panel'))
+
+    # টার্গেট অনুযায়ী প্রাপক ফিল্টার
+    query = Student.query.filter_by(is_approved=True)
+    if target_group in ['BUMS', 'BAMS']:
+        query = query.filter_by(course=target_group)
+
+    recipient_students = query.all()
+    recipient_emails = list(set([s.email.strip().lower() for s in recipient_students if s.email and '@' in s.email]))
+
+    if not recipient_emails:
+        flash('নির্বাচিত কোর্সে কোনো বৈধ প্রাপক পাওয়া যায়নি!', 'warning')
+        return redirect(request.referrer or url_for('admin_panel'))
+
+    sender_title = f"{current_user.name_english} (GUAMC Faculty)" if is_teacher else "GUAMC Administration"
+    full_message_body = (
+        f"{email_body}\n\n"
+        f"--------------------------------------------------\n"
+        f"Official Notice from: {sender_title}\n"
+        f"Government Unani and Ayurvedic Medical College (GUAMC)\n"
+        f"Web Portal: https://guamc-student-portal.onrender.com\n"
+    )
+
+    try:
+        msg = Message(
+            subject=f"[GUAMC Academic Notice] {subject}",
+            sender=(sender_title, app.config['MAIL_USERNAME']),
+            recipients=[app.config['MAIL_USERNAME']], # Sender in TO
+            bcc=recipient_emails,                      # All students in BCC
+            body=full_message_body
+        )
+
+        if 'attachment' in request.files:
+            file = request.files['attachment']
+            if file and file.filename != '':
+                msg.attach(
+                    filename=secure_filename(file.filename),
+                    content_type=file.content_type,
+                    data=file.read()
+                )
+
+        mail.send(msg)
+        flash(f"✅ সফলভাবে {len(recipient_emails)} জন শিক্ষার্থীর কাছে ইমেইল নোটিশ পাঠানো হয়েছে ({target_group})!", "success")
+    except Exception as e:
+        print("Mail Sending Error:", traceback.format_exc())
+        flash(f"❌ ইমেইল পাঠাতে ব্যর্থ হয়েছে: {str(e)}", "danger")
+
+    return redirect(request.referrer or url_for('admin_panel'))
+
 # ==================== DOSSIER API (EXACT STUDENT ID & COURSE MATCHING) ====================
 
 @app.route('/admin/student-detail_<int:id>')
@@ -469,7 +535,6 @@ def admin_get_student_json(id):
     db_course = str(s.course or '').upper().strip()
     db_email = str(s.email or '').lower().strip()
 
-    # ১. প্রথম অগ্রাধিকার: Unique Student ID অথবা (Course + Roll) ম্যাচিং
     target = None
     for row in ALL_CSV_ROWS:
         r_course = str(row.get('Course:', '')).strip().upper()
@@ -481,7 +546,6 @@ def admin_get_student_json(id):
         computed_uid = f"{r_batch}{c_code}{r_roll}"
         r_email = str(row.get('Email Address', '')).strip().lower()
 
-        # নিখুঁত Student ID ম্যাচ অথবা Course + Roll ম্যাচ
         if (db_uid and computed_uid == db_uid) or (r_course == db_course and r_roll == db_roll) or (db_email and r_email == db_email):
             target = row
             break
@@ -495,7 +559,6 @@ def admin_get_student_json(id):
                 continue
             val_str = str(v).strip() if v is not None else ""
 
-            # ছবির লিংক পার্সিং
             if 'Upload Recent Passport Size Photo' in k or 'drive.google.com' in val_str:
                 d_id = extract_drive_id(val_str)
                 if d_id:
