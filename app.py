@@ -321,6 +321,37 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
+@app.route('/admin/student/<int:student_id>/performance', methods=['GET', 'POST'])
+@login_required
+def admin_student_performance(student_id):
+    student = Student.query.get_or_404(student_id)
+    depts = Department.query.filter_by(course=student.course).order_by(Department.order.asc()).all()
+
+    if request.method == 'POST':
+        try:
+            db.session.rollback()
+            for d in depts:
+                att = request.form.get(f'att_{d.id}', '')
+                status = request.form.get(f'status_{d.id}', 'In Progress')
+
+                perf = DepartmentPerformance.query.filter_by(student_id=student.id, department_id=d.id).first()
+                if not perf:
+                    perf = DepartmentPerformance(student_id=student.id, department_id=d.id)
+                    db.session.add(perf)
+                
+                perf.attendance_rate = float(att) if att != '' else None
+                perf.item_card_status = status
+
+            db.session.commit()
+            flash(f"Departmental evaluation updated for {student.name_english}!", "success")
+            return redirect(url_for('admin_panel'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Failed to update performance: {str(e)}", "danger")
+
+    perf_map = {p.department_id: p for p in student.performances}
+    return render_template('student_performance.html', student=student, departments=depts, perf_map=perf_map)
+
 @app.route('/admin/live-attendance', methods=['GET', 'POST'])
 @login_required
 def admin_live_attendance():
