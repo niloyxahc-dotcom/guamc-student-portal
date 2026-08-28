@@ -16,6 +16,10 @@
         </div>
         
         <div class="flex flex-wrap items-center gap-2">
+            <!-- BROADCAST EMAIL BUTTON -->
+            <button onclick="document.getElementById('modal-broadcast-email').classList.remove('hidden')" class="px-4 py-2.5 bg-rose-700 hover:bg-rose-800 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                <span>📢</span> Broadcast Email
+            </button>
             <a href="{{ url_for('admin_live_attendance') }}" class="px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
                 <span>📋</span> Live Attendance
             </a>
@@ -202,6 +206,51 @@
         </div>
     </div>
 
+</div>
+
+<!-- MODAL: BROADCAST EMAIL NOTICES (ONE-CLICK TO ALL) -->
+<div id="modal-broadcast-email" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-slate-200">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-black text-slate-800 flex items-center gap-2">
+                <span>📢</span> Send One-Click Notice Email
+            </h3>
+            <button onclick="document.getElementById('modal-broadcast-email').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600 transition">&times;</button>
+        </div>
+
+        <form method="POST" action="{{ url_for('send_bulk_email') }}" enctype="multipart/form-data" class="space-y-4 text-xs font-bold">
+            <div>
+                <label class="text-slate-600 block mb-1">Target Recipients (প্রাপক দল) *</label>
+                <select name="target_group" class="w-full p-2.5 border border-slate-200 rounded-xl font-bold bg-slate-50 focus:outline-none">
+                    <option value="ALL">All Enrolled Students (BUMS + BAMS)</option>
+                    <option value="BUMS">BUMS Students Only</option>
+                    <option value="BAMS">BAMS Students Only</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="text-slate-600 block mb-1">Email Subject (বিষয়) *</label>
+                <input type="text" name="subject" placeholder="e.g. Urgent Notice: 1st Prof Examination Form Fill-up" required class="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500">
+            </div>
+
+            <div>
+                <label class="text-slate-600 block mb-1">Message Body (বার্তা) *</label>
+                <textarea name="message" rows="5" placeholder="Write your announcement, instructions, or notices here..." required class="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500"></textarea>
+            </div>
+
+            <div>
+                <label class="text-slate-600 block mb-1">Attach Routine / Notice / Syllabus (ঐচ্ছিক)</label>
+                <input type="file" name="attachment" class="w-full p-1.5 border border-slate-200 rounded-xl bg-slate-50 text-xs">
+            </div>
+
+            <div class="pt-2 flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('modal-broadcast-email').classList.add('hidden')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 transition">Cancel</button>
+                <button type="submit" class="px-5 py-2.5 bg-rose-700 hover:bg-rose-800 text-white rounded-xl font-black shadow-md transition flex items-center gap-1.5">
+                    <span>🚀</span> Send to All
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <!-- MODAL: SECTIONAL COMPREHENSIVE DOSSIER -->
@@ -534,7 +583,6 @@ function openEditModal(id, nameEng, nameBan, father, fatherOcc, mother, motherOc
     document.getElementById('modal-edit-student').classList.remove('hidden');
 }
 
-// সেকশন অনুযায়ী ক্যাটাগরি ম্যাপিং
 const SECTIONS = [
     {
         title: "👤 Personal Profile (ব্যক্তিগত তথ্য)",
@@ -578,7 +626,6 @@ function viewStudentDetails(id) {
 
             let sectionsHtml = '';
 
-            // ১. নির্দিষ্ট সেকশনগুলোতে ভাগ করে রেন্ডার করা
             SECTIONS.forEach(sec => {
                 let cards = '';
                 sec.keys.forEach(k => {
@@ -606,7 +653,6 @@ function viewStudentDetails(id) {
                 }
             });
 
-            // ২. বাকি অন্য কোনো ফিল্ড থাকলে তা "Other Details" এ দেখানো
             let remainingCards = '';
             for (const [k, v] of Object.entries(dossier)) {
                 if (!renderedKeys.has(k) && v && String(v).trim() !== '' && v !== 'null') {
