@@ -324,13 +324,16 @@ def admin_panel():
 @app.route('/teacher', methods=['GET', 'POST'])
 @login_required
 def teacher_panel():
-    teacher_email = session.get('staff_email') or current_user.email
-    teacher_obj = Staff.query.filter(db.func.lower(Staff.email) == teacher_email.lower().strip()).first()
-    
-    assigned_dept = teacher_obj.department if teacher_obj else "General Administration"
-
     try:
         db.session.rollback()
+        teacher_email = session.get('staff_email') or getattr(current_user, 'email', '')
+        
+        teacher_obj = None
+        if teacher_email:
+            teacher_obj = Staff.query.filter(db.func.lower(Staff.email) == teacher_email.lower().strip()).first()
+        
+        assigned_dept = teacher_obj.department if (teacher_obj and teacher_obj.department) else "General Administration"
+
         if request.method == 'POST':
             student_id = request.form.get('student_id')
             item_status = request.form.get('item_card_status')
@@ -373,7 +376,8 @@ def teacher_panel():
                                perf_data=perf_data)
     except Exception as e:
         db.session.rollback()
-        return f"<pre style='color:red;'>Teacher Panel Error: {str(e)}</pre>", 500
+        err_trace = traceback.format_exc()
+        return f"<pre style='color:red; background:#fff; padding:20px;'>Teacher Panel Error:\n{err_trace}</pre>", 500
 
 @app.route('/admin/staff/delete/<int:id>', methods=['POST'])
 @login_required
