@@ -253,10 +253,11 @@
             {% for st in staff_members %}
             <div class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold">
                 <div>
-                    <p class="text-slate-900 font-black">{{ st.name_english }} <span class="px-2 py-0.5 rounded text-[9px] {% if st.role == 'principal' %}bg-purple-100 text-purple-800{% else %}bg-teal-100 text-teal-800{% endif %} uppercase">{{ st.role }}</span></p>
+                    <p class="text-slate-900 font-black">{{ st.name }} <span class="px-2 py-0.5 rounded text-[9px] {% if st.role == 'principal' %}bg-purple-100 text-purple-800{% else %}bg-teal-100 text-teal-800{% endif %} uppercase">{{ st.role }}</span></p>
                     <p class="text-[10px] text-slate-500 font-mono">{{ st.email }}</p>
                 </div>
-                <form method="POST" action="{{ url_for('admin_delete_student', id=st.id) }}" onsubmit="return confirm('Remove this staff member?');">
+                <!-- সঠিক রাউট admin_delete_staff ব্যবহার করা হয়েছে -->
+                <form method="POST" action="{{ url_for('admin_delete_staff', id=st.id) }}" onsubmit="return confirm('Remove this staff member?');">
                     <button type="submit" class="text-rose-600 hover:text-rose-800 font-black p-1">Delete</button>
                 </form>
             </div>
@@ -682,7 +683,7 @@ const SECTIONS = [
     },
     {
         title: "🩺 Health & Medical Profile (স্বাস্থ্য ও জরুরি তথ্য)",
-        keys: ["Blood group?", "Height (in feet & inches)", "Weight in kg?", "Do you wear eyeglasses / contact lenses?", "Any chronic illness or major health conditions? (Write 'None' if NA)", "Known Allergies (if any):  খাবার বা ওষুধে কোনো অ্যালার্জি আছে কি না (যেমন: Penicillin, Dust, Food allergies)।", "Emergency Medical Contact Number:  অসুস্থতার মতো জরুরি মুহূর্তে দ্রুত যোগাযোগের জন্য নম্বর।", "Regular Medication:  নিয়মিত কোনো প্রেসক্রিপশন ওষুধ সেবন করতে হয় কি না (যেমন: Inhaler, Insulin ইত্যাদি)।", "Identification Mark (ঐচ্ছিক):"]
+        keys: ["Blood group?", "Height (in feet & inches)", "Weight in kg?", "Do you wear eyeglasses / contact lenses?", "Any chronic illness or major health conditions? (Write 'None' if NA)", "Known Allergies (if any): খাবার বা ওষুধে কোনো অ্যালার্জি আছে কি না (যেমন: Penicillin, Dust, Food allergies)।", "Emergency Medical Contact Number: অসুস্থতার মতো জরুরি মুহূর্তে দ্রুত যোগাযোগের জন্য নম্বর।", "Regular Medication: নিয়মিত কোনো প্রেসক্রিপশন ওষুধ সেবন করতে হয় কি না (যেমন: Inhaler, Insulin ইত্যাদি)।", "Identification Mark (ঐচ্ছিক):"]
     },
     {
         title: "🎯 Extracurricular & Preferences (সহশিক্ষা ও অন্যান্য)",
