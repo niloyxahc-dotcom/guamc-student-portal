@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Teacher Panel - GUAMC-AIMS{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- Top Info Bar -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <div>
+            <h1 class="text-2xl font-black text-slate-900 flex items-center gap-2">
+                <span>👨‍🏫</span> Departmental Faculty Panel
+            </h1>
+            <p class="text-xs text-slate-500 font-semibold mt-1">
+                Assigned Department: <strong class="text-emerald-800 font-black">{{ assigned_dept }}</strong> | Target Course: <strong class="text-indigo-700 font-black">{{ target_course }}</strong>
+            </p>
+        </div>
+        <div>
+            <span class="px-4 py-2 bg-teal-50 border border-teal-200 text-teal-900 rounded-2xl text-xs font-black shadow-sm">
+                Faculty: {{ teacher.name if teacher else current_user.email }}
+            </span>
+        </div>
+    </div>
+
+    <!-- Student List & Evaluation Table -->
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden p-6">
+        <h2 class="text-base font-black text-slate-900 mb-4">Students List &amp; Item Card / Attendance Evaluation</h2>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+                <thead class="bg-slate-100 text-slate-700 uppercase font-black border-b border-slate-200">
+                    <tr>
+                        <th class="p-3 text-center">SL</th>
+                        <th class="p-3">Roll</th>
+                        <th class="p-3">Student Name</th>
+                        <th class="p-3 text-center">Item Card Status</th>
+                        <th class="p-3 text-center">Dept Attendance (%)</th>
+                        <th class="p-3 text-right">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 font-semibold text-slate-800">
+                    {% for s in students %}
+                    {% set perf = perf_data.get(s.id) %}
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3 text-center font-black text-slate-400">{{ loop.index }}</td>
+                        <td class="p-3 font-black text-slate-900">{{ s.roll_no }}</td>
+                        <td class="p-3">
+                            <span class="font-bold text-slate-900 block">{{ s.name_english }}</span>
+                            <span class="text-[10px] text-slate-500 font-mono">{{ s.email }}</span>
+                        </td>
+                        
+                        <form method="POST">
+                            <input type="hidden" name="student_id" value="{{ s.id }}">
+                            <td class="p-3 text-center">
+                                <select name="item_card_status" class="p-1.5 border border-slate-300 rounded-xl text-xs font-bold bg-white focus:outline-none focus:ring-2 focus:ring-emerald-600">
+                                    <option value="In Progress" {% if perf and perf.item_card_status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                    <option value="Completed" {% if perf and perf.item_card_status == 'Completed' %}selected{% endif %}>Completed ✓</option>
+                                    <option value="Card Issued" {% if perf and perf.item_card_status == 'Card Issued' %}selected{% endif %}>Card Issued 🪪</option>
+                                </select>
+                            </td>
+                            <td class="p-3 text-center">
+                                <input type="number" step="0.1" min="0" max="100" name="attendance_rate" 
+                                       value="{{ perf.attendance_rate if (perf and perf.attendance_rate is not none) else '' }}" 
+                                       placeholder="e.g. 85.5" 
+                                       class="w-20 p-1.5 border border-slate-300 rounded-xl text-xs font-bold text-center bg-white">
+                                <span class="font-bold text-slate-600">%</span>
+                            </td>
+                            <td class="p-3 text-right">
+                                <button type="submit" class="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl font-black shadow transition">
+                                    Update
+                                </button>
+                            </td>
+                        </form>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-6 text-slate-400">No students found for this course.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
