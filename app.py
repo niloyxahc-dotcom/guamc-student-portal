@@ -144,10 +144,10 @@ def init_default_nav():
 with app.app_context():
     try:
         db.create_all()
-        # অটো কলাম ফিক্স করার জন্য সেইফ কমান্ড
         try:
             with db.engine.begin() as conn:
                 conn.execute(db.text("ALTER TABLE students ADD COLUMN IF NOT EXISTS role VARCHAR(20) DEFAULT 'student';"))
+                conn.execute(db.text("ALTER TABLE staff_members ADD COLUMN IF NOT EXISTS department VARCHAR(150) DEFAULT 'General';"))
         except Exception as col_err:
             print("Column check info:", col_err)
 
@@ -158,7 +158,6 @@ with app.app_context():
         db.session.rollback()
         print("Startup Error:", ex)
 
-# ==================== CSV DATASET ====================
 RAW_CSV_SOURCE = """Timestamp,Email Address,Course:,Batch,Name (In English),নাম (বাংলায়),Upload Recent Passport Size Photo ,Merit,Admission Roll No.,Registration/Serial No.,NID/Birth Reg. No,Gender?,Marital status?,Date of birth,Class roll:,Present address:,Your contact number:,Father's Name,Father's occupation:,Mother's Name,Mother's occupation:,Father's contact number,Mother's contact number:,Family's monthly income (in Taka),Member of family (in Number)?,Do you need any financial aid for educational support?,"Do you have any source of income (e.g., tuition)?","If yes, please specify:",HSC background,SSC background,Do you need one to one mental support from a Counselor? ,Local Guardian's Name? (In Dhaka),Local Guardian's address:,Local guardian's contact number?,Your Permanent address:,Are you a member of College Library?,Resident of Hall?,Any co-curricular activities? ,Do you want to join any of the following club?,Height (in feet & inches),Weight in kg?,Do you wear eyeglasses / contact lenses?,Any chronic illness or major health conditions? (Write 'None' if NA) ,Blood group?,"Known Allergies (if any):  খাবার বা ওষুধে কোনো অ্যালার্জি আছে কি না (যেমন: Penicillin, Dust, Food allergies)। ",Emergency Medical Contact Number:  অসুস্থতার মতো জরুরি মুহূর্তে দ্রুত যোগাযোগের জন্য নম্বর। ,"Regular Medication:  নিয়মিত কোনো প্রেসক্রিপশন ওষুধ সেবন করতে হয় কি না (যেমন: Inhaler, Insulin ইত্যাদি)। ",Identification Mark (ঐচ্ছিক): 
 8/20/2026 21:55:48,surovy8182@gmail.com,BUMS,37,Surovy Mony Tusto ,সুরভী মনি তুষ্ট,https://drive.google.com/open?id=1HDe8z9AKzs3wjxLB-yauqwocgkMofLqL,102,14,32998,3772598201,Female,Single (Never married),9/10/2006,14,"Mirpur 2,Dhaka",01844963931,MD.Shahjamal,Business,MST.Suria Parvin,Housewife ,01820604654,01821245613,30000,5,No,No,,"College name: Mirpur Cantonment public school and College \nPassing year: 2024\nResult: GPA 5","School name: Shohagpur Govt S. K. Pilot model high school \nPassing year: 2022\nResult: GPA 5",No,MST: Suria Parvin,"Mirpur 2,Dhaka",01821245613,"Belkuchi, Sirajganj ",No,No,No,"Debating Club, Career & Skill development Club",5 feet 3 inch,72,No,None,O+,Dust Allergy,1821245613,None,
 8/20/2026 21:56:32,rinkytasnim013@gmail.com,BAMS,37,Umme Mishat Tasnim Rinky ,উম্মে মিশাত তাসনিম রিংকি ,https://drive.google.com/open?id=1l5rby12xGInlQqP5qwFoRRlqOpctXfiG,105,17,32542,5582942016,Female,Single (Never married),1/1/2007,17,"Mirpur 13, Dhaka",01318170729,Md. Monowarul Hoque Mridha Babur,Deceased/Late,Mst. Sufia Khatun,Home maker,01834101160,01731502264,12000,3,Yes,No,,"1. Rajshahi Govt. Women's College \n2.2024\n3. GPA 5.00","1.Sardah Govt. Pilot High School \n2. 2022\n3. GPA 5.00",Yes,Shahriar Shawn,Uttara Uttar ,01768121123,"Baneshwar, Puthia, Rajshahi ",No,Yes,Not yet,"Debating Club, Photographic Society, Cultural Club, Career & Skill development Club",5 feet 2 inch,63,yes,"Yes, Hydronephroses",A+,Yes,01731502264,"Yes, nebulizer or oxygen mask",
@@ -222,6 +221,10 @@ def admin_panel():
         flash('Access denied! Administrator or Principal privileges required.', 'danger')
         return redirect(url_for('dashboard'))
 
+    # যদি ইউজার প্রিন্সিপাল বা সুপার অ্যাডমিন না হয়ে সাধারণ শিক্ষক (Teacher) হয়, তবে তাকে সরাসরি Teacher Panel-এ রিডাইরেক্ট করে দেওয়া হবে
+    if session.get('staff_role') == 'teacher' or (getattr(current_user, 'role', '') == 'teacher'):
+        return redirect(url_for('teacher_panel'))
+
     try:
         db.session.rollback()
         if request.method == 'POST':
@@ -242,6 +245,7 @@ def admin_panel():
                 staff_email = request.form.get('staff_email', '').strip().lower()
                 staff_pass = request.form.get('staff_password', '').strip()
                 staff_role = request.form.get('staff_role', 'teacher').strip()
+                staff_dept = request.form.get('staff_department', 'General').strip()
 
                 if not staff_name or not staff_email or not staff_pass:
                     flash('শিক্ষক/প্রিন্সিপালের নাম, ইমেইল এবং পাসওয়ার্ড আবশ্যক!', 'warning')
@@ -254,6 +258,7 @@ def admin_panel():
                             name=staff_name,
                             email=staff_email,
                             role=staff_role,
+                            department=staff_dept,
                             password_hash=generate_password_hash(staff_pass)
                         )
                         db.session.add(new_staff)
@@ -316,6 +321,68 @@ def admin_panel():
         db.session.rollback()
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
+
+# ==================== TEACHER DEDICATED PANEL ====================
+
+@app.route('/teacher', methods=['GET', 'POST'])
+@login_required
+def teacher_panel():
+    teacher_email = session.get('staff_email') or current_user.email
+    teacher_obj = Staff.query.filter(db.func.lower(Staff.email) == teacher_email.lower().strip()).first()
+    
+    if not teacher_obj and session.get('staff_role') != 'teacher':
+        flash('Unauthorized teacher access.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    assigned_dept = teacher_obj.department if teacher_obj else "General Administration"
+
+    try:
+        db.session.rollback()
+        if request.method == 'POST':
+            student_id = request.form.get('student_id')
+            item_status = request.form.get('item_card_status')
+            att_rate = request.form.get('attendance_rate')
+
+            if student_id:
+                dept_obj = Department.query.filter_by(name=assigned_dept).first()
+                if dept_obj:
+                    perf = DepartmentPerformance.query.filter_by(student_id=student_id, department_id=dept_obj.id).first()
+                    if not perf:
+                        perf = DepartmentPerformance(student_id=student_id, department_id=dept_obj.id)
+                        db.session.add(perf)
+                    
+                    if item_status:
+                        perf.item_card_status = item_status
+                    if att_rate != '':
+                        try:
+                            perf.attendance_rate = float(att_rate)
+                        except Exception:
+                            pass
+                    db.session.commit()
+                    flash(f"✅ Updated evaluation for student!", "success")
+            return redirect(url_for('teacher_panel'))
+
+        # শিক্ষকরা কেবল তাদের নিজ ডিপার্টমেন্টের কোর্সের (BUMS বা BAMS) শিক্ষার্থীদের তালিকা দেখতে পাবেন
+        dept_record = Department.query.filter_by(name=assigned_dept).first()
+        target_course = dept_record.course if dept_record else 'BUMS'
+        
+        students = Student.query.filter_by(course=target_course, is_approved=True).order_by(Student.roll_no).all()
+        
+        # ডিপার্টমেন্ট পারফরম্যান্স ম্যাপ তৈরি
+        perf_data = {}
+        if dept_record:
+            perfs = DepartmentPerformance.query.filter_by(department_id=dept_record.id).all()
+            perf_data = {p.student_id: p for p in perfs}
+
+        return render_template('teacher.html',
+                               teacher=teacher_obj,
+                               assigned_dept=assigned_dept,
+                               target_course=target_course,
+                               students=students,
+                               perf_data=perf_data)
+    except Exception as e:
+        db.session.rollback()
+        return f"<pre style='color:red;'>Teacher Panel Error: {str(e)}</pre>", 500
 
 @app.route('/admin/staff/delete/<int:id>', methods=['POST'])
 @login_required
@@ -427,6 +494,8 @@ def login():
     if current_user.is_authenticated:
         if is_admin_or_principal(current_user):
             return redirect(url_for('admin_panel'))
+        if session.get('staff_role') == 'teacher':
+            return redirect(url_for('teacher_panel'))
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
@@ -463,9 +532,13 @@ def login():
                     )
                     db.session.add(admin_dummy)
                     db.session.commit()
+                
                 login_user(admin_dummy)
                 session['staff_email'] = staff_member.email
                 session['staff_role'] = staff_member.role
+
+                if staff_member.role == 'teacher':
+                    return redirect(url_for('teacher_panel'))
                 return redirect(url_for('admin_panel'))
 
             if email in ADMIN_EMAILS:
@@ -609,6 +682,8 @@ def dashboard():
         db.session.rollback()
         if is_admin_or_principal(current_user):
             return redirect(url_for('admin_panel'))
+        if session.get('staff_role') == 'teacher':
+            return redirect(url_for('teacher_panel'))
 
         course = (current_user.course or 'BUMS').upper()
         depts = Department.query.filter_by(course=course).order_by(Department.order.asc()).all()
@@ -642,453 +717,6 @@ def resources():
     except Exception as e:
         db.session.rollback()
         return f"Error loading resources: {str(e)}", 500
-
-@app.route('/admin/student-detail_<int:id>')
-@app.route('/admin/student-detail/<int:id>')
-@app.route('/admin/student_detail/<int:id>')
-@app.route('/admin/student_details/<int:id>')
-@app.route('/admin/get_student/<int:id>')
-@app.route('/admin/student/<int:id>/details-json')
-@login_required
-def admin_get_student_json(id):
-    s = Student.query.get_or_404(id)
-
-    db_uid = str(getattr(s, 'unique_id', '') or '').strip()
-    db_roll = re.sub(r'\D', '', str(s.roll_no or '')).zfill(2)
-    db_course = str(s.course or '').upper().strip()
-    db_email = str(s.email or '').lower().strip()
-
-    target = None
-    for row in ALL_CSV_ROWS:
-        r_course = str(row.get('Course:', '')).strip().upper()
-        r_batch = str(row.get('Batch', '37')).strip()
-        r_roll_raw = row.get('Class roll:', '') or row.get('Admission Roll No.', '') or ''
-        r_roll = re.sub(r'\D', '', str(r_roll_raw)).zfill(2) if r_roll_raw else ""
-        
-        c_code = "2" if "BAMS" in r_course else "1"
-        computed_uid = f"{r_batch}{c_code}{r_roll}"
-        r_email = str(row.get('Email Address', '')).strip().lower()
-
-        if (db_uid and computed_uid == db_uid) or (r_course == db_course and r_roll == db_roll) or (db_email and r_email == db_email):
-            target = row
-            break
-
-    photo_url = getattr(s, 'photo', '') or ''
-    dossier_data = {}
-
-    if target:
-        for k, v in target.items():
-            if not k or k.strip().lower() == 'timestamp': 
-                continue
-            val_str = str(v).strip() if v is not None else ""
-
-            if 'Upload Recent Passport Size Photo' in k or 'drive.google.com' in val_str:
-                d_id = extract_drive_id(val_str)
-                if d_id:
-                    photo_url = f"https://drive.google.com/thumbnail?id={d_id}&sz=w600"
-                continue
-
-            if val_str != "" and val_str.lower() not in ['null', 'none', 'nan']:
-                dossier_data[k.strip()] = val_str
-
-    computed_id = db_uid or generate_diu_id(s.batch, s.course, s.roll_no)
-
-    return jsonify({
-        "status": "success",
-        "name_english": target.get('Name (In English)') if target else s.name_english,
-        "name_bangla": target.get('নাম (বাংলায়)') if target else s.name_bangla,
-        "unique_id": computed_id,
-        "course": getattr(s, 'course', 'BUMS'),
-        "roll_no": getattr(s, 'roll_no', 'N/A'),
-        "photo": photo_url,
-        "dossier_data": dossier_data
-    })
-
-@app.route('/admin/live-attendance', methods=['GET', 'POST'])
-@login_required
-def admin_live_attendance():
-    selected_course = request.args.get('course', 'BUMS')
-    today_date = date.today().strftime('%Y-%m-%d')
-
-    if request.method == 'POST':
-        try:
-            db.session.rollback()
-            subject_name = request.form.get('subject_name', 'General Session')
-            session_date = request.form.get('session_date', today_date)
-            students_in_course = Student.query.filter_by(course=selected_course, is_approved=True).all()
-            
-            updated_count = 0
-            for st in students_in_course:
-                status = request.form.get(f'status_{st.id}', 'P')
-                rec = AttendanceRecord(student_id=st.id, date=session_date, subject=subject_name, status=status)
-                db.session.add(rec)
-                
-                if st.total_classes is None: st.total_classes = 0
-                if st.attended_classes is None: st.attended_classes = 0
-                
-                st.total_classes += 1
-                if status == 'P': st.attended_classes += 1
-                
-                st.attendance = round((st.attended_classes / st.total_classes) * 100, 1) if st.total_classes > 0 else None
-                updated_count += 1
-                
-            db.session.commit()
-            flash(f"✅ Live attendance recorded for {updated_count} students ({selected_course})!", "success")
-            return redirect(url_for('admin_panel'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Error recording attendance: {str(e)}", "danger")
-
-    students = Student.query.filter_by(course=selected_course, is_approved=True).order_by(Student.roll_no).all()
-    return render_template('live_attendance.html', students=students, selected_course=selected_course, today_date=today_date)
-
-@app.route('/admin/student/<int:student_id>/performance', methods=['GET', 'POST'])
-@login_required
-def admin_student_performance(student_id):
-    student = Student.query.get_or_404(student_id)
-    depts = Department.query.filter_by(course=student.course).order_by(Department.order.asc()).all()
-
-    if request.method == 'POST':
-        try:
-            db.session.rollback()
-            for d in depts:
-                att = request.form.get(f'att_{d.id}', '')
-                status = request.form.get(f'status_{d.id}', 'In Progress')
-
-                perf = DepartmentPerformance.query.filter_by(student_id=student.id, department_id=d.id).first()
-                if not perf:
-                    perf = DepartmentPerformance(student_id=student.id, department_id=d.id)
-                    db.session.add(perf)
-                
-                perf.attendance_rate = float(att) if att != '' else None
-                perf.item_card_status = status
-
-            db.session.commit()
-            flash(f"Departmental evaluation updated for {student.name_english}!", "success")
-            return redirect(url_for('admin_panel'))
-        except Exception as e:
-            db.session.rollback()
-            flash(f"Failed to update performance: {str(e)}", "danger")
-
-    perf_map = {p.department_id: p for p in student.performances}
-    return render_template('student_performance.html', student=student, departments=depts, perf_map=perf_map)
-
-@app.route('/admin/student/approve/<int:id>', methods=['POST'])
-@login_required
-def admin_approve_student(id):
-    try:
-        db.session.rollback()
-        student = Student.query.get_or_404(id)
-        student.is_approved = True
-        db.session.commit()
-        flash(f"✅ Approved {student.name_english} (Roll: {student.roll_no})!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/reject/<int:id>', methods=['POST'])
-@login_required
-def admin_reject_student(id):
-    try:
-        db.session.rollback()
-        student = Student.query.get_or_404(id)
-        db.session.delete(student)
-        db.session.commit()
-        flash("Registration request rejected & removed.", "warning")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/impersonate/<int:id>')
-@login_required
-def admin_impersonate_student(id):
-    student_to_view = Student.query.get_or_404(id)
-    session['admin_impersonator_email'] = current_user.email
-    login_user(student_to_view)
-    flash(f"Viewing as: {student_to_view.name_english}", "info")
-    return redirect(url_for('dashboard'))
-
-@app.route('/admin/student/exit-impersonate')
-@login_required
-def admin_exit_impersonate():
-    admin_email = session.get('admin_impersonator_email')
-    if not admin_email:
-        return redirect(url_for('dashboard'))
-    admin_user = Student.query.filter(db.func.lower(Student.email) == admin_email.lower().strip()).first()
-    if admin_user:
-        session.pop('admin_impersonator_email', None)
-        login_user(admin_user)
-        flash("Returned to Admin Control Panel.", "success")
-        return redirect(url_for('admin_panel'))
-    return redirect(url_for('login'))
-
-@app.route('/admin/student/edit/<int:id>', methods=['POST'])
-@login_required
-def admin_edit_student(id):
-    try:
-        db.session.rollback()
-        student = Student.query.get_or_404(id)
-        student.name_english = request.form.get('name_english', student.name_english).strip()
-        student.name_bangla = request.form.get('name_bangla', student.name_bangla).strip()
-        student.father_name = request.form.get('father_name', student.father_name).strip()
-        student.mother_name = request.form.get('mother_name', student.mother_name).strip()
-        student.email = request.form.get('email', student.email).strip().lower()
-        student.course = request.form.get('course', student.course).strip().upper()
-        student.batch = request.form.get('batch', student.batch).strip()
-        student.roll_no = request.form.get('roll_no', student.roll_no).strip().zfill(2)
-        student.class_roll = student.roll_no
-        student.session = request.form.get('session', student.session).strip()
-        student.unique_id = generate_diu_id(student.batch, student.course, student.roll_no)
-        student.blood_group = request.form.get('blood_group', student.blood_group).strip()
-        student.contact_number = request.form.get('contact_number', student.contact_number).strip()
-        student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
-        
-        f_occ = request.form.get('father_occupation', '').strip()
-        m_occ = request.form.get('mother_occupation', '').strip()
-        if hasattr(student, 'income_source_details') and (f_occ or m_occ):
-            student.income_source_details = f"Father: {f_occ} | Mother: {m_occ}"
-        
-        new_custom_pass = request.form.get('custom_password', '').strip()
-        if new_custom_pass:
-            student.password_hash = generate_password_hash(new_custom_pass)
-        
-        raw_att = request.form.get('attendance', '')
-        student.attendance = float(raw_att) if raw_att != '' else None
-        
-        db.session.commit()
-        flash(f"Updated profile for {student.name_english}!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error updating profile: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/move/<int:id>', methods=['POST'])
-@login_required
-def admin_move_student(id):
-    try:
-        db.session.rollback()
-        student = Student.query.get_or_404(id)
-        target_course = request.form.get('target_course', '').upper()
-        if target_course in ['BUMS', 'BAMS']:
-            old_course = student.course
-            student.course = target_course
-            student.unique_id = generate_diu_id(student.batch, target_course, student.roll_no)
-            db.session.commit()
-            flash(f"Moved {student.name_english} from {old_course} to {target_course}!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/copy/<int:id>', methods=['POST'])
-@login_required
-def admin_copy_student(id):
-    try:
-        db.session.rollback()
-        src = Student.query.get_or_404(id)
-        clone_roll = f"{int(src.roll_no)+50 if src.roll_no.isdigit() else '99'}".zfill(2)
-        clone_email = f"copy_{src.id}_{src.email}"
-        clone = Student(
-            email=clone_email,
-            name_english=f"{src.name_english} (Copy)",
-            name_bangla=src.name_bangla,
-            father_name=src.father_name,
-            mother_name=src.mother_name,
-            course=src.course,
-            batch=src.batch,
-            roll_no=clone_roll,
-            class_roll=clone_roll,
-            session=src.session,
-            unique_id=generate_diu_id(src.batch, src.course, clone_roll),
-            blood_group=src.blood_group,
-            contact_number=src.contact_number,
-            emergency_medical_contact=src.emergency_medical_contact,
-            guardian_contact=src.guardian_contact,
-            present_address=src.present_address,
-            permanent_address=src.permanent_address,
-            attendance=src.attendance,
-            is_approved=True,
-            photo=src.photo,
-            password_hash=src.password_hash or generate_password_hash('guamc123')
-        )
-        db.session.add(clone)
-        db.session.commit()
-        flash(f"Cloned copy created for {src.name_english}!", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/reset-password/<int:id>', methods=['POST'])
-@app.route('/admin/student/reset_password/<int:id>', methods=['POST'])
-@login_required
-def admin_reset_password(id):
-    try:
-        db.session.rollback()
-        student = Student.query.get_or_404(id)
-        student.password_hash = generate_password_hash('guamc123')
-        db.session.commit()
-        flash(f"Password reset to default 'guamc123' for {student.name_english}", "success")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/student/delete/<int:id>', methods=['POST'])
-@login_required
-def admin_delete_student(id):
-    try:
-        db.session.rollback()
-        student = Student.query.get_or_404(id)
-        Post.query.filter_by(student_id=student.id).delete()
-        db.session.delete(student)
-        db.session.commit()
-        flash("Student removed.", "warning")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/department/save', methods=['POST'])
-@login_required
-def admin_save_department():
-    try:
-        db.session.rollback()
-        dept_id = request.form.get('dept_id')
-        name = request.form.get('name', '').strip()
-        course = request.form.get('course', 'BAMS').strip().upper()
-        order = int(request.form.get('order', 0))
-
-        if dept_id:
-            dept = Department.query.get(dept_id)
-            if dept:
-                dept.name = name
-                dept.course = course
-                dept.order = order
-        else:
-            db.session.add(Department(name=name, course=course, order=order))
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/department/delete/<int:id>', methods=['POST'])
-@login_required
-def admin_delete_department(id):
-    try:
-        db.session.rollback()
-        dept = Department.query.get_or_404(id)
-        db.session.delete(dept)
-        db.session.commit()
-        flash("Department removed.", "warning")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/folder/add', methods=['POST'])
-@login_required
-def admin_add_folder():
-    try:
-        db.session.rollback()
-        name = request.form.get('folder_name', '').strip()
-        course = request.form.get('course', 'ALL').strip().upper()
-        if name:
-            db.session.add(FileFolder(name=name, course=course))
-            db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/file/upload', methods=['POST'])
-@login_required
-def admin_upload_file():
-    try:
-        db.session.rollback()
-        title = request.form.get('title', '').strip()
-        file_type = request.form.get('file_type', 'Item Card')
-        course = request.form.get('course', 'ALL').upper()
-        folder_id = request.form.get('folder_id') or None
-        
-        file_url = ""
-        if 'file' in request.files and request.files['file'].filename != '':
-            f = request.files['file']
-            filename = f"file_{int(os.urandom(3).hex(), 16)}_{secure_filename(f.filename)}"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            f.save(filepath)
-            file_url = url_for('static', filename=f'uploads/{filename}')
-        else:
-            file_url = request.form.get('file_url', '').strip()
-
-        if title and file_url:
-            db.session.add(AcademicFile(title=title, file_type=file_type, course=course, file_url=file_url, folder_id=folder_id))
-            db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/file/delete/<int:id>', methods=['POST'])
-@login_required
-def admin_delete_file(id):
-    try:
-        db.session.rollback()
-        f = AcademicFile.query.get_or_404(id)
-        db.session.delete(f)
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/navigation/save', methods=['POST'])
-@login_required
-def admin_save_nav_link():
-    try:
-        db.session.rollback()
-        link_id = request.form.get('link_id')
-        title = request.form.get('title', '').strip()
-        url_val = request.form.get('endpoint_or_url', '').strip()
-        icon = request.form.get('icon', '🔗').strip()
-        order = int(request.form.get('order', 0))
-        is_ext = True if request.form.get('is_external') == 'on' else False
-
-        if link_id:
-            link = NavigationLink.query.get(link_id)
-            if link:
-                link.title = title
-                link.endpoint_or_url = url_val
-                link.icon = icon
-                link.order = order
-                link.is_external = is_ext
-                flash(f"Nav item '{title}' updated!", "success")
-        else:
-            new_link = NavigationLink(title=title, endpoint_or_url=url_val, icon=icon, order=order, is_external=is_ext)
-            db.session.add(new_link)
-            flash(f"Nav item '{title}' added!", "success")
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
-
-@app.route('/admin/navigation/delete/<int:id>', methods=['POST'])
-@login_required
-def admin_delete_nav_link(id):
-    try:
-        db.session.rollback()
-        link = NavigationLink.query.get_or_404(id)
-        db.session.delete(link)
-        db.session.commit()
-        flash("Nav item removed.", "info")
-    except Exception as e:
-        db.session.rollback()
-        flash(f"Error: {str(e)}", "danger")
-    return redirect(url_for('admin_panel'))
 
 @app.route('/id-card')
 @login_required
@@ -1192,6 +820,8 @@ def change_password():
             flash('Password changed successfully!', 'success')
             if is_admin_or_principal(current_user):
                 return redirect(url_for('admin_panel'))
+            if session.get('staff_role') == 'teacher':
+                return redirect(url_for('teacher_panel'))
             return redirect(url_for('dashboard'))
         except Exception as e:
             db.session.rollback()
