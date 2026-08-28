@@ -9,7 +9,7 @@ class Student(UserMixin, db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     batch = db.Column(db.String(20), default='37th')
-    course = db.Column(db.String(20), default='BUMS')  # BUMS / BAMS
+    course = db.Column(db.String(20), default='BUMS')
     roll_no = db.Column(db.String(20))
     class_roll = db.Column(db.String(20))
     session = db.Column(db.String(50))
@@ -36,7 +36,6 @@ class Student(UserMixin, db.Model):
     total_classes = db.Column(db.Integer, default=0)
 
     is_approved = db.Column(db.Boolean, default=False)
-    role = db.Column(db.String(20), default='student')  # student / teacher / admin
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     performances = db.relationship('DepartmentPerformance', backref='student', lazy=True, cascade="all, delete-orphan")
@@ -47,7 +46,7 @@ class Department(db.Model):
     __tablename__ = 'departments'
 
     id = db.Column(db.Integer, primary_key=True)
-    course = db.Column(db.String(20), default='BAMS')  # BUMS / BAMS
+    course = db.Column(db.String(20), default='BAMS')
     name = db.Column(db.String(150), nullable=False)
     order = db.Column(db.Integer, default=0)
 
@@ -60,7 +59,7 @@ class DepartmentPerformance(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=False)
     attendance_rate = db.Column(db.Float, default=None)
-    item_card_status = db.Column(db.String(50), default='In Progress')  # In Progress / Passed / Incomplete
+    item_card_status = db.Column(db.String(50), default='In Progress')
 
 class AttendanceRecord(db.Model):
     __tablename__ = 'attendance_records'
@@ -69,7 +68,7 @@ class AttendanceRecord(db.Model):
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     date = db.Column(db.String(50), nullable=False)
     subject = db.Column(db.String(150), default='General Session')
-    status = db.Column(db.String(10), default='P')  # P (Present) / A (Absent)
+    status = db.Column(db.String(10), default='P')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class FileFolder(db.Model):
@@ -77,7 +76,7 @@ class FileFolder(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)
-    course = db.Column(db.String(20), default='ALL')  # ALL / BUMS / BAMS
+    course = db.Column(db.String(20), default='ALL')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     files = db.relationship('AcademicFile', backref='folder', lazy=True, cascade="all, delete-orphan")
