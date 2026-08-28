@@ -118,5 +118,4 @@ class Notice(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(255), nullable=False)
     content = db.Column(db.Text, nullable=False)
-    course = db.Column(db.String(20), default='ALL')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
