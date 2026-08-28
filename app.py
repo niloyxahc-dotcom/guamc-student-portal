@@ -201,7 +201,106 @@ def user_avatar(user_id):
     except Exception:
         return redirect("https://ui-avatars.com/api/?name=Student&background=093829&color=fff&size=256&bold=true")
 
-# ==================== AUTHENTICATION (BULLETPROOF TRANSACTION FIX) ====================
+# ==================== ELASTIC EMAIL SAFE SENDER FIX ====================
+
+@app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
+@login_required
+def send_bulk_email():
+    if request.method == 'GET':
+        return redirect(url_for('admin_panel'))
+
+    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
+    is_admin = current_user.email and current_user.email.lower().strip() in ADMIN_EMAILS
+    is_teacher = getattr(current_user, 'role', '') == 'teacher'
+
+    if not (is_admin or is_teacher):
+        flash('Unauthorized! Administrator or Faculty privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    try:
+        db.session.rollback()
+        target_group = request.form.get('target_group', 'ALL')
+        subject = request.form.get('subject', '').strip()
+        email_body = request.form.get('message', '').strip()
+
+        if not subject or not email_body:
+            flash('Subject এবং Message উভয় ফিল্ড পূরণ করা আবশ্যক!', 'warning')
+            return redirect(url_for('admin_panel'))
+
+        query = Student.query.filter_by(is_approved=True)
+        if target_group in ['BUMS', 'BAMS']:
+            query = query.filter_by(course=target_group)
+
+        recipient_students = query.all()
+        recipient_emails = list(set([s.email.strip().lower() for s in recipient_students if s.email and '@' in s.email]))
+
+        if not recipient_emails:
+            flash('নির্বাচিত কোর্সে কোনো নিবন্ধিত শিক্ষার্থী পাওয়া যায়নি!', 'warning')
+            return redirect(url_for('admin_panel'))
+
+        sender_title = f"{current_user.name_english} (Faculty)" if is_teacher else "GUAMC Administration"
+        html_formatted_body = f"""
+        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
+            <div style="background-color: #064e3b; color: #ffffff; padding: 15px; border-radius: 8px; text-align: center;">
+                <h2 style="margin: 0; font-size: 18px;">Government Unani & Ayurvedic Medical College</h2>
+                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Official Academic Notification Cell</p>
+            </div>
+            <div style="padding: 20px 0;">
+                <h3 style="color: #0f172a; margin-top: 0;">{subject}</h3>
+                <p style="white-space: pre-line; font-size: 14px; color: #334155;">{email_body}</p>
+            </div>
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #64748b;">
+                <p style="margin: 2px 0;"><strong>Sender:</strong> {sender_title}</p>
+                <p style="margin: 2px 0;"><strong>Target:</strong> {target_group} Batch</p>
+                <p style="margin: 2px 0;"><strong>Portal:</strong> <a href="https://guamc-student-portal.onrender.com" style="color: #059669;">guamc-student-portal.onrender.com</a></p>
+            </div>
+        </div>
+        """
+
+        try:
+            new_notice = Notice(
+                title=f"[{target_group}] {subject}",
+                content=email_body
+            )
+            db.session.add(new_notice)
+            db.session.commit()
+        except Exception as db_err:
+            db.session.rollback()
+            print("Notice Save Error:", db_err)
+
+        elastic_key = os.environ.get("ELASTIC_EMAIL_API_KEY", "").strip()
+
+        if elastic_key:
+            url = "https://api.elasticemail.com/v2/email/send"
+            # Elastic Email-এর অফিশিয়াল ও ভেরিফাইড নো-রিপ্লাই সেন্ডার ব্যবহার করা হলো যা SPF/Bounced সমস্যা প্রতিরোধ করবে
+            params = {
+                "apikey": elastic_key,
+                "from": "no-reply@elasticemail.com",
+                "fromName": f"{sender_title} (GUAMC)",
+                "subject": f"[GUAMC Academic Notice] {subject}",
+                "bodyHtml": html_formatted_body,
+                "to": "moderndoctorsguamc@gmail.com",
+                "msgBcc": ";".join(recipient_emails),
+                "isTransactional": True
+            }
+            response = requests.post(url, data=params, timeout=15)
+            res_json = response.json() if response.status_code == 200 else {}
+            
+            if res_json.get("success"):
+                flash(f"✅ সফলভাবে {len(recipient_emails)} জন শিক্ষার্থীর ইনবক্সে নোটিশ ইমেইল পাঠানো হয়েছে ({target_group})!", "success")
+            else:
+                flash(f"নোটিশ ড্যাশবোর্ডে প্রকাশিত হয়েছে। ইমেইল স্ট্যাটাস: {res_json.get('error', response.text)}", "warning")
+        else:
+            flash(f"✅ নোটিশটি সফলভাবে শিক্ষার্থীদের ড্যাশবোর্ডে প্রকাশিত হয়েছে!", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        print("Broadcast Notice Error:\n", traceback.format_exc())
+        flash(f"❌ অপারেশনে সমস্যা হয়েছে: {str(e)}", "danger")
+
+    return redirect(url_for('admin_panel'))
+
+# ==================== OTHER ROUTES ====================
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -222,7 +321,7 @@ def login():
         ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
 
         try:
-            db.session.rollback() # আগের যেকোনো আটকে থাকা ট্রানজেকশন ক্লিয়ার করা
+            db.session.rollback()
 
             if email in ADMIN_EMAILS:
                 admin_user = Student.query.filter(db.func.lower(Student.email) == email).first()
@@ -237,7 +336,6 @@ def login():
                         class_roll="00",
                         unique_id="ADMIN01",
                         is_approved=True,
-                        role="admin",
                         password_hash=generate_password_hash('6456994')
                     )
                     db.session.add(admin_user)
@@ -355,8 +453,6 @@ def signup():
 
     return render_template('signup.html')
 
-# ==================== STUDENT DASHBOARD ====================
-
 @app.route('/dashboard')
 @login_required
 def dashboard():
@@ -378,14 +474,12 @@ def dashboard():
                 'item_card_status': perf.item_card_status if perf else 'In Progress'
             })
 
-        notices = Notice.query.filter((Notice.course == course) | (Notice.course == 'ALL')).order_by(Notice.id.desc()).limit(5).all() if 'Notice' in globals() else []
+        notices = Notice.query.order_by(Notice.id.desc()).limit(5).all() if 'Notice' in globals() else []
 
         return render_template('dashboard.html', departments=dept_data, notices=notices)
     except Exception as e:
         db.session.rollback()
         return f"Error loading dashboard: {str(e)}", 500
-
-# ==================== ACADEMIC HUB ====================
 
 @app.route('/academic-hub')
 @login_required
@@ -399,8 +493,6 @@ def resources():
     except Exception as e:
         db.session.rollback()
         return f"Error loading resources: {str(e)}", 500
-
-# ==================== ADMIN CONTROL PANEL ====================
 
 @app.route('/admin', methods=['GET', 'POST'])
 @login_required
@@ -467,107 +559,6 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== ELASTIC EMAIL DIRECT HTTPS API BROADCAST ====================
-
-@app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
-@login_required
-def send_bulk_email():
-    if request.method == 'GET':
-        return redirect(url_for('admin_panel'))
-
-    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
-    is_admin = current_user.email and current_user.email.lower().strip() in ADMIN_EMAILS
-    is_teacher = getattr(current_user, 'role', '') == 'teacher'
-
-    if not (is_admin or is_teacher):
-        flash('Unauthorized! Administrator or Faculty privileges required.', 'danger')
-        return redirect(url_for('dashboard'))
-
-    try:
-        db.session.rollback()
-        target_group = request.form.get('target_group', 'ALL')
-        subject = request.form.get('subject', '').strip()
-        email_body = request.form.get('message', '').strip()
-
-        if not subject or not email_body:
-            flash('Subject এবং Message উভয় ফিল্ড পূরণ করা আবশ্যক!', 'warning')
-            return redirect(url_for('admin_panel'))
-
-        query = Student.query.filter_by(is_approved=True)
-        if target_group in ['BUMS', 'BAMS']:
-            query = query.filter_by(course=target_group)
-
-        recipient_students = query.all()
-        recipient_emails = list(set([s.email.strip().lower() for s in recipient_students if s.email and '@' in s.email]))
-
-        if not recipient_emails:
-            flash('নির্বাচিত কোর্সে কোনো নিবন্ধিত শিক্ষার্থী পাওয়া যায়নি!', 'warning')
-            return redirect(url_for('admin_panel'))
-
-        sender_title = f"{current_user.name_english} (Faculty)" if is_teacher else "GUAMC Administration"
-        html_formatted_body = f"""
-        <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
-            <div style="background-color: #064e3b; color: #ffffff; padding: 15px; border-radius: 8px; text-align: center;">
-                <h2 style="margin: 0; font-size: 18px;">Government Unani & Ayurvedic Medical College</h2>
-                <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Official Academic Notification Cell</p>
-            </div>
-            <div style="padding: 20px 0;">
-                <h3 style="color: #0f172a; margin-top: 0;">{subject}</h3>
-                <p style="white-space: pre-line; font-size: 14px; color: #334155;">{email_body}</p>
-            </div>
-            <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #64748b;">
-                <p style="margin: 2px 0;"><strong>Sender:</strong> {sender_title}</p>
-                <p style="margin: 2px 0;"><strong>Target:</strong> {target_group} Batch</p>
-                <p style="margin: 2px 0;"><strong>Portal:</strong> <a href="https://guamc-student-portal.onrender.com" style="color: #059669;">guamc-student-portal.onrender.com</a></p>
-            </div>
-        </div>
-        """
-
-        try:
-            new_notice = Notice(
-                title=f"[{target_group}] {subject}",
-                content=email_body,
-                course=target_group
-            )
-            db.session.add(new_notice)
-            db.session.commit()
-        except Exception as db_err:
-            db.session.rollback()
-            print("Notice Save Error:", db_err)
-
-        elastic_key = os.environ.get("ELASTIC_EMAIL_API_KEY", "").strip()
-
-        if elastic_key:
-            url = "https://api.elasticemail.com/v2/email/send"
-            params = {
-                "apikey": elastic_key,
-                "from": "moderndoctorsguamc@gmail.com",
-                "fromName": sender_title,
-                "subject": f"[GUAMC Academic Notice] {subject}",
-                "bodyHtml": html_formatted_body,
-                "to": "moderndoctorsguamc@gmail.com",
-                "msgBcc": ";".join(recipient_emails),
-                "isTransactional": True
-            }
-            response = requests.post(url, data=params, timeout=15)
-            res_json = response.json() if response.status_code == 200 else {}
-            
-            if res_json.get("success"):
-                flash(f"✅ সফলভাবে {len(recipient_emails)} জন শিক্ষার্থীর ইনবক্সে নোটিশ ইমেইল পাঠানো হয়েছে ({target_group})!", "success")
-            else:
-                flash(f"নোটিশ ড্যাশবোর্ডে প্রকাশিত হয়েছে। ইমেইল স্ট্যাটাস: {res_json.get('error', response.text)}", "warning")
-        else:
-            flash(f"✅ নোটিশটি সফলভাবে শিক্ষার্থীদের ড্যাশবোর্ডে প্রকাশিত হয়েছে!", "success")
-
-    except Exception as e:
-        db.session.rollback()
-        print("Broadcast Notice Error:\n", traceback.format_exc())
-        flash(f"❌ অপারেশনে সমস্যা হয়েছে: {str(e)}", "danger")
-
-    return redirect(url_for('admin_panel'))
-
-# ==================== DOSSIER API ====================
-
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
 @app.route('/admin/student_detail/<int:id>')
@@ -631,8 +622,6 @@ def admin_get_student_json(id):
         "photo": photo_url,
         "dossier_data": dossier_data
     })
-
-# ==================== LIVE ATTENDANCE & PERFORMANCE ====================
 
 @app.route('/admin/live-attendance', methods=['GET', 'POST'])
 @login_required
@@ -709,8 +698,6 @@ def admin_student_performance(student_id):
 
     perf_map = {p.department_id: p for p in student.performances}
     return render_template('student_performance.html', student=student, departments=depts, perf_map=perf_map)
-
-# ==================== STUDENT ACTIONS ====================
 
 @app.route('/admin/student/approve/<int:id>', methods=['POST'])
 @login_required
@@ -906,8 +893,6 @@ def admin_delete_student(id):
         flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
-# ==================== DEPARTMENT, FOLDER & FILE MANAGEMENT ====================
-
 @app.route('/admin/department/save', methods=['POST'])
 @login_required
 def admin_save_department():
@@ -1060,8 +1045,6 @@ def admin_delete_nav_link(id):
         db.session.rollback()
         flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
-
-# ==================== GENERAL & USER PROFILE ROUTES ====================
 
 @app.route('/id-card')
 @login_required
