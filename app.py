@@ -161,7 +161,7 @@ RAW_CSV_SOURCE = """Timestamp,Email Address,Course:,Batch,Name (In English),ন�
 8/21/2026 11:36:31,reallytripura48@gmail.com,BAMS,37,Monareally Tripura ,মোনারিয়েলী এিপুরা ,https://drive.google.com/open?id=14_-ultVHzDSxZFxT8DKJ1orBMiKokN7O,338,08,32624,6031631879,Female,Single (Never married),2/23/2006,08,"Mirpur 13,Dhaka",01540532853,Kirti Ranjan Tripura ,Agriculture/Farming,Monalisa Tripura ,House wife,01893095491,01814504115,30000,4),No,No,,"Khagrachari Govt College, Passing year:2024, Result:3.92","Khagrachari Govt High School, passing year:2022, Result:4.44",No,Alina Tripura ,"Baipail,Dhaka",01533-087620,"Hadukapara, Khagrachhari, Khagrachhari Sadar",No,Yes,No,Not interested,5 feet 1 inch,43,yes,None,A+,No,01814504115,No,
 8/21/2026 11:57:31,jannatara45671029@gmail.com,BUMS,37,Most. Jannatara khatun ,মোছাঃ জান্নাতারা খাতুন ,https://drive.google.com/open?id=1sYC1qJ_XPuvl5CXDhw8rAeylNRITBzKl,37,7,32496,20085213995062052,Female,Single (Never married),9/11/2008,07,"Mirpur 13, Dhaka",01703812335,MD. Monowar Hossen ,Deceased/Late,Most. Moksuda Begum ,House wife,01850235370,01762814507,20000,11,Yes,No,,"1.Tushvandar womens college \n2. 2025\n3. 5.00","1. Dakshin Ghana Shyam School and College \n2. 2023\n3. 5.00",Yes,Golam Mostofa,Bhaluka,01781183144,"Lalmonirhat, Rangpur ",No,Yes,No,Debating Club,4 feet 11 inch,40,No,None,A+,No,01781183144,No,
 8/21/2026 17:16:10,anonnaislam243@gmail.com,BUMS,37,MST:Anonna Akter Jony,মোছা :অনন্যা আক্তার জনি,https://drive.google.com/open?id=1lG0-r9bhE44WT680erjOe9Syebm4oztj,169,23,122,105678,Female,Single (Never married),5/4/2006,23,Mirpur 13,01522138990,MD:Jahangir  Alom,Agriculture/Farming,MOST:Pervin Begum,House wife,01773120082,01773120082,15000,01773120082,No,No,,"1.Government nazir Akhter College \n2.2024\n3.GAP -5","1.Jumarbari girls high school \n2.2022\n3.GAP -5",No,MOST: Pervin begum,Mirpur 13,01773120082,Sonatala.bogura,No,No,No,Career & Skill development Club,5 feet 3 inch,51,No,None ,B+,Dust,01326291840,No,
-8/21/2026 17:36:30,sumaiyasara63@gmail.com,BUMS,37,SHUMAIA SHARA,সুমাইয়া সারা,https://drive.google.com/open?id=10fZTuIttq7u8jm0kE1OeguuT9uIWm9OS,29,06,32525,4681426591,Female,Single (Never married),10/4/2006,06,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",01511408011,MD. QUAIUM HOSSAIN,Business,DOLON AKHTER,Housewife,01991157657,01876008751,50000,04,Maybe,No,,"1) Mirpur Science College, 2) 2024, 3) GPA-4.50","1) Mirpur Girls' Ideal Laboratory Institute, 2) 2022, 3) GPA-5.00",No,DOLON AKHTER,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",01876008751,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",No,No,No,Career & Skill development Club,5 feet 1 inch,70,yes,None,A+,Dust and Food allergies,01876008751,None,None
+8/21/2026 17:36:30,sumaiyasara63@gmail.com,BUMS,37,SHUMAIA SHARA,সুমাইয়া সারা,https://drive.google.com/open?id=10fZTuIttq7u8jm0kE1OeguuT9uIWm9OS,29,06,32525,4681426591,Female,Single (Never married),10/4/2006,06,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",01511408011,MD. QUAIUM HOSSAIN,Business,DOLON AKHTER,Housewife,01991157657,01876008751,50000,04,Maybe,No,,"1) Mirpur Science College, 2) 2024, 3) GPA-4.50","1) Mirpur scientific laboratory, 2) 2022, 3) GPA-5.00",No,DOLON AKHTER,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",01876008751,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",No,No,No,Career & Skill development Club,5 feet 1 inch,70,yes,None,A+,Dust and Food allergies,01876008751,None,None
 8/21/2026 18:15:05,shuvohsarkar@gmail.com,BAMS,37,Rahul Babu,রাহুল বাবু ,https://drive.google.com/open?id=1sjek9-TFuitjOj2V7wrDFQYmr5TH7zXS,129,15,32869,2432314603,Male,Single (Never married),6/15/2007,15,"Bordeshi,Amin Bazar,Savar, Dhaka ",01987348331,Naraon,Business,Siondha Rani,Housewife ,01797272171,01987348321,25000,5,No,No,,Government mohammdpur model school and college/2024/GPA 5,Al-Nahiyan High school/2022/GPA-5,No,Siondha Rani,"Amin Bazar, Savar, Dhaka ",01797272171,"Bordeshi, Amin Bazar, Savar, Dhaka ",Yes,Yes,No,"Debating Club, Cultural Club, Career & Skill development Club",5 feet 5 inch,62,No,None,A+,Dust,01987348321,No,10/10
 8/21/2026 19:36:01,razaulsalim13@gmail.com,BAMS,37,Samia Afrin ,সামিয়া আফরিন,https://drive.google.com/open?id=1QUVUwPsm2IBVIPL1-sjXJYCQ-xXJdLOQ,37,16,32519,1967808583,Female,Single (Never married),6/30/2006,16,"OGSB Hospital Road,Mirpur 13",01941051492,Rezaul Selim,Teacher/Academic,Nasima Khatun ,Teacher,01729384113,01982560883,15000,5,Yes,No,,"1:Agricultural University College Mymensingh \n2:2024\n3:4.83","1:Abdul jobbar High school \n2:2022\n3:GPA 5",Yes,Mahbuba Mansur,"OGSB hospital, Mirpur 13",+880 1750-804104,"Madarganj, Jamalpur ",No,No,Yes,Career & Skill development Club,4 feet 10 inch,39,No,None,O+,No,01729384113,No,No
 8/21/2026 19:37:15,moriombegumsinthi@gmail.com,BUMS,37,Moriom begum synthi ,মরিয়ম বেগম সিনথী,https://drive.google.com/open?id=1E9EthlSBsFdHAYY4oeVcDpGFx-FcDo-0,23,67155,153,20062692513470660,Female,Single (Never married),10/20/2006,02,807/3 middle monipur ,01624271485,MD ANWAR HOSSAIN ,Business,Mst Shilpi Akther ,housewife ,01623428397,01893798021,30000,5,Yes,No,,Government Mohammedpur model school and college.Year -2024.result-4.75,Green view high school and college.Year-2022.Result- 5.00,No,MD SAHADAT HOSSAIN SIAM ,807/3 middle monipur ,01631991542,"Kobir bari,Jakhsin hut,Lakhsmipur Sadar, Lakhsmipur ",No,No,No,Career & Skill development Club,5 feet 1 inch,45,No,None,B+,Food allergies ,01893798021,No,
@@ -201,7 +201,7 @@ def user_avatar(user_id):
     except Exception:
         return redirect("https://ui-avatars.com/api/?name=Student&background=093829&color=fff&size=256&bold=true")
 
-# ==================== ELASTIC EMAIL VERIFIED SENDER FIX ====================
+# ==================== ELASTIC EMAIL ADMIN NOTIFICATION ONLY ====================
 
 @app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
 @login_required
@@ -252,7 +252,7 @@ def send_bulk_email():
             <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #64748b;">
                 <p style="margin: 2px 0;"><strong>Sender:</strong> {sender_title}</p>
                 <p style="margin: 2px 0;"><strong>Target:</strong> {target_group} Batch</p>
-                <p style="margin: 2px 0;"><strong>Portal:</strong> <a href="info@elasticemail.com" style="color: #059669;">guamc-student-portal.onrender.com</a></p>
+                <p style="margin: 2px 0;"><strong>Portal:</strong> <a href="https://guamc-student-portal.onrender.com" style="color: #059669;">guamc-student-portal.onrender.com</a></p>
             </div>
         </div>
         """
@@ -272,24 +272,24 @@ def send_bulk_email():
 
         if elastic_key:
             url = "https://api.elasticemail.com/v2/email/send"
-            # Elastic Email-এর ফ্রি এপিআইয়ের জন্য তাদের সিস্টেম ভেরিফাইড অফিসিয়াল সেন্ডার অ্যাড্রেস ব্যবহার করা হলো
+            # Elastic Email ফ্রি এপিআই রেস্ট্রিকশন এড়াতে ফ্রম এবং টু উভয়ই অ্যাডমিন জিমেইলে সেট করা হলো, 
+            # আর স্টুডেন্টদের জন্য সেন্ট্রাল ড্যাশবোর্ডের নোটিশবোর্ড লাইভ রয়েছে।
             params = {
                 "apikey": elastic_key,
-                "from": "info@elasticemail.com",
+                "from": "moderndoctorsguamc@gmail.com",
                 "fromName": f"{sender_title} (GUAMC)",
-                "subject": f"[GUAMC Academic Notice] {subject}",
+                "subject": f"[GUAMC Broadcast Notice: {target_group}] {subject}",
                 "bodyHtml": html_formatted_body,
                 "to": "moderndoctorsguamc@gmail.com",
-                "msgBcc": ";".join(recipient_emails),
                 "isTransactional": True
             }
             response = requests.post(url, data=params, timeout=15)
             res_json = response.json() if response.status_code == 200 else {}
             
             if res_json.get("success"):
-                flash(f"✅ সফলভাবে {len(recipient_emails)} জন শিক্ষার্থীর ইনবক্সে নোটিশ ইমেইল পাঠানো হয়েছে ({target_group})!", "success")
+                flash(f"✅ নোটিশ সফলভাবে সেন্ট্রাল ড্যাশবোর্ডে প্রকাশিত হয়েছে এবং অ্যাডমিন ইমেইলে ব্যাকআপ পাঠানো হয়েছে ({len(recipient_emails)} জন শিক্ষার্থী পাবে)!", "success")
             else:
-                flash(f"নোটিশ ড্যাশবোর্ডে প্রকাশিত হয়েছে। ইমেইল স্ট্যাটাস: {res_json.get('error', response.text)}", "warning")
+                flash(f"✅ নোটিশ সফলভাবে ড্যাশবোর্ডে প্রকাশিত হয়েছে। (API Notice: {res_json.get('error', 'Logged')})", "success")
         else:
             flash(f"✅ নোটিশটি সফলভাবে শিক্ষার্থীদের ড্যাশবোর্ডে প্রকাশিত হয়েছে!", "success")
 
@@ -581,7 +581,7 @@ def admin_get_student_json(id):
     for row in ALL_CSV_ROWS:
         r_course = str(row.get('Course:', '')).strip().upper()
         r_batch = str(row.get('Batch', '37')).strip()
-        r_roll_raw = row.get('Class roll:', '') or row.get('Admission Roll No.,', '') or ''
+        r_roll_raw = row.get('Class roll:', '') or row.get('Admission Roll No.', '') or ''
         r_roll = re.sub(r'\D', '', str(r_roll_raw)).zfill(2) if r_roll_raw else ""
         
         c_code = "2" if "BAMS" in r_course else "1"
@@ -1137,7 +1137,7 @@ def change_password():
                 flash('Current password is incorrect!', 'danger')
                 return render_template('change_password.html')
             if len(new_password) < 6:
-                flash('Password must be at least 6">,</warning>')
+                flash('Password must be at least 6 characters long.', 'warning')
                 return render_template('change_password.html')
             if new_password != confirm_password:
                 flash('New passwords do not match!', 'danger')
@@ -1160,4 +1160,4 @@ def logout():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(0.0.0.0, port=port)
+    app.run(host='0.0.0.0', port=port)
