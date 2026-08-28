@@ -201,7 +201,7 @@ def user_avatar(user_id):
     except Exception:
         return redirect("https://ui-avatars.com/api/?name=Student&background=093829&color=fff&size=256&bold=true")
 
-# ==================== ELASTIC EMAIL SAFE SENDER FIX ====================
+# ==================== ELASTIC EMAIL VERIFIED SENDER FIX ====================
 
 @app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
 @login_required
@@ -252,7 +252,7 @@ def send_bulk_email():
             <div style="border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 11px; color: #64748b;">
                 <p style="margin: 2px 0;"><strong>Sender:</strong> {sender_title}</p>
                 <p style="margin: 2px 0;"><strong>Target:</strong> {target_group} Batch</p>
-                <p style="margin: 2px 0;"><strong>Portal:</strong> <a href="https://guamc-student-portal.onrender.com" style="color: #059669;">guamc-student-portal.onrender.com</a></p>
+                <p style="margin: 2px 0;"><strong>Portal:</strong> <a href="info@elasticemail.com" style="color: #059669;">guamc-student-portal.onrender.com</a></p>
             </div>
         </div>
         """
@@ -272,10 +272,10 @@ def send_bulk_email():
 
         if elastic_key:
             url = "https://api.elasticemail.com/v2/email/send"
-            # Elastic Email-এর অফিশিয়াল ও ভেরিফাইড নো-রিপ্লাই সেন্ডার ব্যবহার করা হলো যা SPF/Bounced সমস্যা প্রতিরোধ করবে
+            # Elastic Email-এর ফ্রি এপিআইয়ের জন্য তাদের সিস্টেম ভেরিফাইড অফিসিয়াল সেন্ডার অ্যাড্রেস ব্যবহার করা হলো
             params = {
                 "apikey": elastic_key,
-                "from": "no-reply@elasticemail.com",
+                "from": "info@elasticemail.com",
                 "fromName": f"{sender_title} (GUAMC)",
                 "subject": f"[GUAMC Academic Notice] {subject}",
                 "bodyHtml": html_formatted_body,
@@ -581,7 +581,7 @@ def admin_get_student_json(id):
     for row in ALL_CSV_ROWS:
         r_course = str(row.get('Course:', '')).strip().upper()
         r_batch = str(row.get('Batch', '37')).strip()
-        r_roll_raw = row.get('Class roll:', '') or row.get('Admission Roll No.', '') or ''
+        r_roll_raw = row.get('Class roll:', '') or row.get('Admission Roll No.,', '') or ''
         r_roll = re.sub(r'\D', '', str(r_roll_raw)).zfill(2) if r_roll_raw else ""
         
         c_code = "2" if "BAMS" in r_course else "1"
@@ -1137,7 +1137,7 @@ def change_password():
                 flash('Current password is incorrect!', 'danger')
                 return render_template('change_password.html')
             if len(new_password) < 6:
-                flash('Password must be at least 6 characters long.', 'warning')
+                flash('Password must be at least 6">,</warning>')
                 return render_template('change_password.html')
             if new_password != confirm_password:
                 flash('New passwords do not match!', 'danger')
@@ -1160,4 +1160,4 @@ def logout():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(0.0.0.0, port=port)
