@@ -256,7 +256,6 @@
                     <p class="text-slate-900 font-black">{{ st.name }} <span class="px-2 py-0.5 rounded text-[9px] {% if st.role == 'principal' %}bg-purple-100 text-purple-800{% else %}bg-teal-100 text-teal-800{% endif %} uppercase">{{ st.role }}</span></p>
                     <p class="text-[10px] text-slate-500 font-mono">{{ st.email }}</p>
                 </div>
-                <!-- সঠিক রাউট admin_delete_staff ব্যবহার করা হয়েছে -->
                 <form method="POST" action="{{ url_for('admin_delete_staff', id=st.id) }}" onsubmit="return confirm('Remove this staff member?');">
                     <button type="submit" class="text-rose-600 hover:text-rose-800 font-black p-1">Delete</button>
                 </form>
