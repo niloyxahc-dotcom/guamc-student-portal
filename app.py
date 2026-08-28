@@ -123,7 +123,7 @@ def init_default_departments():
     bums_depts = [
         "Tashreeh-ul-Badan (Anatomy)",
         "Afal-ul A'za (Physiology)",
-        "Hayati Kimia (Biochemistry)",
+        "Hiyat-e Kimia (Biochemistry)",
         "Kulliat-e-Tibb wa Tarikh-e Tibb",
         "Ilmul Advia (Pharmacology)"
     ]
@@ -447,11 +447,14 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== BROADCAST EMAIL NOTICES (ONE-CLICK TO ALL) ====================
+# ==================== BROADCAST EMAIL NOTICES (FIXED FOR GET/POST) ====================
 
-@app.route('/admin/send-bulk-email', methods=['POST'])
+@app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
 @login_required
 def send_bulk_email():
+    if request.method == 'GET':
+        return redirect(url_for('admin_panel'))
+
     ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
     is_admin = current_user.email and current_user.email.lower().strip() in ADMIN_EMAILS
     is_teacher = getattr(current_user, 'role', '') == 'teacher'
@@ -466,9 +469,8 @@ def send_bulk_email():
 
     if not subject or not email_body:
         flash('Subject এবং Message উভয় ফিল্ড পূরণ করা আবশ্যক!', 'warning')
-        return redirect(request.referrer or url_for('admin_panel'))
+        return redirect(url_for('admin_panel'))
 
-    # টার্গেট অনুযায়ী প্রাপক ফিল্টার
     query = Student.query.filter_by(is_approved=True)
     if target_group in ['BUMS', 'BAMS']:
         query = query.filter_by(course=target_group)
@@ -478,7 +480,7 @@ def send_bulk_email():
 
     if not recipient_emails:
         flash('নির্বাচিত কোর্সে কোনো বৈধ প্রাপক পাওয়া যায়নি!', 'warning')
-        return redirect(request.referrer or url_for('admin_panel'))
+        return redirect(url_for('admin_panel'))
 
     sender_title = f"{current_user.name_english} (GUAMC Faculty)" if is_teacher else "GUAMC Administration"
     full_message_body = (
@@ -493,8 +495,8 @@ def send_bulk_email():
         msg = Message(
             subject=f"[GUAMC Academic Notice] {subject}",
             sender=(sender_title, app.config['MAIL_USERNAME']),
-            recipients=[app.config['MAIL_USERNAME']], # Sender in TO
-            bcc=recipient_emails,                      # All students in BCC
+            recipients=[app.config['MAIL_USERNAME']],
+            bcc=recipient_emails,
             body=full_message_body
         )
 
@@ -513,7 +515,7 @@ def send_bulk_email():
         print("Mail Sending Error:", traceback.format_exc())
         flash(f"❌ ইমেইল পাঠাতে ব্যর্থ হয়েছে: {str(e)}", "danger")
 
-    return redirect(request.referrer or url_for('admin_panel'))
+    return redirect(url_for('admin_panel'))
 
 # ==================== DOSSIER API (EXACT STUDENT ID & COURSE MATCHING) ====================
 
