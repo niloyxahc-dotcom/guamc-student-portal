@@ -584,7 +584,7 @@ def teacher_panel():
         if teacher_email:
             teacher_obj = Staff.query.filter(db.func.lower(Staff.email) == teacher_email.lower().strip()).first()
         
-        assigned_dept = teacher_obj.department if (teacher_obj and teacher_obj.department) else "General Administration"
+        assigned_dept = teacher_obj.department if (teacher_obj and hasattr(teacher_obj, 'department') and teacher_obj.department) else "General Administration"
 
         if request.method == 'POST':
             student_id = request.form.get('student_id')

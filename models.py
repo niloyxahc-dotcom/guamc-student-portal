@@ -52,6 +52,7 @@ class Staff(db.Model):
     email = db.Column(db.String(150), unique=True, index=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), default='teacher')  # 'teacher' অথবা 'principal'
+    department = db.Column(db.String(150), default='General')  # ডিপার্টমেন্ট অ্যাট্রিবিউট
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
