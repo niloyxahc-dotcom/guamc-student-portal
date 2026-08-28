@@ -16,13 +16,18 @@
         </div>
         
         <div class="flex flex-wrap items-center gap-2">
-            <!-- BROADCAST EMAIL BUTTON -->
             <button onclick="document.getElementById('modal-broadcast-email').classList.remove('hidden')" class="px-4 py-2.5 bg-rose-700 hover:bg-rose-800 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
                 <span>📢</span> Broadcast Email
             </button>
             <a href="{{ url_for('admin_live_attendance') }}" class="px-4 py-2.5 bg-teal-800 hover:bg-teal-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
                 <span>📋</span> Live Attendance
             </a>
+            <button onclick="document.getElementById('modal-staff-manager').classList.remove('hidden')" class="px-4 py-2.5 bg-amber-700 hover:bg-amber-800 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                <span>👥</span> Staff &amp; Principal
+            </button>
+            <button onclick="document.getElementById('modal-admin-password').classList.remove('hidden')" class="px-4 py-2.5 bg-slate-700 hover:bg-slate-800 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
+                <span>🔑</span> Password
+            </button>
             <button onclick="document.getElementById('modal-file-manager').classList.remove('hidden')" class="px-4 py-2.5 bg-blue-800 hover:bg-blue-900 text-white rounded-2xl text-xs font-bold transition shadow-md flex items-center gap-1.5">
                 <span>📁</span> Upload Materials
             </button>
@@ -208,6 +213,81 @@
 
 </div>
 
+<!-- MODAL: STAFF & PRINCIPAL MANAGEMENT -->
+<div id="modal-staff-manager" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-black text-slate-800">👥 Staff &amp; Principal Management</h3>
+            <button onclick="document.getElementById('modal-staff-manager').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
+        </div>
+
+        <form method="POST" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 space-y-3 text-xs font-bold">
+            <input type="hidden" name="action" value="add_staff">
+            <h4 class="text-slate-800 font-black">Add New Principal or Teacher</h4>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                    <label class="text-slate-600">Full Name *</label>
+                    <input type="text" name="staff_name" placeholder="Dr. John Doe" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+                </div>
+                <div>
+                    <label class="text-slate-600">Role *</label>
+                    <select name="staff_role" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold">
+                        <option value="teacher">Teacher (শিক্ষক)</option>
+                        <option value="principal">Principal (প্রতিষ্ঠান প্রধান)</option>
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="text-slate-600">Email Address *</label>
+                <input type="email" name="staff_email" placeholder="teacher@guamc.edu.bd" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
+            </div>
+            <div>
+                <label class="text-slate-600">Password *</label>
+                <input type="text" name="staff_password" placeholder="Set temporary password" required class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-mono">
+            </div>
+            <button type="submit" class="w-full py-2.5 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-black transition shadow">Create Staff Account</button>
+        </form>
+
+        <h4 class="text-xs uppercase text-slate-500 font-black mb-2">Active Staff Members</h4>
+        <div class="space-y-2 max-h-48 overflow-y-auto">
+            {% for st in staff_members %}
+            <div class="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl text-xs font-bold">
+                <div>
+                    <p class="text-slate-900 font-black">{{ st.name_english }} <span class="px-2 py-0.5 rounded text-[9px] {% if st.role == 'principal' %}bg-purple-100 text-purple-800{% else %}bg-teal-100 text-teal-800{% endif %} uppercase">{{ st.role }}</span></p>
+                    <p class="text-[10px] text-slate-500 font-mono">{{ st.email }}</p>
+                </div>
+                <form method="POST" action="{{ url_for('admin_delete_student', id=st.id) }}" onsubmit="return confirm('Remove this staff member?');">
+                    <button type="submit" class="text-rose-600 hover:text-rose-800 font-black p-1">Delete</button>
+                </form>
+            </div>
+            {% else %}
+            <p class="text-xs text-slate-400 text-center py-4">No additional staff members created yet.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- MODAL: ADMIN PASSWORD CHANGE -->
+<div id="modal-admin-password" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-100 mb-4">
+            <h3 class="text-base font-black text-slate-800">🔑 Change Admin Password</h3>
+            <button onclick="document.getElementById('modal-admin-password').classList.add('hidden')" class="text-2xl font-bold text-slate-400 hover:text-slate-600">&times;</button>
+        </div>
+        <form method="POST" class="space-y-3 text-xs font-bold">
+            <input type="hidden" name="action" value="change_admin_password">
+            <div>
+                <label class="text-slate-600">New Password (কমপক্ষে ৬ অক্ষর)</label>
+                <input type="text" name="new_password" placeholder="Enter new password" required class="w-full p-2.5 border border-slate-200 rounded-xl mt-1 font-mono">
+            </div>
+            <div class="pt-2 flex justify-end gap-2">
+                <button type="button" onclick="document.getElementById('modal-admin-password').classList.add('hidden')" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 transition">Cancel</button>
+                <button type="submit" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-black shadow transition">Update Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- MODAL: BROADCAST EMAIL NOTICES (ONE-CLICK TO ALL) -->
 <div id="modal-broadcast-email" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-slate-200">
@@ -229,7 +309,7 @@
             </div>
 
             <div>
-                <label class="text-slate-600 block mb-1">Email Subject (বিষয়) *</label>
+                <label class="text-slate-600 block mb-1">Email Subject (বিষয়) *</label>
                 <input type="text" name="subject" placeholder="e.g. Urgent Notice: 1st Prof Examination Form Fill-up" required class="w-full p-2.5 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500">
             </div>
 
