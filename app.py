@@ -123,7 +123,7 @@ def init_default_departments():
     bums_depts = [
         "Tashreeh-ul-Badan (Anatomy)",
         "Afal-ul A'za (Physiology)",
-        "Hiyat-e Kimia (Biochemistry)",
+        "Hayati Kimia (Biochemistry)",
         "Kulliat-e-Tibb wa Tarikh-e Tibb",
         "Ilmul Advia (Pharmacology)"
     ]
