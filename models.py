@@ -36,11 +36,24 @@ class Student(UserMixin, db.Model):
     total_classes = db.Column(db.Integer, default=0)
 
     is_approved = db.Column(db.Boolean, default=False)
+    role = db.Column(db.String(20), default='student')  # admin, principal, teacher, student
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     performances = db.relationship('DepartmentPerformance', backref='student', lazy=True, cascade="all, delete-orphan")
     attendance_records = db.relationship('AttendanceRecord', backref='student', lazy=True, cascade="all, delete-orphan")
     posts = db.relationship('Post', backref='author', lazy=True, cascade="all, delete-orphan")
+
+
+class Staff(db.Model):
+    __tablename__ = 'staff_members'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(150), nullable=False)
+    email = db.Column(db.String(150), unique=True, index=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), default='teacher')  # 'teacher' অথবা 'principal'
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Department(db.Model):
     __tablename__ = 'departments'
@@ -52,6 +65,7 @@ class Department(db.Model):
 
     performances = db.relationship('DepartmentPerformance', backref='department', lazy=True, cascade="all, delete-orphan")
 
+
 class DepartmentPerformance(db.Model):
     __tablename__ = 'department_performances'
 
@@ -60,6 +74,7 @@ class DepartmentPerformance(db.Model):
     department_id = db.Column(db.Integer, db.ForeignKey('departments.id'), nullable=False)
     attendance_rate = db.Column(db.Float, default=None)
     item_card_status = db.Column(db.String(50), default='In Progress')
+
 
 class AttendanceRecord(db.Model):
     __tablename__ = 'attendance_records'
@@ -71,6 +86,7 @@ class AttendanceRecord(db.Model):
     status = db.Column(db.String(10), default='P')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
 class FileFolder(db.Model):
     __tablename__ = 'file_folders'
 
@@ -80,6 +96,7 @@ class FileFolder(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     files = db.relationship('AcademicFile', backref='folder', lazy=True, cascade="all, delete-orphan")
+
 
 class AcademicFile(db.Model):
     __tablename__ = 'academic_files'
@@ -92,6 +109,7 @@ class AcademicFile(db.Model):
     folder_id = db.Column(db.Integer, db.ForeignKey('file_folders.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+
 class NavigationLink(db.Model):
     __tablename__ = 'navigation_links'
 
@@ -102,6 +120,7 @@ class NavigationLink(db.Model):
     order = db.Column(db.Integer, default=0)
     is_external = db.Column(db.Boolean, default=False)
 
+
 class Post(db.Model):
     __tablename__ = 'posts'
 
@@ -111,6 +130,7 @@ class Post(db.Model):
     category = db.Column(db.String(50), default='General')
     student_id = db.Column(db.Integer, db.ForeignKey('students.id'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 
 class Notice(db.Model):
     __tablename__ = 'notices'

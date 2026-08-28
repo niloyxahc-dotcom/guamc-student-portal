@@ -52,6 +52,7 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'pdf', 'docx', 'jpeg'}
 from models import (
     db, 
     Student, 
+    Staff,
     Department, 
     DepartmentPerformance, 
     AttendanceRecord, 
@@ -161,7 +162,7 @@ RAW_CSV_SOURCE = """Timestamp,Email Address,Course:,Batch,Name (In English),ন�
 8/21/2026 11:36:31,reallytripura48@gmail.com,BAMS,37,Monareally Tripura ,মোনারিয়েলী এিপুরা ,https://drive.google.com/open?id=14_-ultVHzDSxZFxT8DKJ1orBMiKokN7O,338,08,32624,6031631879,Female,Single (Never married),2/23/2006,08,"Mirpur 13,Dhaka",01540532853,Kirti Ranjan Tripura ,Agriculture/Farming,Monalisa Tripura ,House wife,01893095491,01814504115,30000,4),No,No,,"Khagrachari Govt College, Passing year:2024, Result:3.92","Khagrachari Govt High School, passing year:2022, Result:4.44",No,Alina Tripura ,"Baipail,Dhaka",01533-087620,"Hadukapara, Khagrachhari, Khagrachhari Sadar",No,Yes,No,Not interested,5 feet 1 inch,43,yes,None,A+,No,01814504115,No,
 8/21/2026 11:57:31,jannatara45671029@gmail.com,BUMS,37,Most. Jannatara khatun ,মোছাঃ জান্নাতারা খাতুন ,https://drive.google.com/open?id=1sYC1qJ_XPuvl5CXDhw8rAeylNRITBzKl,37,7,32496,20085213995062052,Female,Single (Never married),9/11/2008,07,"Mirpur 13, Dhaka",01703812335,MD. Monowar Hossen ,Deceased/Late,Most. Moksuda Begum ,House wife,01850235370,01762814507,20000,11,Yes,No,,"1.Tushvandar womens college \n2. 2025\n3. 5.00","1. Dakshin Ghana Shyam School and College \n2. 2023\n3. 5.00",Yes,Golam Mostofa,Bhaluka,01781183144,"Lalmonirhat, Rangpur ",No,Yes,No,Debating Club,4 feet 11 inch,40,No,None,A+,No,01781183144,No,
 8/21/2026 17:16:10,anonnaislam243@gmail.com,BUMS,37,MST:Anonna Akter Jony,মোছা :অনন্যা আক্তার জনি,https://drive.google.com/open?id=1lG0-r9bhE44WT680erjOe9Syebm4oztj,169,23,122,105678,Female,Single (Never married),5/4/2006,23,Mirpur 13,01522138990,MD:Jahangir  Alom,Agriculture/Farming,MOST:Pervin Begum,House wife,01773120082,01773120082,15000,01773120082,No,No,,"1.Government nazir Akhter College \n2.2024\n3.GAP -5","1.Jumarbari girls high school \n2.2022\n3.GAP -5",No,MOST: Pervin begum,Mirpur 13,01773120082,Sonatala.bogura,No,No,No,Career & Skill development Club,5 feet 3 inch,51,No,None ,B+,Dust,01326291840,No,
-8/21/2026 17:36:30,sumaiyasara63@gmail.com,BUMS,37,SHUMAIA SHARA,সুমাইয়া সারা,https://drive.google.com/open?id=10fZTuIttq7u8jm0kE1OeguuT9uIWm9OS,29,06,32525,4681426591,Female,Single (Never married),10/4/2006,06,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",01511408011,MD. QUAIUM HOSSAIN,Business,DOLON AKHTER,Housewife,01991157657,01876008751,50000,04,Maybe,No,,"1) Mirpur Science College, 2) 2024, 3) GPA-4.50","1) Mirpur scientific laboratory, 2) 2022, 3) GPA-5.00",No,DOLON AKHTER,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",01876008751,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",No,No,No,Career & Skill development Club,5 feet 1 inch,70,yes,None,A+,Dust and Food allergies,01876008751,None,None
+8/21/2026 17:36:30,sumaiyasara63@gmail.com,BUMS,37,SHUMAIA SHARA,সুমাইয়া সারা,https://drive.google.com/open?id=10fZTuIttq7u8jm0kE1OeguuT9uIWm9OS,29,06,32525,4681426591,Female,Single (Never married),10/4/2006,06,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",01511408011,MD. QUAIUM HOSSAIN,Business,DOLON AKHTER,Housewife,01991157657,01876008751,50000,04,Maybe,No,,"1) Mirpur Science College, 2) 2024, 3) GPA-4.50","1) Mirpur Girls' Ideal Laboratory Institute, 2) 2022, 3) GPA-5.00",No,DOLON AKHTER,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",01876008751,"House: D-2/36, Road: 3, Post Office: Mirpur-1216, Pallabi, Dhaka North City Corporation, Dhaka.",No,No,No,Career & Skill development Club,5 feet 1 inch,70,yes,None,A+,Dust and Food allergies,01876008751,None,None
 8/21/2026 18:15:05,shuvohsarkar@gmail.com,BAMS,37,Rahul Babu,রাহুল বাবু ,https://drive.google.com/open?id=1sjek9-TFuitjOj2V7wrDFQYmr5TH7zXS,129,15,32869,2432314603,Male,Single (Never married),6/15/2007,15,"Bordeshi,Amin Bazar,Savar, Dhaka ",01987348331,Naraon,Business,Siondha Rani,Housewife ,01797272171,01987348321,25000,5,No,No,,Government mohammdpur model school and college/2024/GPA 5,Al-Nahiyan High school/2022/GPA-5,No,Siondha Rani,"Amin Bazar, Savar, Dhaka ",01797272171,"Bordeshi, Amin Bazar, Savar, Dhaka ",Yes,Yes,No,"Debating Club, Cultural Club, Career & Skill development Club",5 feet 5 inch,62,No,None,A+,Dust,01987348321,No,10/10
 8/21/2026 19:36:01,razaulsalim13@gmail.com,BAMS,37,Samia Afrin ,সামিয়া আফরিন,https://drive.google.com/open?id=1QUVUwPsm2IBVIPL1-sjXJYCQ-xXJdLOQ,37,16,32519,1967808583,Female,Single (Never married),6/30/2006,16,"OGSB Hospital Road,Mirpur 13",01941051492,Rezaul Selim,Teacher/Academic,Nasima Khatun ,Teacher,01729384113,01982560883,15000,5,Yes,No,,"1:Agricultural University College Mymensingh \n2:2024\n3:4.83","1:Abdul jobbar High school \n2:2022\n3:GPA 5",Yes,Mahbuba Mansur,"OGSB hospital, Mirpur 13",+880 1750-804104,"Madarganj, Jamalpur ",No,No,Yes,Career & Skill development Club,4 feet 10 inch,39,No,None,O+,No,01729384113,No,No
 8/21/2026 19:37:15,moriombegumsinthi@gmail.com,BUMS,37,Moriom begum synthi ,মরিয়ম বেগম সিনথী,https://drive.google.com/open?id=1E9EthlSBsFdHAYY4oeVcDpGFx-FcDo-0,23,67155,153,20062692513470660,Female,Single (Never married),10/20/2006,02,807/3 middle monipur ,01624271485,MD ANWAR HOSSAIN ,Business,Mst Shilpi Akther ,housewife ,01623428397,01893798021,30000,5,Yes,No,,Government Mohammedpur model school and college.Year -2024.result-4.75,Green view high school and college.Year-2022.Result- 5.00,No,MD SAHADAT HOSSAIN SIAM ,807/3 middle monipur ,01631991542,"Kobir bari,Jakhsin hut,Lakhsmipur Sadar, Lakhsmipur ",No,No,No,Career & Skill development Club,5 feet 1 inch,45,No,None,B+,Food allergies ,01893798021,No,
@@ -201,6 +202,128 @@ def user_avatar(user_id):
     except Exception:
         return redirect("https://ui-avatars.com/api/?name=Student&background=093829&color=fff&size=256&bold=true")
 
+def is_admin_or_principal(user):
+    if not user.is_authenticated or not user.email:
+        return False
+    emails = [e.lower().strip() for e in user.email.split(',')]
+    return any(e in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com'] for e in emails) or getattr(user, 'role', '') in ['admin', 'principal'] or session.get('staff_role') in ['admin', 'principal']
+
+@app.route('/admin', methods=['GET', 'POST'])
+@login_required
+def admin_panel():
+    if not (is_admin_or_principal(current_user) or session.get('staff_email')):
+        flash('Access denied! Administrator or Principal privileges required.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    try:
+        db.session.rollback()
+        if request.method == 'POST':
+            action = request.form.get('action')
+            
+            if action == 'change_admin_password':
+                new_pass = request.form.get('new_password', '').strip()
+                if len(new_pass) < 6:
+                    flash('পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে।', 'warning')
+                else:
+                    current_user.password_hash = generate_password_hash(new_pass)
+                    db.session.commit()
+                    flash('✅ অ্যাডমিন পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে!', 'success')
+                return redirect(url_for('admin_panel'))
+
+            if action == 'add_staff':
+                staff_name = request.form.get('staff_name', '').strip()
+                staff_email = request.form.get('staff_email', '').strip().lower()
+                staff_pass = request.form.get('staff_password', '').strip()
+                staff_role = request.form.get('staff_role', 'teacher').strip()
+
+                if not staff_name or not staff_email or not staff_pass:
+                    flash('শিক্ষক/প্রিন্সিপালের নাম, ইমেইল এবং পাসওয়ার্ড আবশ্যক!', 'warning')
+                else:
+                    existing = Staff.query.filter(db.func.lower(Staff.email) == staff_email).first()
+                    if existing:
+                        flash('এই ইমেইল দিয়ে ইতিমধ্যেই একটি স্টাফ অ্যাকাউন্ট রেজিস্টার্ড আছে!', 'danger')
+                    else:
+                        new_staff = Staff(
+                            name=staff_name,
+                            email=staff_email,
+                            role=staff_role,
+                            password_hash=generate_password_hash(staff_pass)
+                        )
+                        db.session.add(new_staff)
+                        db.session.commit()
+                        flash(f'✅ সফলভাবে নতুন {staff_role.upper()} অ্যাকাউন্ট তৈরি করা হয়েছে!', 'success')
+                return redirect(url_for('admin_panel'))
+
+            student_id = request.form.get('student_id')
+            new_att = request.form.get('attendance')
+            if student_id and new_att is not None:
+                student = Student.query.get(student_id)
+                if student:
+                    try:
+                        student.attendance = float(new_att) if new_att != '' else None
+                        db.session.commit()
+                        flash(f"Updated attendance for {student.name_english} ({new_att}%)!", "success")
+                    except Exception:
+                        db.session.rollback()
+                        flash("Failed to update attendance.", "danger")
+            return redirect(url_for('admin_panel'))
+
+        search_q = request.args.get('q', '').strip()
+        course_filter = request.args.get('course', 'ALL')
+        
+        pending_students = Student.query.filter_by(is_approved=False).order_by(Student.id.desc()).all()
+
+        query = Student.query.filter_by(is_approved=True)
+        if course_filter in ['BUMS', 'BAMS']:
+            query = query.filter(Student.course == course_filter)
+        if search_q:
+            query = query.filter(
+                (Student.name_english.ilike(f'%{search_q}%')) |
+                (Student.email.ilike(f'%{search_q}%')) |
+                (Student.roll_no.ilike(f'%{search_q}%')) |
+                (Student.unique_id.ilike(f'%{search_q}%'))
+            )
+        
+        approved_students = query.order_by(Student.course, Student.roll_no).all()
+        departments = Department.query.order_by(Department.course, Department.order).all() if 'Department' in globals() else []
+        folders = FileFolder.query.all() if 'FileFolder' in globals() else []
+        files = AcademicFile.query.order_by(AcademicFile.id.desc()).all() if 'AcademicFile' in globals() else []
+        nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all() if 'NavigationLink' in globals() else []
+        notices = Notice.query.order_by(Notice.id.desc()).all() if 'Notice' in globals() else []
+        posts = Post.query.order_by(Post.id.desc()).all() if 'Post' in globals() else []
+        staff_members = Staff.query.all()
+        
+        return render_template('admin.html',
+                               students=approved_students,
+                               pending_students=pending_students,
+                               departments=departments,
+                               folders=folders,
+                               files=files,
+                               nav_links=nav_links,
+                               notices=notices,
+                               posts=posts,
+                               staff_members=staff_members,
+                               search_q=search_q,
+                               course_filter=course_filter)
+    except Exception as e:
+        db.session.rollback()
+        err_details = traceback.format_exc()
+        return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
+
+@app.route('/admin/staff/delete/<int:id>', methods=['POST'])
+@login_required
+def admin_delete_staff(id):
+    try:
+        db.session.rollback()
+        staff_obj = Staff.query.get_or_404(id)
+        db.session.delete(staff_obj)
+        db.session.commit()
+        flash("Staff member removed successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
 # ==================== ELASTIC EMAIL ADMIN NOTIFICATION ONLY ====================
 
 @app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
@@ -208,14 +331,6 @@ def user_avatar(user_id):
 def send_bulk_email():
     if request.method == 'GET':
         return redirect(url_for('admin_panel'))
-
-    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
-    is_admin = current_user.email and current_user.email.lower().strip() in ADMIN_EMAILS
-    is_teacher = getattr(current_user, 'role', '') == 'teacher'
-
-    if not (is_admin or is_teacher):
-        flash('Unauthorized! Administrator or Faculty privileges required.', 'danger')
-        return redirect(url_for('dashboard'))
 
     try:
         db.session.rollback()
@@ -238,7 +353,7 @@ def send_bulk_email():
             flash('নির্বাচিত কোর্সে কোনো নিবন্ধিত শিক্ষার্থী পাওয়া যায়নি!', 'warning')
             return redirect(url_for('admin_panel'))
 
-        sender_title = f"{current_user.name_english} (Faculty)" if is_teacher else "GUAMC Administration"
+        sender_title = f"{current_user.name_english if current_user.is_authenticated else 'Administration'} (GUAMC)"
         html_formatted_body = f"""
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1e293b; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 12px;">
             <div style="background-color: #064e3b; color: #ffffff; padding: 15px; border-radius: 8px; text-align: center;">
@@ -272,12 +387,10 @@ def send_bulk_email():
 
         if elastic_key:
             url = "https://api.elasticemail.com/v2/email/send"
-            # Elastic Email ফ্রি এপিআই রেস্ট্রিকশন এড়াতে ফ্রম এবং টু উভয়ই অ্যাডমিন জিমেইলে সেট করা হলো, 
-            # আর স্টুডেন্টদের জন্য সেন্ট্রাল ড্যাশবোর্ডের নোটিশবোর্ড লাইভ রয়েছে।
             params = {
                 "apikey": elastic_key,
                 "from": "moderndoctorsguamc@gmail.com",
-                "fromName": f"{sender_title} (GUAMC)",
+                "fromName": sender_title,
                 "subject": f"[GUAMC Broadcast Notice: {target_group}] {subject}",
                 "bodyHtml": html_formatted_body,
                 "to": "moderndoctorsguamc@gmail.com",
@@ -289,7 +402,7 @@ def send_bulk_email():
             if res_json.get("success"):
                 flash(f"✅ নোটিশ সফলভাবে সেন্ট্রাল ড্যাশবোর্ডে প্রকাশিত হয়েছে এবং অ্যাডমিন ইমেইলে ব্যাকআপ পাঠানো হয়েছে ({len(recipient_emails)} জন শিক্ষার্থী পাবে)!", "success")
             else:
-                flash(f"✅ নোটিশ সফলভাবে ড্যাশবোর্ডে প্রকাশিত হয়েছে। (API Notice: {res_json.get('error', 'Logged')})", "success")
+                flash(f"✅ নোটিশ সফলভাবে ড্যাশবোর্ডে প্রকাশিত হয়েছে।", "success")
         else:
             flash(f"✅ নোটিশটি সফলভাবে শিক্ষার্থীদের ড্যাশবোর্ডে প্রকাশিত হয়েছে!", "success")
 
@@ -300,12 +413,12 @@ def send_bulk_email():
 
     return redirect(url_for('admin_panel'))
 
-# ==================== OTHER ROUTES ====================
+# ==================== OTHER CORE ROUTES ====================
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        if current_user.email and current_user.email.lower().strip() in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        if is_admin_or_principal(current_user):
             return redirect(url_for('admin_panel'))
         return redirect(url_for('dashboard'))
     
@@ -323,6 +436,32 @@ def login():
         try:
             db.session.rollback()
 
+            # ১. স্টাফ বা প্রিন্সিপাল টেবিল চেক
+            staff_member = Staff.query.filter(db.func.lower(Staff.email) == email).first()
+            if staff_member and check_password_hash(staff_member.password_hash, password):
+                # স্টাফদের জন্য একটি ডামি অ্যাডমিন অ্যাকাউন্ট লগইন করিয়ে দেওয়া বা সেশন সেট করা
+                admin_dummy = Student.query.filter(db.func.lower(Student.email) == ADMIN_EMAILS[0]).first()
+                if not admin_dummy:
+                    admin_dummy = Student(
+                        email=ADMIN_EMAILS[0],
+                        name_english=staff_member.name,
+                        name_bangla=staff_member.name,
+                        course="BUMS",
+                        batch="Admin",
+                        roll_no="00",
+                        class_roll="00",
+                        unique_id="ADMIN_STAFF",
+                        is_approved=True,
+                        role=staff_member.role,
+                        password_hash=generate_password_hash('6456994')
+                    )
+                    db.session.add(admin_dummy)
+                    db.session.commit()
+                login_user(admin_dummy)
+                session['staff_email'] = staff_member.email
+                session['staff_role'] = staff_member.role
+                return redirect(url_for('admin_panel'))
+
             if email in ADMIN_EMAILS:
                 admin_user = Student.query.filter(db.func.lower(Student.email) == email).first()
                 if not admin_user:
@@ -336,6 +475,7 @@ def login():
                         class_roll="00",
                         unique_id="ADMIN01",
                         is_approved=True,
+                        role="admin",
                         password_hash=generate_password_hash('6456994')
                     )
                     db.session.add(admin_user)
@@ -369,6 +509,8 @@ def login():
 
             if is_valid_pass:
                 login_user(student)
+                if is_admin_or_principal(student):
+                    return redirect(url_for('admin_panel'))
                 return redirect(url_for('dashboard'))
             else:
                 flash('Incorrect password! Default password is: guamc123', 'danger')
@@ -437,7 +579,8 @@ def signup():
                 name_english=name_english,
                 email=email,
                 photo=photo_path,
-                is_approved=False
+                is_approved=False,
+                role='student'
             )
             new_student.password_hash = generate_password_hash(password)
             db.session.add(new_student)
@@ -458,7 +601,7 @@ def signup():
 def dashboard():
     try:
         db.session.rollback()
-        if current_user.email and current_user.email.lower().strip() in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
+        if is_admin_or_principal(current_user):
             return redirect(url_for('admin_panel'))
 
         course = (current_user.course or 'BUMS').upper()
@@ -494,71 +637,6 @@ def resources():
         db.session.rollback()
         return f"Error loading resources: {str(e)}", 500
 
-@app.route('/admin', methods=['GET', 'POST'])
-@login_required
-def admin_panel():
-    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
-    if not current_user.email or current_user.email.lower().strip() not in ADMIN_EMAILS:
-        flash('Access denied! Administrator privileges required.', 'danger')
-        return redirect(url_for('dashboard'))
-
-    try:
-        db.session.rollback()
-        if request.method == 'POST':
-            student_id = request.form.get('student_id')
-            new_att = request.form.get('attendance')
-            if student_id and new_att is not None:
-                student = Student.query.get(student_id)
-                if student:
-                    try:
-                        student.attendance = float(new_att) if new_att != '' else None
-                        db.session.commit()
-                        flash(f"Updated attendance for {student.name_english} ({new_att}%)!", "success")
-                    except Exception:
-                        db.session.rollback()
-                        flash("Failed to update attendance.", "danger")
-            return redirect(url_for('admin_panel'))
-
-        search_q = request.args.get('q', '').strip()
-        course_filter = request.args.get('course', 'ALL')
-        
-        pending_students = Student.query.filter_by(is_approved=False).order_by(Student.id.desc()).all()
-
-        query = Student.query.filter_by(is_approved=True)
-        if course_filter in ['BUMS', 'BAMS']:
-            query = query.filter(Student.course == course_filter)
-        if search_q:
-            query = query.filter(
-                (Student.name_english.ilike(f'%{search_q}%')) |
-                (Student.email.ilike(f'%{search_q}%')) |
-                (Student.roll_no.ilike(f'%{search_q}%')) |
-                (Student.unique_id.ilike(f'%{search_q}%'))
-            )
-        
-        approved_students = query.order_by(Student.course, Student.roll_no).all()
-        departments = Department.query.order_by(Department.course, Department.order).all() if 'Department' in globals() else []
-        folders = FileFolder.query.all() if 'FileFolder' in globals() else []
-        files = AcademicFile.query.order_by(AcademicFile.id.desc()).all() if 'AcademicFile' in globals() else []
-        nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all() if 'NavigationLink' in globals() else []
-        notices = Notice.query.order_by(Notice.id.desc()).all() if 'Notice' in globals() else []
-        posts = Post.query.order_by(Post.id.desc()).all() if 'Post' in globals() else []
-        
-        return render_template('admin.html',
-                               students=approved_students,
-                               pending_students=pending_students,
-                               departments=departments,
-                               folders=folders,
-                               files=files,
-                               nav_links=nav_links,
-                               notices=notices,
-                               posts=posts,
-                               search_q=search_q,
-                               course_filter=course_filter)
-    except Exception as e:
-        db.session.rollback()
-        err_details = traceback.format_exc()
-        return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
-
 @app.route('/admin/student-detail_<int:id>')
 @app.route('/admin/student-detail/<int:id>')
 @app.route('/admin/student_detail/<int:id>')
@@ -567,9 +645,6 @@ def admin_panel():
 @app.route('/admin/student/<int:id>/details-json')
 @login_required
 def admin_get_student_json(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return jsonify({'error': 'Unauthorized'}), 403
-
     s = Student.query.get_or_404(id)
 
     db_uid = str(getattr(s, 'unique_id', '') or '').strip()
@@ -626,10 +701,6 @@ def admin_get_student_json(id):
 @app.route('/admin/live-attendance', methods=['GET', 'POST'])
 @login_required
 def admin_live_attendance():
-    ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
-    if not current_user.email or current_user.email.lower().strip() not in ADMIN_EMAILS:
-        return redirect(url_for('dashboard'))
-
     selected_course = request.args.get('course', 'BUMS')
     today_date = date.today().strftime('%Y-%m-%d')
 
@@ -668,9 +739,6 @@ def admin_live_attendance():
 @app.route('/admin/student/<int:student_id>/performance', methods=['GET', 'POST'])
 @login_required
 def admin_student_performance(student_id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
-    
     student = Student.query.get_or_404(student_id)
     depts = Department.query.filter_by(course=student.course).order_by(Department.order.asc()).all()
 
@@ -702,8 +770,6 @@ def admin_student_performance(student_id):
 @app.route('/admin/student/approve/<int:id>', methods=['POST'])
 @login_required
 def admin_approve_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         student = Student.query.get_or_404(id)
@@ -718,8 +784,6 @@ def admin_approve_student(id):
 @app.route('/admin/student/reject/<int:id>', methods=['POST'])
 @login_required
 def admin_reject_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         student = Student.query.get_or_404(id)
@@ -734,8 +798,6 @@ def admin_reject_student(id):
 @app.route('/admin/student/impersonate/<int:id>')
 @login_required
 def admin_impersonate_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     student_to_view = Student.query.get_or_404(id)
     session['admin_impersonator_email'] = current_user.email
     login_user(student_to_view)
@@ -759,8 +821,6 @@ def admin_exit_impersonate():
 @app.route('/admin/student/edit/<int:id>', methods=['POST'])
 @login_required
 def admin_edit_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         student = Student.query.get_or_404(id)
@@ -801,8 +861,6 @@ def admin_edit_student(id):
 @app.route('/admin/student/move/<int:id>', methods=['POST'])
 @login_required
 def admin_move_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         student = Student.query.get_or_404(id)
@@ -821,8 +879,6 @@ def admin_move_student(id):
 @app.route('/admin/student/copy/<int:id>', methods=['POST'])
 @login_required
 def admin_copy_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         src = Student.query.get_or_404(id)
@@ -863,8 +919,6 @@ def admin_copy_student(id):
 @app.route('/admin/student/reset_password/<int:id>', methods=['POST'])
 @login_required
 def admin_reset_password(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         student = Student.query.get_or_404(id)
@@ -879,8 +933,6 @@ def admin_reset_password(id):
 @app.route('/admin/student/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_student(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         student = Student.query.get_or_404(id)
@@ -896,8 +948,6 @@ def admin_delete_student(id):
 @app.route('/admin/department/save', methods=['POST'])
 @login_required
 def admin_save_department():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         dept_id = request.form.get('dept_id')
@@ -922,8 +972,6 @@ def admin_save_department():
 @app.route('/admin/department/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_department(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         dept = Department.query.get_or_404(id)
@@ -938,8 +986,6 @@ def admin_delete_department(id):
 @app.route('/admin/folder/add', methods=['POST'])
 @login_required
 def admin_add_folder():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         name = request.form.get('folder_name', '').strip()
@@ -955,8 +1001,6 @@ def admin_add_folder():
 @app.route('/admin/file/upload', methods=['POST'])
 @login_required
 def admin_upload_file():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         title = request.form.get('title', '').strip()
@@ -985,8 +1029,6 @@ def admin_upload_file():
 @app.route('/admin/file/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_file(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         f = AcademicFile.query.get_or_404(id)
@@ -1000,8 +1042,6 @@ def admin_delete_file(id):
 @app.route('/admin/navigation/save', methods=['POST'])
 @login_required
 def admin_save_nav_link():
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         link_id = request.form.get('link_id')
@@ -1033,8 +1073,6 @@ def admin_save_nav_link():
 @app.route('/admin/navigation/delete/<int:id>', methods=['POST'])
 @login_required
 def admin_delete_nav_link(id):
-    if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
-        return redirect(url_for('dashboard'))
     try:
         db.session.rollback()
         link = NavigationLink.query.get_or_404(id)
@@ -1146,6 +1184,8 @@ def change_password():
             current_user.password_hash = generate_password_hash(new_password)
             db.session.commit()
             flash('Password changed successfully!', 'success')
+            if is_admin_or_principal(current_user):
+                return redirect(url_for('admin_panel'))
             return redirect(url_for('dashboard'))
         except Exception as e:
             db.session.rollback()
@@ -1155,6 +1195,8 @@ def change_password():
 @app.route('/logout')
 @login_required
 def logout():
+    session.pop('staff_email', None)
+    session.pop('staff_role', None)
     logout_user()
     return redirect(url_for('login'))
 
