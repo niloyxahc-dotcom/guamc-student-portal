@@ -221,7 +221,6 @@ def admin_panel():
         flash('Access denied! Administrator or Principal privileges required.', 'danger')
         return redirect(url_for('dashboard'))
 
-    # যদি ইউজার প্রিন্সিপাল বা সুপার অ্যাডমিন না হয়ে সাধারণ শিক্ষক (Teacher) হয়, তবে তাকে সরাসরি Teacher Panel-এ রিডাইরেক্ট করে দেওয়া হবে
     if session.get('staff_role') == 'teacher' or (getattr(current_user, 'role', '') == 'teacher'):
         return redirect(url_for('teacher_panel'))
 
@@ -322,18 +321,12 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== TEACHER DEDICATED PANEL ====================
-
 @app.route('/teacher', methods=['GET', 'POST'])
 @login_required
 def teacher_panel():
     teacher_email = session.get('staff_email') or current_user.email
     teacher_obj = Staff.query.filter(db.func.lower(Staff.email) == teacher_email.lower().strip()).first()
     
-    if not teacher_obj and session.get('staff_role') != 'teacher':
-        flash('Unauthorized teacher access.', 'danger')
-        return redirect(url_for('dashboard'))
-
     assigned_dept = teacher_obj.department if teacher_obj else "General Administration"
 
     try:
@@ -362,13 +355,11 @@ def teacher_panel():
                     flash(f"✅ Updated evaluation for student!", "success")
             return redirect(url_for('teacher_panel'))
 
-        # শিক্ষকরা কেবল তাদের নিজ ডিপার্টমেন্টের কোর্সের (BUMS বা BAMS) শিক্ষার্থীদের তালিকা দেখতে পাবেন
         dept_record = Department.query.filter_by(name=assigned_dept).first()
         target_course = dept_record.course if dept_record else 'BUMS'
         
         students = Student.query.filter_by(course=target_course, is_approved=True).order_by(Student.roll_no).all()
         
-        # ডিপার্টমেন্ট পারফরম্যান্স ম্যাপ তৈরি
         perf_data = {}
         if dept_record:
             perfs = DepartmentPerformance.query.filter_by(department_id=dept_record.id).all()
@@ -397,8 +388,6 @@ def admin_delete_staff(id):
         db.session.rollback()
         flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
-
-# ==================== ELASTIC EMAIL ADMIN NOTIFICATION ONLY ====================
 
 @app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
 @login_required
@@ -487,8 +476,6 @@ def send_bulk_email():
 
     return redirect(url_for('admin_panel'))
 
-# ==================== OTHER CORE ROUTES ====================
-
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -512,7 +499,6 @@ def login():
         try:
             db.session.rollback()
 
-            # ১. স্টাফ বা প্রিন্সিপাল টেবিল চেক
             staff_member = Staff.query.filter(db.func.lower(Staff.email) == email).first()
             if staff_member and check_password_hash(staff_member.password_hash, password):
                 admin_dummy = Student.query.filter(db.func.lower(Student.email) == ADMIN_EMAILS[0]).first()
