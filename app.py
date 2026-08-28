@@ -150,7 +150,7 @@ with app.app_context():
     except Exception as ex:
         print("Startup Error:", ex)
 
-# ==================== সম্পূর্ণ CSV ডেটাসেট ====================
+# ==================== CSV DATASET ====================
 RAW_CSV_SOURCE = """Timestamp,Email Address,Course:,Batch,Name (In English),নাম (বাংলায়),Upload Recent Passport Size Photo ,Merit,Admission Roll No.,Registration/Serial No.,NID/Birth Reg. No,Gender?,Marital status?,Date of birth,Class roll:,Present address:,Your contact number:,Father's Name,Father's occupation:,Mother's Name,Mother's occupation:,Father's contact number,Mother's contact number:,Family's monthly income (in Taka),Member of family (in Number)?,Do you need any financial aid for educational support?,"Do you have any source of income (e.g., tuition)?","If yes, please specify:",HSC background,SSC background,Do you need one to one mental support from a Counselor? ,Local Guardian's Name? (In Dhaka),Local Guardian's address:,Local guardian's contact number?,Your Permanent address:,Are you a member of College Library?,Resident of Hall?,Any co-curricular activities? ,Do you want to join any of the following club?,Height (in feet & inches),Weight in kg?,Do you wear eyeglasses / contact lenses?,Any chronic illness or major health conditions? (Write 'None' if NA) ,Blood group?,"Known Allergies (if any):  খাবার বা ওষুধে কোনো অ্যালার্জি আছে কি না (যেমন: Penicillin, Dust, Food allergies)। ",Emergency Medical Contact Number:  অসুস্থতার মতো জরুরি মুহূর্তে দ্রুত যোগাযোগের জন্য নম্বর। ,"Regular Medication:  নিয়মিত কোনো প্রেসক্রিপশন ওষুধ সেবন করতে হয় কি না (যেমন: Inhaler, Insulin ইত্যাদি)। ",Identification Mark (ঐচ্ছিক): 
 8/20/2026 21:55:48,surovy8182@gmail.com,BUMS,37,Surovy Mony Tusto ,সুরভী মনি তুষ্ট,https://drive.google.com/open?id=1HDe8z9AKzs3wjxLB-yauqwocgkMofLqL,102,14,32998,3772598201,Female,Single (Never married),9/10/2006,14,"Mirpur 2,Dhaka",01844963931,MD.Shahjamal,Business,MST.Suria Parvin,Housewife ,01820604654,01821245613,30000,5,No,No,,"College name: Mirpur Cantonment public school and College \nPassing year: 2024\nResult: GPA 5","School name: Shohagpur Govt S. K. Pilot model high school \nPassing year: 2022\nResult: GPA 5",No,MST: Suria Parvin,"Mirpur 2,Dhaka",01821245613,"Belkuchi, Sirajganj ",No,No,No,"Debating Club, Career & Skill development Club",5 feet 3 inch,72,No,None,O+,Dust Allergy,1821245613,None,
 8/20/2026 21:56:32,rinkytasnim013@gmail.com,BAMS,37,Umme Mishat Tasnim Rinky ,উম্মে মিশাত তাসনিম রিংকি ,https://drive.google.com/open?id=1l5rby12xGInlQqP5qwFoRRlqOpctXfiG,105,17,32542,5582942016,Female,Single (Never married),1/1/2007,17,"Mirpur 13, Dhaka",01318170729,Md. Monowarul Hoque Mridha Babur,Deceased/Late,Mst. Sufia Khatun,Home maker,01834101160,01731502264,12000,3,Yes,No,,"1. Rajshahi Govt. Women's College \n2.2024\n3. GPA 5.00","1.Sardah Govt. Pilot High School \n2. 2022\n3. GPA 5.00",Yes,Shahriar Shawn,Uttara Uttar ,01768121123,"Baneshwar, Puthia, Rajshahi ",No,Yes,Not yet,"Debating Club, Photographic Society, Cultural Club, Career & Skill development Club",5 feet 2 inch,63,yes,"Yes, Hydronephroses",A+,Yes,01731502264,"Yes, nebulizer or oxygen mask",
@@ -441,7 +441,7 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
-# ==================== 100% BULLETPROOF NATIVE PYTHON SMTPLIB BROADCAST ====================
+# ==================== BULLETPROOF DUAL-PORT SMTP ENGINE ====================
 
 @app.route('/admin/send-bulk-email', methods=['GET', 'POST'])
 @login_required
@@ -489,14 +489,12 @@ def send_bulk_email():
             f"Web Portal: https://guamc-student-portal.onrender.com\n"
         )
 
-        # Create MIME Message
         msg = MIMEMultipart()
         msg['From'] = f"{sender_title} <{smtp_user}>"
         msg['To'] = smtp_user
         msg['Subject'] = f"[GUAMC Notice] {subject}"
         msg.attach(MIMEText(full_message_body, 'plain', 'utf-8'))
 
-        # File Attachment
         if 'attachment' in request.files:
             file = request.files['attachment']
             if file and file.filename != '':
@@ -507,23 +505,32 @@ def send_bulk_email():
                 part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
                 msg.attach(part)
 
-        # Direct Python SMTP with SSL context
-        context = ssl.create_default_context()
-        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=30)
-        server.ehlo()
-        server.starttls(context=context)
-        server.ehlo()
-        server.login(smtp_user, smtp_pass)
-        
-        # Send to all BCC
-        server.sendmail(smtp_user, [smtp_user] + recipient_emails, msg.as_string())
-        server.quit()
+        # Try Port 465 (SSL Direct - Best for Render)
+        sent_successfully = False
+        try:
+            ssl_ctx = ssl.create_default_context()
+            with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=ssl_ctx, timeout=20) as server:
+                server.login(smtp_user, smtp_pass)
+                server.sendmail(smtp_user, [smtp_user] + recipient_emails, msg.as_string())
+            sent_successfully = True
+        except Exception as e_ssl:
+            print("SSL Port 465 failed, trying TLS Port 587...", e_ssl)
+            try:
+                with smtplib.SMTP('smtp.gmail.com', 587, timeout=20) as server:
+                    server.starttls()
+                    server.login(smtp_user, smtp_pass)
+                    server.sendmail(smtp_user, [smtp_user] + recipient_emails, msg.as_string())
+                sent_successfully = True
+            except Exception as e_tls:
+                print("TLS Port 587 also failed:", e_tls)
+                raise Exception(f"Connection failed on both SSL/TLS: {str(e_tls)}")
 
-        flash(f"✅ সফলভাবে {len(recipient_emails)} জন শিক্ষার্থীর কাছে ইমেইল নোটিশ পাঠানো হয়েছে ({target_group})!", "success")
+        if sent_successfully:
+            flash(f"✅ সফলভাবে {len(recipient_emails)} জন শিক্ষার্থীর কাছে ইমেইল নোটিশ পাঠানো হয়েছে ({target_group})!", "success")
 
     except Exception as e:
         print("SMTP Error Details:\n", traceback.format_exc())
-        flash(f"❌ ইমেইল পাঠানোর সময় ত্রুটি হয়েছে: {str(e)}", "danger")
+        flash(f"❌ ইমেইল পাঠানোর সময় সমস্যা হয়েছে: {str(e)}", "danger")
 
     return redirect(url_for('admin_panel'))
 
