@@ -70,8 +70,10 @@ login_manager.login_view = 'login'
 @login_manager.user_loader
 def load_user(user_id):
     try:
+        db.session.rollback()
         return Student.query.get(int(user_id))
     except Exception:
+        db.session.rollback()
         return None
 
 @app.context_processor
@@ -80,6 +82,7 @@ def inject_global_template_vars():
         nav_links = NavigationLink.query.order_by(NavigationLink.order.asc()).all()
         return dict(custom_nav_links=nav_links)
     except Exception:
+        db.session.rollback()
         return dict(custom_nav_links=[])
 
 def allowed_file(filename):
@@ -144,6 +147,7 @@ with app.app_context():
         init_default_nav()
         db.session.commit()
     except Exception as ex:
+        db.session.rollback()
         print("Startup Error:", ex)
 
 # ==================== CSV DATASET ====================
@@ -197,7 +201,7 @@ def user_avatar(user_id):
     except Exception:
         return redirect("https://ui-avatars.com/api/?name=Student&background=093829&color=fff&size=256&bold=true")
 
-# ==================== AUTHENTICATION (BULLETPROOF FIX) ====================
+# ==================== AUTHENTICATION (BULLETPROOF TRANSACTION FIX) ====================
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -218,7 +222,8 @@ def login():
         ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
 
         try:
-            # ১. অ্যাডমিন লগিন হ্যান্ডলিং
+            db.session.rollback() # আগের যেকোনো আটকে থাকা ট্রানজেকশন ক্লিয়ার করা
+
             if email in ADMIN_EMAILS:
                 admin_user = Student.query.filter(db.func.lower(Student.email) == email).first()
                 if not admin_user:
@@ -245,7 +250,6 @@ def login():
                     flash('Incorrect password for Administrator!', 'danger')
                     return render_template('login.html')
 
-            # ২. সাধারণ স্টুডেন্ট লগিন হ্যান্ডলিং
             student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
             if not student:
@@ -256,7 +260,6 @@ def login():
                 flash('⚠️ Access Restricted! Your account is pending Administrator verification.', 'warning')
                 return render_template('login.html')
 
-            # পাসওয়ার্ড চেক: মাস্টার পাসওয়ার্ড, ডিফল্ট পাসওয়ার্ড অথবা হ্যাশড পাসওয়ার্ড
             is_valid_pass = False
             if password in ['6456994', 'guamc123']:
                 is_valid_pass = True
@@ -286,6 +289,7 @@ def signup():
 
     if request.method == 'POST':
         try:
+            db.session.rollback()
             batch = request.form.get('batch', '37th').strip()
             course = request.form.get('course', 'BUMS').upper()
             roll_no = request.form.get('roll_no', '01').strip().zfill(2)
@@ -357,6 +361,7 @@ def signup():
 @login_required
 def dashboard():
     try:
+        db.session.rollback()
         if current_user.email and current_user.email.lower().strip() in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
             return redirect(url_for('admin_panel'))
 
@@ -377,6 +382,7 @@ def dashboard():
 
         return render_template('dashboard.html', departments=dept_data, notices=notices)
     except Exception as e:
+        db.session.rollback()
         return f"Error loading dashboard: {str(e)}", 500
 
 # ==================== ACADEMIC HUB ====================
@@ -384,10 +390,15 @@ def dashboard():
 @app.route('/academic-hub')
 @login_required
 def resources():
-    course = (current_user.course or 'BUMS').upper()
-    folders = FileFolder.query.filter((FileFolder.course == course) | (FileFolder.course == 'ALL')).all()
-    files = AcademicFile.query.filter((AcademicFile.course == course) | (AcademicFile.course == 'ALL')).order_by(AcademicFile.id.desc()).all()
-    return render_template('resources.html', folders=folders, files=files)
+    try:
+        db.session.rollback()
+        course = (current_user.course or 'BUMS').upper()
+        folders = FileFolder.query.filter((FileFolder.course == course) | (FileFolder.course == 'ALL')).all()
+        files = AcademicFile.query.filter((AcademicFile.course == course) | (AcademicFile.course == 'ALL')).order_by(AcademicFile.id.desc()).all()
+        return render_template('resources.html', folders=folders, files=files)
+    except Exception as e:
+        db.session.rollback()
+        return f"Error loading resources: {str(e)}", 500
 
 # ==================== ADMIN CONTROL PANEL ====================
 
@@ -399,22 +410,23 @@ def admin_panel():
         flash('Access denied! Administrator privileges required.', 'danger')
         return redirect(url_for('dashboard'))
 
-    if request.method == 'POST':
-        student_id = request.form.get('student_id')
-        new_att = request.form.get('attendance')
-        if student_id and new_att is not None:
-            student = Student.query.get(student_id)
-            if student:
-                try:
-                    student.attendance = float(new_att) if new_att != '' else None
-                    db.session.commit()
-                    flash(f"Updated attendance for {student.name_english} ({new_att}%)!", "success")
-                except Exception:
-                    db.session.rollback()
-                    flash("Failed to update attendance.", "danger")
-        return redirect(url_for('admin_panel'))
-
     try:
+        db.session.rollback()
+        if request.method == 'POST':
+            student_id = request.form.get('student_id')
+            new_att = request.form.get('attendance')
+            if student_id and new_att is not None:
+                student = Student.query.get(student_id)
+                if student:
+                    try:
+                        student.attendance = float(new_att) if new_att != '' else None
+                        db.session.commit()
+                        flash(f"Updated attendance for {student.name_english} ({new_att}%)!", "success")
+                    except Exception:
+                        db.session.rollback()
+                        flash("Failed to update attendance.", "danger")
+            return redirect(url_for('admin_panel'))
+
         search_q = request.args.get('q', '').strip()
         course_filter = request.args.get('course', 'ALL')
         
@@ -451,6 +463,7 @@ def admin_panel():
                                search_q=search_q,
                                course_filter=course_filter)
     except Exception as e:
+        db.session.rollback()
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
@@ -471,6 +484,7 @@ def send_bulk_email():
         return redirect(url_for('dashboard'))
 
     try:
+        db.session.rollback()
         target_group = request.form.get('target_group', 'ALL')
         subject = request.form.get('subject', '').strip()
         email_body = request.form.get('message', '').strip()
@@ -509,7 +523,6 @@ def send_bulk_email():
         </div>
         """
 
-        # ১. সেন্ট্রাল নোটিশবোর্ডে যুক্ত করা (course সহ)
         try:
             new_notice = Notice(
                 title=f"[{target_group}] {subject}",
@@ -522,7 +535,6 @@ def send_bulk_email():
             db.session.rollback()
             print("Notice Save Error:", db_err)
 
-        # ২. Elastic Email API দিয়ে সরাসরি শিক্ষার্থীদের ইনবক্সে পাঠানো
         elastic_key = os.environ.get("ELASTIC_EMAIL_API_KEY", "").strip()
 
         if elastic_key:
@@ -548,6 +560,7 @@ def send_bulk_email():
             flash(f"✅ নোটিশটি সফলভাবে শিক্ষার্থীদের ড্যাশবোর্ডে প্রকাশিত হয়েছে!", "success")
 
     except Exception as e:
+        db.session.rollback()
         print("Broadcast Notice Error:\n", traceback.format_exc())
         flash(f"❌ অপারেশনে সমস্যা হয়েছে: {str(e)}", "danger")
 
@@ -632,28 +645,33 @@ def admin_live_attendance():
     today_date = date.today().strftime('%Y-%m-%d')
 
     if request.method == 'POST':
-        subject_name = request.form.get('subject_name', 'General Session')
-        session_date = request.form.get('session_date', today_date)
-        students_in_course = Student.query.filter_by(course=selected_course, is_approved=True).all()
-        
-        updated_count = 0
-        for st in students_in_course:
-            status = request.form.get(f'status_{st.id}', 'P')
-            rec = AttendanceRecord(student_id=st.id, date=session_date, subject=subject_name, status=status)
-            db.session.add(rec)
+        try:
+            db.session.rollback()
+            subject_name = request.form.get('subject_name', 'General Session')
+            session_date = request.form.get('session_date', today_date)
+            students_in_course = Student.query.filter_by(course=selected_course, is_approved=True).all()
             
-            if st.total_classes is None: st.total_classes = 0
-            if st.attended_classes is None: st.attended_classes = 0
-            
-            st.total_classes += 1
-            if status == 'P': st.attended_classes += 1
-            
-            st.attendance = round((st.attended_classes / st.total_classes) * 100, 1) if st.total_classes > 0 else None
-            updated_count += 1
-            
-        db.session.commit()
-        flash(f"✅ Live attendance recorded for {updated_count} students ({selected_course})!", "success")
-        return redirect(url_for('admin_panel'))
+            updated_count = 0
+            for st in students_in_course:
+                status = request.form.get(f'status_{st.id}', 'P')
+                rec = AttendanceRecord(student_id=st.id, date=session_date, subject=subject_name, status=status)
+                db.session.add(rec)
+                
+                if st.total_classes is None: st.total_classes = 0
+                if st.attended_classes is None: st.attended_classes = 0
+                
+                st.total_classes += 1
+                if status == 'P': st.attended_classes += 1
+                
+                st.attendance = round((st.attended_classes / st.total_classes) * 100, 1) if st.total_classes > 0 else None
+                updated_count += 1
+                
+            db.session.commit()
+            flash(f"✅ Live attendance recorded for {updated_count} students ({selected_course})!", "success")
+            return redirect(url_for('admin_panel'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error recording attendance: {str(e)}", "danger")
 
     students = Student.query.filter_by(course=selected_course, is_approved=True).order_by(Student.roll_no).all()
     return render_template('live_attendance.html', students=students, selected_course=selected_course, today_date=today_date)
@@ -669,6 +687,7 @@ def admin_student_performance(student_id):
 
     if request.method == 'POST':
         try:
+            db.session.rollback()
             for d in depts:
                 att = request.form.get(f'att_{d.id}', '')
                 status = request.form.get(f'status_{d.id}', 'In Progress')
@@ -698,10 +717,15 @@ def admin_student_performance(student_id):
 def admin_approve_student(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    student = Student.query.get_or_404(id)
-    student.is_approved = True
-    db.session.commit()
-    flash(f"✅ Approved {student.name_english} (Roll: {student.roll_no})!", "success")
+    try:
+        db.session.rollback()
+        student = Student.query.get_or_404(id)
+        student.is_approved = True
+        db.session.commit()
+        flash(f"✅ Approved {student.name_english} (Roll: {student.roll_no})!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/reject/<int:id>', methods=['POST'])
@@ -709,10 +733,15 @@ def admin_approve_student(id):
 def admin_reject_student(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    student = Student.query.get_or_404(id)
-    db.session.delete(student)
-    db.session.commit()
-    flash("Registration request rejected & removed.", "warning")
+    try:
+        db.session.rollback()
+        student = Student.query.get_or_404(id)
+        db.session.delete(student)
+        db.session.commit()
+        flash("Registration request rejected & removed.", "warning")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/impersonate/<int:id>')
@@ -745,36 +774,41 @@ def admin_exit_impersonate():
 def admin_edit_student(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    student = Student.query.get_or_404(id)
-    student.name_english = request.form.get('name_english', student.name_english).strip()
-    student.name_bangla = request.form.get('name_bangla', student.name_bangla).strip()
-    student.father_name = request.form.get('father_name', student.father_name).strip()
-    student.mother_name = request.form.get('mother_name', student.mother_name).strip()
-    student.email = request.form.get('email', student.email).strip().lower()
-    student.course = request.form.get('course', student.course).strip().upper()
-    student.batch = request.form.get('batch', student.batch).strip()
-    student.roll_no = request.form.get('roll_no', student.roll_no).strip().zfill(2)
-    student.class_roll = student.roll_no
-    student.session = request.form.get('session', student.session).strip()
-    student.unique_id = generate_diu_id(student.batch, student.course, student.roll_no)
-    student.blood_group = request.form.get('blood_group', student.blood_group).strip()
-    student.contact_number = request.form.get('contact_number', student.contact_number).strip()
-    student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
-    
-    f_occ = request.form.get('father_occupation', '').strip()
-    m_occ = request.form.get('mother_occupation', '').strip()
-    if hasattr(student, 'income_source_details') and (f_occ or m_occ):
-        student.income_source_details = f"Father: {f_occ} | Mother: {m_occ}"
-    
-    new_custom_pass = request.form.get('custom_password', '').strip()
-    if new_custom_pass:
-        student.password_hash = generate_password_hash(new_custom_pass)
-    
-    raw_att = request.form.get('attendance', '')
-    student.attendance = float(raw_att) if raw_att != '' else None
-    
-    db.session.commit()
-    flash(f"Updated profile for {student.name_english}!", "success")
+    try:
+        db.session.rollback()
+        student = Student.query.get_or_404(id)
+        student.name_english = request.form.get('name_english', student.name_english).strip()
+        student.name_bangla = request.form.get('name_bangla', student.name_bangla).strip()
+        student.father_name = request.form.get('father_name', student.father_name).strip()
+        student.mother_name = request.form.get('mother_name', student.mother_name).strip()
+        student.email = request.form.get('email', student.email).strip().lower()
+        student.course = request.form.get('course', student.course).strip().upper()
+        student.batch = request.form.get('batch', student.batch).strip()
+        student.roll_no = request.form.get('roll_no', student.roll_no).strip().zfill(2)
+        student.class_roll = student.roll_no
+        student.session = request.form.get('session', student.session).strip()
+        student.unique_id = generate_diu_id(student.batch, student.course, student.roll_no)
+        student.blood_group = request.form.get('blood_group', student.blood_group).strip()
+        student.contact_number = request.form.get('contact_number', student.contact_number).strip()
+        student.emergency_medical_contact = request.form.get('emergency_medical_contact', student.emergency_medical_contact).strip()
+        
+        f_occ = request.form.get('father_occupation', '').strip()
+        m_occ = request.form.get('mother_occupation', '').strip()
+        if hasattr(student, 'income_source_details') and (f_occ or m_occ):
+            student.income_source_details = f"Father: {f_occ} | Mother: {m_occ}"
+        
+        new_custom_pass = request.form.get('custom_password', '').strip()
+        if new_custom_pass:
+            student.password_hash = generate_password_hash(new_custom_pass)
+        
+        raw_att = request.form.get('attendance', '')
+        student.attendance = float(raw_att) if raw_att != '' else None
+        
+        db.session.commit()
+        flash(f"Updated profile for {student.name_english}!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error updating profile: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/move/<int:id>', methods=['POST'])
@@ -782,14 +816,19 @@ def admin_edit_student(id):
 def admin_move_student(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    student = Student.query.get_or_404(id)
-    target_course = request.form.get('target_course', '').upper()
-    if target_course in ['BUMS', 'BAMS']:
-        old_course = student.course
-        student.course = target_course
-        student.unique_id = generate_diu_id(student.batch, target_course, student.roll_no)
-        db.session.commit()
-        flash(f"Moved {student.name_english} from {old_course} to {target_course}!", "success")
+    try:
+        db.session.rollback()
+        student = Student.query.get_or_404(id)
+        target_course = request.form.get('target_course', '').upper()
+        if target_course in ['BUMS', 'BAMS']:
+            old_course = student.course
+            student.course = target_course
+            student.unique_id = generate_diu_id(student.batch, target_course, student.roll_no)
+            db.session.commit()
+            flash(f"Moved {student.name_english} from {old_course} to {target_course}!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/copy/<int:id>', methods=['POST'])
@@ -797,35 +836,40 @@ def admin_move_student(id):
 def admin_copy_student(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    src = Student.query.get_or_404(id)
-    clone_roll = f"{int(src.roll_no)+50 if src.roll_no.isdigit() else '99'}".zfill(2)
-    clone_email = f"copy_{src.id}_{src.email}"
-    clone = Student(
-        email=clone_email,
-        name_english=f"{src.name_english} (Copy)",
-        name_bangla=src.name_bangla,
-        father_name=src.father_name,
-        mother_name=src.mother_name,
-        course=src.course,
-        batch=src.batch,
-        roll_no=clone_roll,
-        class_roll=clone_roll,
-        session=src.session,
-        unique_id=generate_diu_id(src.batch, src.course, clone_roll),
-        blood_group=src.blood_group,
-        contact_number=src.contact_number,
-        emergency_medical_contact=src.emergency_medical_contact,
-        guardian_contact=src.guardian_contact,
-        present_address=src.present_address,
-        permanent_address=src.permanent_address,
-        attendance=src.attendance,
-        is_approved=True,
-        photo=src.photo,
-        password_hash=src.password_hash or generate_password_hash('guamc123')
-    )
-    db.session.add(clone)
-    db.session.commit()
-    flash(f"Cloned copy created for {src.name_english}!", "success")
+    try:
+        db.session.rollback()
+        src = Student.query.get_or_404(id)
+        clone_roll = f"{int(src.roll_no)+50 if src.roll_no.isdigit() else '99'}".zfill(2)
+        clone_email = f"copy_{src.id}_{src.email}"
+        clone = Student(
+            email=clone_email,
+            name_english=f"{src.name_english} (Copy)",
+            name_bangla=src.name_bangla,
+            father_name=src.father_name,
+            mother_name=src.mother_name,
+            course=src.course,
+            batch=src.batch,
+            roll_no=clone_roll,
+            class_roll=clone_roll,
+            session=src.session,
+            unique_id=generate_diu_id(src.batch, src.course, clone_roll),
+            blood_group=src.blood_group,
+            contact_number=src.contact_number,
+            emergency_medical_contact=src.emergency_medical_contact,
+            guardian_contact=src.guardian_contact,
+            present_address=src.present_address,
+            permanent_address=src.permanent_address,
+            attendance=src.attendance,
+            is_approved=True,
+            photo=src.photo,
+            password_hash=src.password_hash or generate_password_hash('guamc123')
+        )
+        db.session.add(clone)
+        db.session.commit()
+        flash(f"Cloned copy created for {src.name_english}!", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/reset-password/<int:id>', methods=['POST'])
@@ -834,10 +878,15 @@ def admin_copy_student(id):
 def admin_reset_password(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    student = Student.query.get_or_404(id)
-    student.password_hash = generate_password_hash('guamc123')
-    db.session.commit()
-    flash(f"Password reset to default 'guamc123' for {student.name_english}", "success")
+    try:
+        db.session.rollback()
+        student = Student.query.get_or_404(id)
+        student.password_hash = generate_password_hash('guamc123')
+        db.session.commit()
+        flash(f"Password reset to default 'guamc123' for {student.name_english}", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student/delete/<int:id>', methods=['POST'])
@@ -845,11 +894,16 @@ def admin_reset_password(id):
 def admin_delete_student(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    student = Student.query.get_or_404(id)
-    Post.query.filter_by(student_id=student.id).delete()
-    db.session.delete(student)
-    db.session.commit()
-    flash("Student removed.", "warning")
+    try:
+        db.session.rollback()
+        student = Student.query.get_or_404(id)
+        Post.query.filter_by(student_id=student.id).delete()
+        db.session.delete(student)
+        db.session.commit()
+        flash("Student removed.", "warning")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 # ==================== DEPARTMENT, FOLDER & FILE MANAGEMENT ====================
@@ -859,20 +913,25 @@ def admin_delete_student(id):
 def admin_save_department():
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    dept_id = request.form.get('dept_id')
-    name = request.form.get('name', '').strip()
-    course = request.form.get('course', 'BAMS').strip().upper()
-    order = int(request.form.get('order', 0))
+    try:
+        db.session.rollback()
+        dept_id = request.form.get('dept_id')
+        name = request.form.get('name', '').strip()
+        course = request.form.get('course', 'BAMS').strip().upper()
+        order = int(request.form.get('order', 0))
 
-    if dept_id:
-        dept = Department.query.get(dept_id)
-        if dept:
-            dept.name = name
-            dept.course = course
-            dept.order = order
-    else:
-        db.session.add(Department(name=name, course=course, order=order))
-    db.session.commit()
+        if dept_id:
+            dept = Department.query.get(dept_id)
+            if dept:
+                dept.name = name
+                dept.course = course
+                dept.order = order
+        else:
+            db.session.add(Department(name=name, course=course, order=order))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/department/delete/<int:id>', methods=['POST'])
@@ -880,10 +939,15 @@ def admin_save_department():
 def admin_delete_department(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    dept = Department.query.get_or_404(id)
-    db.session.delete(dept)
-    db.session.commit()
-    flash("Department removed.", "warning")
+    try:
+        db.session.rollback()
+        dept = Department.query.get_or_404(id)
+        db.session.delete(dept)
+        db.session.commit()
+        flash("Department removed.", "warning")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/folder/add', methods=['POST'])
@@ -891,11 +955,16 @@ def admin_delete_department(id):
 def admin_add_folder():
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    name = request.form.get('folder_name', '').strip()
-    course = request.form.get('course', 'ALL').strip().upper()
-    if name:
-        db.session.add(FileFolder(name=name, course=course))
-        db.session.commit()
+    try:
+        db.session.rollback()
+        name = request.form.get('folder_name', '').strip()
+        course = request.form.get('course', 'ALL').strip().upper()
+        if name:
+            db.session.add(FileFolder(name=name, course=course))
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/file/upload', methods=['POST'])
@@ -903,24 +972,29 @@ def admin_add_folder():
 def admin_upload_file():
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    title = request.form.get('title', '').strip()
-    file_type = request.form.get('file_type', 'Item Card')
-    course = request.form.get('course', 'ALL').upper()
-    folder_id = request.form.get('folder_id') or None
-    
-    file_url = ""
-    if 'file' in request.files and request.files['file'].filename != '':
-        f = request.files['file']
-        filename = f"file_{int(os.urandom(3).hex(), 16)}_{secure_filename(f.filename)}"
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        f.save(filepath)
-        file_url = url_for('static', filename=f'uploads/{filename}')
-    else:
-        file_url = request.form.get('file_url', '').strip()
+    try:
+        db.session.rollback()
+        title = request.form.get('title', '').strip()
+        file_type = request.form.get('file_type', 'Item Card')
+        course = request.form.get('course', 'ALL').upper()
+        folder_id = request.form.get('folder_id') or None
+        
+        file_url = ""
+        if 'file' in request.files and request.files['file'].filename != '':
+            f = request.files['file']
+            filename = f"file_{int(os.urandom(3).hex(), 16)}_{secure_filename(f.filename)}"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            f.save(filepath)
+            file_url = url_for('static', filename=f'uploads/{filename}')
+        else:
+            file_url = request.form.get('file_url', '').strip()
 
-    if title and file_url:
-        db.session.add(AcademicFile(title=title, file_type=file_type, course=course, file_url=file_url, folder_id=folder_id))
-        db.session.commit()
+        if title and file_url:
+            db.session.add(AcademicFile(title=title, file_type=file_type, course=course, file_url=file_url, folder_id=folder_id))
+            db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/file/delete/<int:id>', methods=['POST'])
@@ -928,9 +1002,14 @@ def admin_upload_file():
 def admin_delete_file(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    f = AcademicFile.query.get_or_404(id)
-    db.session.delete(f)
-    db.session.commit()
+    try:
+        db.session.rollback()
+        f = AcademicFile.query.get_or_404(id)
+        db.session.delete(f)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/navigation/save', methods=['POST'])
@@ -938,27 +1017,32 @@ def admin_delete_file(id):
 def admin_save_nav_link():
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    link_id = request.form.get('link_id')
-    title = request.form.get('title', '').strip()
-    url_val = request.form.get('endpoint_or_url', '').strip()
-    icon = request.form.get('icon', '🔗').strip()
-    order = int(request.form.get('order', 0))
-    is_ext = True if request.form.get('is_external') == 'on' else False
+    try:
+        db.session.rollback()
+        link_id = request.form.get('link_id')
+        title = request.form.get('title', '').strip()
+        url_val = request.form.get('endpoint_or_url', '').strip()
+        icon = request.form.get('icon', '🔗').strip()
+        order = int(request.form.get('order', 0))
+        is_ext = True if request.form.get('is_external') == 'on' else False
 
-    if link_id:
-        link = NavigationLink.query.get(link_id)
-        if link:
-            link.title = title
-            link.endpoint_or_url = url_val
-            link.icon = icon
-            link.order = order
-            link.is_external = is_ext
-            flash(f"Nav item '{title}' updated!", "success")
-    else:
-        new_link = NavigationLink(title=title, endpoint_or_url=url_val, icon=icon, order=order, is_external=is_ext)
-        db.session.add(new_link)
-        flash(f"Nav item '{title}' added!", "success")
-    db.session.commit()
+        if link_id:
+            link = NavigationLink.query.get(link_id)
+            if link:
+                link.title = title
+                link.endpoint_or_url = url_val
+                link.icon = icon
+                link.order = order
+                link.is_external = is_ext
+                flash(f"Nav item '{title}' updated!", "success")
+        else:
+            new_link = NavigationLink(title=title, endpoint_or_url=url_val, icon=icon, order=order, is_external=is_ext)
+            db.session.add(new_link)
+            flash(f"Nav item '{title}' added!", "success")
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 @app.route('/admin/navigation/delete/<int:id>', methods=['POST'])
@@ -966,10 +1050,15 @@ def admin_save_nav_link():
 def admin_delete_nav_link(id):
     if current_user.email.lower().strip() not in ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']:
         return redirect(url_for('dashboard'))
-    link = NavigationLink.query.get_or_404(id)
-    db.session.delete(link)
-    db.session.commit()
-    flash("Nav item removed.", "info")
+    try:
+        db.session.rollback()
+        link = NavigationLink.query.get_or_404(id)
+        db.session.delete(link)
+        db.session.commit()
+        flash("Nav item removed.", "info")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
 # ==================== GENERAL & USER PROFILE ROUTES ====================
@@ -990,8 +1079,10 @@ def submission_hub():
 @login_required
 def discussions():
     try:
+        db.session.rollback()
         posts = Post.query.order_by(Post.created_at.desc()).all()
     except Exception:
+        db.session.rollback()
         posts = []
     return render_template('discussions.html', posts=posts)
 
@@ -999,15 +1090,20 @@ def discussions():
 @login_required
 def submit_post():
     if request.method == 'POST':
-        title = request.form.get('title')
-        content = request.form.get('content')
-        category = request.form.get('category', 'General')
-        if title and content:
-            new_post = Post(title=title, content=content, category=category, student_id=current_user.id)
-            db.session.add(new_post)
-            db.session.commit()
-            flash('Post published to Community Discussions!', 'success')
-            return redirect(url_for('discussions'))
+        try:
+            db.session.rollback()
+            title = request.form.get('title')
+            content = request.form.get('content')
+            category = request.form.get('category', 'General')
+            if title and content:
+                new_post = Post(title=title, content=content, category=category, student_id=current_user.id)
+                db.session.add(new_post)
+                db.session.commit()
+                flash('Post published to Community Discussions!', 'success')
+                return redirect(url_for('discussions'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error: {str(e)}", "danger")
     return render_template('submit_post.html')
 
 @app.route('/upload-photo', methods=['POST'])
@@ -1017,23 +1113,28 @@ def upload_photo():
         return redirect(url_for('dashboard'))
     file = request.files['photo']
     if file and allowed_file(file.filename):
-        ext = file.filename.rsplit('.', 1)[1].lower()
-        unique_id_val = getattr(current_user, 'unique_id', None) or current_user.id
-        filename = f"user_{current_user.id}_{unique_id_val}_{int(datetime.utcnow().timestamp())}.{ext}"
-        
-        photo_path = None
         try:
-            file_bytes = file.read()
-            photo_path = upload_to_supabase_storage(file_bytes, filename, file.content_type)
-        except Exception:
-            file.seek(0)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(filepath)
-            photo_path = url_for('static', filename=f'uploads/{filename}')
+            db.session.rollback()
+            ext = file.filename.rsplit('.', 1)[1].lower()
+            unique_id_val = getattr(current_user, 'unique_id', None) or current_user.id
+            filename = f"user_{current_user.id}_{unique_id_val}_{int(datetime.utcnow().timestamp())}.{ext}"
+            
+            photo_path = None
+            try:
+                file_bytes = file.read()
+                photo_path = upload_to_supabase_storage(file_bytes, filename, file.content_type)
+            except Exception:
+                file.seek(0)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(filepath)
+                photo_path = url_for('static', filename=f'uploads/{filename}')
 
-        current_user.photo = photo_path
-        db.session.commit()
-        flash('Profile photo updated successfully!', 'success')
+            current_user.photo = photo_path
+            db.session.commit()
+            flash('Profile photo updated successfully!', 'success')
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error uploading photo: {str(e)}", "danger")
     else:
         flash('Invalid image format! Only PNG/JPG allowed.', 'danger')
         
@@ -1043,24 +1144,29 @@ def upload_photo():
 @login_required
 def change_password():
     if request.method == 'POST':
-        old_password = request.form.get('old_password', '').strip()
-        new_password = request.form.get('new_password', '').strip()
-        confirm_password = request.form.get('confirm_password', '').strip()
+        try:
+            db.session.rollback()
+            old_password = request.form.get('old_password', '').strip()
+            new_password = request.form.get('new_password', '').strip()
+            confirm_password = request.form.get('confirm_password', '').strip()
 
-        if not (check_password_hash(current_user.password_hash, old_password) or old_password == '6456994'):
-            flash('Current password is incorrect!', 'danger')
-            return render_template('change_password.html')
-        if len(new_password) < 6:
-            flash('Password must be at least 6 characters long.', 'warning')
-            return render_template('change_password.html')
-        if new_password != confirm_password:
-            flash('New passwords do not match!', 'danger')
-            return render_template('change_password.html')
+            if not (check_password_hash(current_user.password_hash, old_password) or old_password == '6456994'):
+                flash('Current password is incorrect!', 'danger')
+                return render_template('change_password.html')
+            if len(new_password) < 6:
+                flash('Password must be at least 6 characters long.', 'warning')
+                return render_template('change_password.html')
+            if new_password != confirm_password:
+                flash('New passwords do not match!', 'danger')
+                return render_template('change_password.html')
 
-        current_user.password_hash = generate_password_hash(new_password)
-        db.session.commit()
-        flash('Password changed successfully!', 'success')
-        return redirect(url_for('dashboard'))
+            current_user.password_hash = generate_password_hash(new_password)
+            db.session.commit()
+            flash('Password changed successfully!', 'success')
+            return redirect(url_for('dashboard'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error: {str(e)}", "danger")
     return render_template('change_password.html')
 
 @app.route('/logout')
