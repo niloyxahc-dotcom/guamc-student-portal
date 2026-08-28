@@ -321,6 +321,44 @@ def admin_panel():
         err_details = traceback.format_exc()
         return f"<pre style='color:red; background:#fff; padding:20px; font-size:14px;'>Admin Panel Error:\n{err_details}</pre>", 500
 
+@app.route('/admin/live-attendance', methods=['GET', 'POST'])
+@login_required
+def admin_live_attendance():
+    selected_course = request.args.get('course', 'BUMS')
+    today_date = date.today().strftime('%Y-%m-%d')
+
+    if request.method == 'POST':
+        try:
+            db.session.rollback()
+            subject_name = request.form.get('subject_name', 'General Session')
+            session_date = request.form.get('session_date', today_date)
+            students_in_course = Student.query.filter_by(course=selected_course, is_approved=True).all()
+            
+            updated_count = 0
+            for st in students_in_course:
+                status = request.form.get(f'status_{st.id}', 'P')
+                rec = AttendanceRecord(student_id=st.id, date=session_date, subject=subject_name, status=status)
+                db.session.add(rec)
+                
+                if st.total_classes is None: st.total_classes = 0
+                if st.attended_classes is None: st.attended_classes = 0
+                
+                st.total_classes += 1
+                if status == 'P': st.attended_classes += 1
+                
+                st.attendance = round((st.attended_classes / st.total_classes) * 100, 1) if st.total_classes > 0 else None
+                updated_count += 1
+                
+            db.session.commit()
+            flash(f"✅ Live attendance recorded for {updated_count} students ({selected_course})!", "success")
+            return redirect(url_for('admin_panel'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f"Error recording attendance: {str(e)}", "danger")
+
+    students = Student.query.filter_by(course=selected_course, is_approved=True).order_by(Student.roll_no).all()
+    return render_template('live_attendance.html', students=students, selected_course=selected_course, today_date=today_date)
+
 @app.route('/teacher', methods=['GET', 'POST'])
 @login_required
 def teacher_panel():
