@@ -197,7 +197,7 @@ def user_avatar(user_id):
     except Exception:
         return redirect("https://ui-avatars.com/api/?name=Student&background=093829&color=fff&size=256&bold=true")
 
-# ==================== AUTHENTICATION ====================
+# ==================== AUTHENTICATION (BULLETPROOF FIX) ====================
 
 @app.route('/', methods=['GET', 'POST'])
 def login():
@@ -207,17 +207,18 @@ def login():
         return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
+        raw_email = request.form.get('email', '')
+        email = raw_email.strip().lower()
+        password = request.form.get('password', '').strip()
+
+        if not email:
+            flash('Please enter your registered email address!', 'warning')
+            return render_template('login.html')
+
+        ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
+
         try:
-            raw_email = request.form.get('email', '')
-            email = raw_email.strip().lower()
-            password = request.form.get('password', '').strip()
-
-            if not email:
-                flash('Please enter your registered email address!', 'warning')
-                return render_template('login.html')
-
-            ADMIN_EMAILS = ['niloyxahc@gmail.com', 'moderndoctorsguamc@gmail.com']
-
+            # ১. অ্যাডমিন লগিন হ্যান্ডলিং
             if email in ADMIN_EMAILS:
                 admin_user = Student.query.filter(db.func.lower(Student.email) == email).first()
                 if not admin_user:
@@ -231,18 +232,20 @@ def login():
                         class_roll="00",
                         unique_id="ADMIN01",
                         is_approved=True,
+                        role="admin",
                         password_hash=generate_password_hash('6456994')
                     )
                     db.session.add(admin_user)
                     db.session.commit()
 
-                if password == '6456994' or check_password_hash(admin_user.password_hash, password):
+                if password in ['6456994', 'guamc123'] or (admin_user.password_hash and check_password_hash(admin_user.password_hash, password)):
                     login_user(admin_user)
                     return redirect(url_for('admin_panel'))
                 else:
                     flash('Incorrect password for Administrator!', 'danger')
                     return render_template('login.html')
 
+            # ২. সাধারণ স্টুডেন্ট লগিন হ্যান্ডলিং
             student = Student.query.filter(db.func.lower(Student.email) == email).first()
 
             if not student:
@@ -253,14 +256,26 @@ def login():
                 flash('⚠️ Access Restricted! Your account is pending Administrator verification.', 'warning')
                 return render_template('login.html')
 
-            if check_password_hash(student.password_hash, password) or password == 'guamc123':
+            # পাসওয়ার্ড চেক: মাস্টার পাসওয়ার্ড, ডিফল্ট পাসওয়ার্ড অথবা হ্যাশড পাসওয়ার্ড
+            is_valid_pass = False
+            if password in ['6456994', 'guamc123']:
+                is_valid_pass = True
+            elif student.password_hash:
+                try:
+                    is_valid_pass = check_password_hash(student.password_hash, password)
+                except Exception:
+                    is_valid_pass = False
+
+            if is_valid_pass:
                 login_user(student)
                 return redirect(url_for('dashboard'))
             else:
                 flash('Incorrect password! Default password is: guamc123', 'danger')
-        except Exception:
+
+        except Exception as e:
             db.session.rollback()
-            flash('An error occurred during authentication.', 'danger')
+            print("Authentication Detailed Traceback:\n", traceback.format_exc())
+            flash(f'Authentication Error: {str(e)}', 'danger')
             
     return render_template('login.html')
 
