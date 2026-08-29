@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 import requests
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jtrcajaqybqzzoznsruz.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0cmNhamFxeWJxenpvem5zcnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDUwODQsImV4cCI6MjEwMzA4MTA4NH0.kVlonjuIyEWxPL3aygsyX-UtMBbBL1wZZ2cizHOfq5c")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0cmNhamFxeWJxenpvem5zcnV6Iiwicm9sZSI6ImFub24iOjE3ODc1MDUwODQsImV4cCI6MjEwMzA4MTA4NH0.kVlonjuIyEWxPL3aygsyX-UtMBbBL1wZZ2cizHOfq5c")
 
 def upload_to_supabase_storage(file_bytes, filename, content_type):
     upload_url = f"{SUPABASE_URL}/storage/v1/object/student-photos/{filename}"
@@ -318,29 +318,33 @@ def admin_student_detail(student_id):
     try:
         student = Student.query.get_or_404(student_id)
         dossier = {
-            "Name (In English)": student.name_english,
-            "নাম (বাংলায়)": student.name_bangla,
-            "Course:": student.course,
-            "Batch": student.batch,
-            "Class roll:": student.roll_no,
-            "Email Address": student.email,
-            "Father's Name": student.father_name,
-            "Mother's Name": student.mother_name,
-            "Your contact number:": student.contact_number,
-            "Emergency Medical Contact Number:": student.emergency_medical_contact,
-            "Local guardian's contact number?": student.guardian_contact,
-            "Blood group?": student.blood_group,
-            "Present address:": student.present_address,
-            "Your Permanent address:": student.permanent_address,
+            "Name (In English)": student.name_english or '',
+            "নাম (বাংলায়)": student.name_bangla or '',
+            "Course:": student.course or '',
+            "Batch": student.batch or '',
+            "Class roll:": student.roll_no or '',
+            "Session": student.session or '',
+            "Email Address": student.email or '',
+            "Father's Name": student.father_name or '',
+            "Mother's Name": student.mother_name or '',
+            "Your contact number:": student.contact_number or '',
+            "Emergency Medical Contact Number:": student.emergency_medical_contact or '',
+            "Local guardian's contact number?": student.guardian_contact or '',
+            "Blood group?": student.blood_group or '',
+            "Present address:": student.present_address or '',
+            "Your Permanent address:": student.permanent_address or '',
         }
+
+        photo_url = url_for('user_avatar', user_id=student.id)
+
         return jsonify({
-            "name_english": student.name_english,
-            "name_bangla": student.name_bangla,
-            "course": student.course,
-            "batch": student.batch,
-            "roll_no": student.roll_no,
-            "unique_id": student.unique_id,
-            "photo": student.photo,
+            "name_english": student.name_english or 'Student',
+            "name_bangla": student.name_bangla or '',
+            "course": student.course or 'BUMS',
+            "batch": student.batch or '37th',
+            "roll_no": student.roll_no or '00',
+            "unique_id": student.unique_id or '',
+            "photo": photo_url,
             "dossier_data": dossier
         })
     except Exception as e:
