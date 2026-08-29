@@ -241,9 +241,20 @@
                 <label class="text-slate-600">Email Address *</label>
                 <input type="email" name="staff_email" placeholder="teacher@guamc.edu.bd" required class="w-full p-2 border border-slate-200 rounded-xl mt-1">
             </div>
-            <div>
-                <label class="text-slate-600">Password *</label>
-                <input type="text" name="staff_password" placeholder="Set temporary password" required class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-mono">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div>
+                    <label class="text-slate-600">Assign Department *</label>
+                    <select name="staff_department" class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-bold bg-white">
+                        <option value="General Administration">General Administration</option>
+                        {% for d in departments %}
+                        <option value="{{ d.name }}">{{ d.name }} ({{ d.course }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-slate-600">Password *</label>
+                    <input type="text" name="staff_password" placeholder="Set temporary password" required class="w-full p-2 border border-slate-200 rounded-xl mt-1 font-mono">
+                </div>
             </div>
             <button type="submit" class="w-full py-2.5 bg-amber-700 hover:bg-amber-800 text-white rounded-xl font-black transition shadow">Create Staff Account</button>
         </form>
@@ -594,7 +605,7 @@
         <form method="POST" action="{{ url_for('admin_save_nav_link') }}" class="bg-slate-50 p-4 rounded-2xl border border-slate-200 mb-6 space-y-3 text-xs font-bold">
             <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
                 <input type="text" name="icon" placeholder="Icon (📚)" required class="p-2 border border-slate-200 rounded-xl text-center">
-                <input type="text" name="title" placeholder="Title" required class="p-2 border border-slate-200 rounded-xl sm:col-span-2">
+                <input type="text" name="endpoint_or_url" placeholder="Title" required class="p-2 border border-slate-200 rounded-xl sm:col-span-2">
                 <input type="number" name="order" placeholder="Order" value="{{ (nav_links|length)+1 }}" class="p-2 border border-slate-200 rounded-xl">
             </div>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
