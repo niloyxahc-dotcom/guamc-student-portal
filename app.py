@@ -15,7 +15,7 @@ from werkzeug.utils import secure_filename
 import requests
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://jtrcajaqybqzzoznsruz.supabase.co")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0cmNhamFxeWJxenpvem5zcnV6Iiwicm9sZSI6ImFub24iOjE3ODc1MDUwODQsImV4cCI6MjEwMzA4MTA4NH0.kVlonjuIyEWxPL3aygsyX-UtMBbBL1wZZ2cizHOfq5c")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp0cmNhamFxeWJxenpvem5zcnV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1MDUwODQsImV4cCI6MjEwMzA4MTA4NH0.kVlonjuIyEWxPL3aygsyX-UtMBbBL1wZZ2cizHOfq5c")
 
 def upload_to_supabase_storage(file_bytes, filename, content_type):
     upload_url = f"{SUPABASE_URL}/storage/v1/object/student-photos/{filename}"
@@ -311,6 +311,20 @@ def admin_exit_impersonate():
     
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/admin/student/approve/<int:id>', methods=['POST'])
+@login_required
+def admin_approve_student(id):
+    try:
+        db.session.rollback()
+        student_obj = Student.query.get_or_404(id)
+        student_obj.is_approved = True
+        db.session.commit()
+        flash(f"Student {student_obj.name_english} approved successfully.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error approving student: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
 
 @app.route('/admin/student-detail_<int:student_id>')
 @login_required
