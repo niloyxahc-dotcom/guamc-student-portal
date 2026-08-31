@@ -326,6 +326,20 @@ def admin_approve_student(id):
         flash(f"Error approving student: {str(e)}", "danger")
     return redirect(url_for('admin_panel'))
 
+@app.route('/admin/student/reject/<int:id>', methods=['POST'])
+@login_required
+def admin_reject_student(id):
+    try:
+        db.session.rollback()
+        student_obj = Student.query.get_or_404(id)
+        db.session.delete(student_obj)
+        db.session.commit()
+        flash(f"Student {student_obj.name_english} rejected and removed.", "info")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Error rejecting student: {str(e)}", "danger")
+    return redirect(url_for('admin_panel'))
+
 @app.route('/admin/student-detail_<int:student_id>')
 @login_required
 def admin_student_detail(student_id):
